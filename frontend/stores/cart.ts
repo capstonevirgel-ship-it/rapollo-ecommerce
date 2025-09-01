@@ -184,16 +184,31 @@ export const useCartStore = defineStore("cart", {
     },
 
     // ✅ Update item quantity
-    async updateCart(id: number, quantity: number) {
-      this.loading = true
+    async updateCart(idOrVariantId: number, quantity: number, isLoggedIn: boolean = true) {
       this.error = null
+      if (!isLoggedIn) {
+        if (!import.meta.client) return
+        const guestCart: Cart[] = this.loadGuestCart()
+        const index = guestCart.findIndex((item) => item.variant_id === idOrVariantId)
+        if (index !== -1) {
+          if (quantity <= 0) {
+            guestCart.splice(index, 1)
+          } else {
+            guestCart[index].quantity = quantity
+          }
+          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(guestCart))
+        }
+        return
+      }
+
+      this.loading = true
       try {
-        const data = await useCustomFetch<Cart>(`/api/cart/${id}`, {
+        const data = await useCustomFetch<Cart>(`/api/cart/${idOrVariantId}`, {
           method: "PUT",
           body: { quantity },
         })
 
-        const index = this.cart.findIndex((item) => item.id === id)
+        const index = this.cart.findIndex((item) => item.id === idOrVariantId)
         if (index !== -1) {
           this.cart[index] = data
         }
@@ -208,12 +223,20 @@ export const useCartStore = defineStore("cart", {
     },
 
     // ✅ Remove item from cart
-    async removeFromCart(id: number) {
-      this.loading = true
+    async removeFromCart(idOrVariantId: number, isLoggedIn: boolean = true) {
       this.error = null
+      if (!isLoggedIn) {
+        if (!import.meta.client) return
+        const guestCart: Cart[] = this.loadGuestCart()
+        const after = guestCart.filter((item) => item.variant_id !== idOrVariantId)
+        localStorage.setItem(GUEST_CART_KEY, JSON.stringify(after))
+        return
+      }
+
+      this.loading = true
       try {
-        await useCustomFetch(`/api/cart/${id}`, { method: "DELETE" })
-        this.cart = this.cart.filter((item) => item.id !== id)
+        await useCustomFetch(`/api/cart/${idOrVariantId}`, { method: "DELETE" })
+        this.cart = this.cart.filter((item) => item.id !== idOrVariantId)
       } catch (error: any) {
         this.error = error.data?.message || error.message || "Failed to remove item"
         throw error

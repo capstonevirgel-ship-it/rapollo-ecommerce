@@ -49,70 +49,18 @@ const total = computed(() => subtotal.value + shipping.value + tax.value)
 // Handlers
 const increaseQty = (item: any) => {
   if (isAuthenticated.value) {
-    cartStore.updateCart(item.id, item.quantity + 1)
+    cartStore.updateCart(item.id, item.quantity + 1, true)
   } else {
-    item.quantity++
-    cartStore.addToCart({ 
-      variant_id: item.variant.id, 
-      quantity: 1 
-    }, false, {
-      id: 0,
-      user_id: 0,
-      variant_id: item.variant.id,
-      quantity: item.quantity,
-      created_at: '',
-      updated_at: '',
-      variant: {
-        id: item.variant.id,
-        product_id: item.product.id,
-        color_id: item.variant.color_id ?? 0,
-        size_id: item.variant.size_id ?? 0,
-        price: item.variant.price ?? 0,
-        stock: item.variant.stock ?? 0,
-        sku: item.variant.sku ?? '',
-        created_at: '',
-        updated_at: '',
-        product: item.product,
-        color: item.variant.color ?? { id: 0, name: '', hex_code: '' },
-        size: item.variant.size ?? { id: 0, name: '', description: null },
-        images: []
-      }
-    } as any)
+    cartStore.updateCart(item.variant.id, item.quantity + 1, false)
   }
 }
 
 const decreaseQty = (item: any) => {
   if (item.quantity <= 1) return
   if (isAuthenticated.value) {
-    cartStore.updateCart(item.id, item.quantity - 1)
+    cartStore.updateCart(item.id, item.quantity - 1, true)
   } else {
-    item.quantity--
-    cartStore.addToCart({ 
-      variant_id: item.variant.id, 
-      quantity: -1 
-    }, false, {
-      id: 0,
-      user_id: 0,
-      variant_id: item.variant.id,
-      quantity: item.quantity,
-      created_at: '',
-      updated_at: '',
-      variant: {
-        id: item.variant.id,
-        product_id: item.product.id,
-        color_id: item.variant.color_id ?? 0,
-        size_id: item.variant.size_id ?? 0,
-        price: item.variant.price ?? 0,
-        stock: item.variant.stock ?? 0,
-        sku: item.variant.sku ?? '',
-        created_at: '',
-        updated_at: '',
-        product: item.product,
-        color: item.variant.color ?? { id: 0, name: '', hex_code: '' },
-        size: item.variant.size ?? { id: 0, name: '', description: null },
-        images: []
-      }
-    } as any)
+    cartStore.updateCart(item.variant.id, item.quantity - 1, false)
   }
 }
 </script>
@@ -173,9 +121,24 @@ const decreaseQty = (item: any) => {
                 </div>
               </div>
 
-              <!-- Subtotal -->
-              <div class="col-span-2 text-right">
-                ${{ ((item.variant.price ?? 0) * item.quantity).toFixed(2) }}
+              <!-- Subtotal + Delete -->
+              <div class="col-span-2 flex items-center justify-end gap-2">
+                <button
+                  class="p-2 text-gray-500 hover:text-red-600 transition"
+                  aria-label="Remove item"
+                  @click="() => {
+                    if (isAuthenticated) {
+                      cartStore.removeFromCart(item.id)
+                    } else {
+                      cartStore.removeFromCart(item.variant.id, false)
+                    }
+                  }"
+                >
+                  <Icon name="mdi:trash-can-outline" class="w-5 h-5" />
+                </button>
+                <div class="text-right">
+                  ${{ ((item.variant.price ?? 0) * item.quantity).toFixed(2) }}
+                </div>
               </div>
             </div>
           </div>
