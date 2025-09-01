@@ -31,11 +31,11 @@ const cartItems = computed(() => {
     // Guest: cart from localStorage
     const guestCart = cartStore.loadGuestCart()
     return guestCart.map(item => ({
-      variant: { price: item.price ?? 0 }, // fallback
-      product: { 
-        name: item.name ?? 'Product', 
-        description: item.description ?? '', 
-        image: item.image ?? ''
+      variant: { id: item.variant_id, price: 0 },
+      product: {
+        name: 'Product',
+        description: '',
+        image: ''
       },
       quantity: item.quantity
     }))
