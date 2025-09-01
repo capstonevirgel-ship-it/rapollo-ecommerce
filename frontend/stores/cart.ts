@@ -126,7 +126,7 @@ export const useCartStore = defineStore("cart", {
     },
 
     // ✅ Add item to cart (handles guest + logged in)
-    async addToCart(payload: CartPayload, isLoggedIn: boolean) {
+    async addToCart(payload: CartPayload, isLoggedIn: boolean, guestItem?: Cart) {
       this.error = null
 
       try {
@@ -145,7 +145,7 @@ export const useCartStore = defineStore("cart", {
               guestCart.splice(index, 1)
             }
           } else if (payload.quantity > 0) {
-            guestCart.push(this.buildGuestCartItem(payload.variant_id, payload.quantity))
+            guestCart.push(guestItem ?? this.buildGuestCartItem(payload.variant_id, payload.quantity))
           }
 
           localStorage.setItem(GUEST_CART_KEY, JSON.stringify(guestCart))

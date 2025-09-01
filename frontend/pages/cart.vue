@@ -55,7 +55,29 @@ const increaseQty = (item: any) => {
     cartStore.addToCart({ 
       variant_id: item.variant.id, 
       quantity: 1 
-    }, false)
+    }, false, {
+      id: 0,
+      user_id: 0,
+      variant_id: item.variant.id,
+      quantity: item.quantity,
+      created_at: '',
+      updated_at: '',
+      variant: {
+        id: item.variant.id,
+        product_id: item.product.id,
+        color_id: item.variant.color_id ?? 0,
+        size_id: item.variant.size_id ?? 0,
+        price: item.variant.price ?? 0,
+        stock: item.variant.stock ?? 0,
+        sku: item.variant.sku ?? '',
+        created_at: '',
+        updated_at: '',
+        product: item.product,
+        color: item.variant.color ?? { id: 0, name: '', hex_code: '' },
+        size: item.variant.size ?? { id: 0, name: '', description: null },
+        images: []
+      }
+    } as any)
   }
 }
 
@@ -68,7 +90,29 @@ const decreaseQty = (item: any) => {
     cartStore.addToCart({ 
       variant_id: item.variant.id, 
       quantity: -1 
-    }, false)
+    }, false, {
+      id: 0,
+      user_id: 0,
+      variant_id: item.variant.id,
+      quantity: item.quantity,
+      created_at: '',
+      updated_at: '',
+      variant: {
+        id: item.variant.id,
+        product_id: item.product.id,
+        color_id: item.variant.color_id ?? 0,
+        size_id: item.variant.size_id ?? 0,
+        price: item.variant.price ?? 0,
+        stock: item.variant.stock ?? 0,
+        sku: item.variant.sku ?? '',
+        created_at: '',
+        updated_at: '',
+        product: item.product,
+        color: item.variant.color ?? { id: 0, name: '', hex_code: '' },
+        size: item.variant.size ?? { id: 0, name: '', description: null },
+        images: []
+      }
+    } as any)
   }
 }
 </script>

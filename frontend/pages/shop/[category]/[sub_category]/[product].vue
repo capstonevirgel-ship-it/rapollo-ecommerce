@@ -42,7 +42,30 @@ const addToCart = async () => {
   if (authStore.isAuthenticated) {
     await cartStore.store({ variant_id: variant.id, quantity: 1 })
   } else {
-    await cartStore.addToCart({ variant_id: variant.id, quantity: 1 }, false)
+    const guestItem = {
+      id: 0,
+      user_id: 0,
+      variant_id: variant.id,
+      quantity: 1,
+      created_at: '',
+      updated_at: '',
+      variant: {
+        id: variant.id,
+        product_id: product.value.id,
+        color_id: variant.color_id,
+        size_id: variant.size_id,
+        price: variant.price,
+        stock: variant.stock,
+        sku: variant.sku,
+        created_at: '',
+        updated_at: '',
+        product: product.value,
+        color: variant.color,
+        size: variant.size,
+        images: variant.images || []
+      }
+    }
+    await cartStore.addToCart({ variant_id: variant.id, quantity: 1 }, false, guestItem as any)
   }
 }
 </script>
