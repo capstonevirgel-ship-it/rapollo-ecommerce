@@ -1,4 +1,4 @@
-# Gay Hello Booking Management System
+# Gay Booking Management System
 
 An inclusive, privacy-conscious booking platform designed for LGBTQ+ communities, venues, and service providers. It helps venues and organizers publish availability and events, and enables guests to discover, book, and manage reservations with safety and respect at the core.
 
