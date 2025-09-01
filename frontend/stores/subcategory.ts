@@ -1,0 +1,95 @@
+import { defineStore } from "pinia";
+import { useCustomFetch } from "~/composables/useCustomFetch";
+import type { Subcategory } from "~/types";
+
+export const useSubcategoryStore = defineStore("subcategory", {
+  state: () => ({
+    subcategories: [] as Subcategory[],
+    subcategory: null as Subcategory | null,
+    loading: false,
+    error: null as string | null,
+  }),
+
+  actions: {
+    async fetchSubcategories() {
+      this.loading = true;
+      this.error = null;
+      try {
+        const data = await useCustomFetch<Subcategory[]>("/api/subcategories");
+        this.subcategories = data;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to load subcategories";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchSubcategory(id: number) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const data = await useCustomFetch<Subcategory>(`/api/subcategories/${id}`);
+        this.subcategory = data;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to load subcategory";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async createSubcategory(payload: Omit<Subcategory, "id">) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const data = await useCustomFetch<Subcategory>("/api/subcategories", {
+          method: "POST",
+          body: payload,
+        });
+        this.subcategories.push(data);
+        return data;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to create subcategory";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async updateSubcategory(id: number, payload: Partial<Subcategory>) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const data = await useCustomFetch<Subcategory>(`/api/subcategories/${id}`, {
+          method: "PUT",
+          body: payload,
+        });
+        const index = this.subcategories.findIndex((sub) => sub.id === id);
+        if (index !== -1) {
+          this.subcategories[index] = data;
+        }
+        return data;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to update subcategory";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async deleteSubcategory(id: number) {
+      this.loading = true;
+      this.error = null;
+      try {
+        await useCustomFetch(`/api/subcategories/${id}`, { method: "DELETE" });
+        this.subcategories = this.subcategories.filter((sub) => sub.id !== id);
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to delete subcategory";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+  },
+
+  persist: true,
+});
