@@ -39,15 +39,10 @@ const addToCart = async () => {
   const variant = product.value.variants?.[0]
   if (!variant) return
 
-  const payload = {
-    variant_id: variant.id,
-    quantity: 1,
-  }
-
   if (authStore.isAuthenticated) {
-    await cartStore.store(payload)
+    await cartStore.store({ variant_id: variant.id, quantity: 1 })
   } else {
-    await cartStore.addToCart(payload, false)
+    await cartStore.addToCart({ variant_id: variant.id, quantity: 1 }, false)
   }
 }
 </script>

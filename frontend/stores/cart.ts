@@ -17,6 +17,85 @@ export const useCartStore = defineStore("cart", {
   },
 
   actions: {
+    // Helper: build a minimal Cart object for guest storage
+    buildGuestCartItem(variant_id: number, quantity: number): Cart {
+      const placeholderProduct = {
+        price: 0,
+        id: 0,
+        subcategory_id: 0,
+        brand_id: 0,
+        name: 'Product',
+        slug: '',
+        description: '',
+        meta_title: '',
+        meta_description: '',
+        is_active: 0,
+        is_featured: 0,
+        is_hot: 0,
+        is_new: 0,
+        created_at: '',
+        updated_at: '',
+        brand: {
+          id: 0,
+          name: '',
+          slug: '',
+          logo_url: null,
+          meta_title: null,
+          meta_description: null,
+          created_at: '',
+          updated_at: ''
+        },
+        subcategory: {
+          id: 0,
+          category_id: 0,
+          name: '',
+          slug: '',
+          description: '',
+          meta_title: '',
+          meta_description: '',
+          created_at: '',
+          updated_at: '',
+          category: {
+            id: 0,
+            name: '',
+            slug: '',
+            meta_title: '',
+            meta_description: '',
+            created_at: '',
+            updated_at: ''
+          },
+          products: []
+        },
+        variants: [],
+        images: []
+      }
+
+      const cartItem: Cart = {
+        id: 0,
+        user_id: 0,
+        variant_id,
+        quantity,
+        created_at: '',
+        updated_at: '',
+        variant: {
+          id: variant_id,
+          product_id: 0,
+          color_id: 0,
+          size_id: 0,
+          price: 0,
+          stock: 0,
+          sku: '',
+          created_at: '',
+          updated_at: '',
+          product: placeholderProduct,
+          color: { id: 0, name: '', hex_code: '' },
+          size: { id: 0, name: '', description: null },
+          images: []
+        }
+      }
+
+      return cartItem
+    },
     // Fetch all cart items (only if logged in) via index()
     async fetchCart() {
       return this.index()
@@ -55,19 +134,18 @@ export const useCartStore = defineStore("cart", {
           // 🔹 Delegate to REST-style store()
           return await this.store(payload)
         } else {
-          // 🔹 Save as guest (localStorage)
+          // 🔹 Save as guest (localStorage) using Cart[]
           if (!import.meta.client) return payload
 
-          const guestCart: CartPayload[] = this.loadGuestCart()
+          const guestCart: Cart[] = this.loadGuestCart()
           const index = guestCart.findIndex((item) => item.variant_id === payload.variant_id)
           if (index !== -1) {
             guestCart[index].quantity += payload.quantity
-            // Remove if quantity drops to 0 or less
             if (guestCart[index].quantity <= 0) {
               guestCart.splice(index, 1)
             }
           } else if (payload.quantity > 0) {
-            guestCart.push(payload)
+            guestCart.push(this.buildGuestCartItem(payload.variant_id, payload.quantity))
           }
 
           localStorage.setItem(GUEST_CART_KEY, JSON.stringify(guestCart))
@@ -153,7 +231,7 @@ export const useCartStore = defineStore("cart", {
     },
 
     // ✅ Load guest cart from localStorage
-    loadGuestCart(): CartPayload[] {
+    loadGuestCart(): Cart[] {
       if (!import.meta.client) return []
       try {
         return JSON.parse(localStorage.getItem(GUEST_CART_KEY) || "[]")
@@ -169,7 +247,7 @@ export const useCartStore = defineStore("cart", {
       if (!guestCart.length) return
 
       for (const item of guestCart) {
-        await this.store(item)
+        await this.store({ variant_id: item.variant_id, quantity: item.quantity })
       }
 
       localStorage.removeItem(GUEST_CART_KEY)

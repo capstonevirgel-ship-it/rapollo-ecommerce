@@ -29,16 +29,13 @@ const cartItems = computed(() => {
       image: item.variant.images?.[0]?.url || item.variant.product.images?.[0]?.url || ''
     }))
   } else {
-    // Guest: cart from localStorage
+    // Guest: cart from localStorage (Cart[])
     const guestCart = cartStore.loadGuestCart()
     return guestCart.map(item => ({
-      variant: { id: item.variant_id, price: 0 },
-      product: {
-        name: 'Product',
-        description: ''
-      },
+      variant: { id: item.variant_id, price: item.variant.price },
+      product: item.variant.product,
       quantity: item.quantity,
-      image: ''
+      image: item.variant.images?.[0]?.url || item.variant.product.images?.[0]?.url || ''
     }))
   }
 })
