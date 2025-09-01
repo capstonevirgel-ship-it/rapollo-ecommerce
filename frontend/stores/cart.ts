@@ -9,6 +9,7 @@ export const useCartStore = defineStore("cart", {
     cart: [] as Cart[],
     loading: false,
     error: null as string | null,
+    guestVersion: 0,
   }),
 
   getters: {
@@ -149,6 +150,7 @@ export const useCartStore = defineStore("cart", {
           }
 
           localStorage.setItem(GUEST_CART_KEY, JSON.stringify(guestCart))
+          this.guestVersion++
           return payload
         }
       } catch (error: any) {
@@ -197,6 +199,7 @@ export const useCartStore = defineStore("cart", {
             guestCart[index].quantity = quantity
           }
           localStorage.setItem(GUEST_CART_KEY, JSON.stringify(guestCart))
+          this.guestVersion++
         }
         return
       }
@@ -230,6 +233,7 @@ export const useCartStore = defineStore("cart", {
         const guestCart: Cart[] = this.loadGuestCart()
         const after = guestCart.filter((item) => item.variant_id !== idOrVariantId)
         localStorage.setItem(GUEST_CART_KEY, JSON.stringify(after))
+        this.guestVersion++
         return
       }
 

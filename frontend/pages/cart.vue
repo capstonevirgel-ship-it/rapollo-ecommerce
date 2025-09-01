@@ -9,7 +9,7 @@ import { getImageUrl } from '~/utils/imageHelper'
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 const { isAuthenticated } = storeToRefs(authStore)
-const { cart } = storeToRefs(cartStore)
+const { cart, guestVersion } = storeToRefs(cartStore)
 
 // Load cart data on page load
 onMounted(async () => {
@@ -30,6 +30,8 @@ const cartItems = computed(() => {
     }))
   } else {
     // Guest: cart from localStorage (Cart[])
+    // Depend on guestVersion so UI reacts to localStorage updates
+    void guestVersion.value
     const guestCart = cartStore.loadGuestCart()
     return guestCart.map(item => ({
       variant: { id: item.variant_id, price: item.variant.price },
@@ -127,7 +129,7 @@ const decreaseQty = (item: any) => {
                   class="p-2 text-gray-500 hover:text-red-600 transition"
                   aria-label="Remove item"
                   @click="() => {
-                    if (isAuthenticated) {
+                    if (isAuthenticated.value) {
                       cartStore.removeFromCart(item.id)
                     } else {
                       cartStore.removeFromCart(item.variant.id, false)
