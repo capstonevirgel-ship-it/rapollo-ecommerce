@@ -1,6 +1,7 @@
 // stores/auth.ts
 import { defineStore } from "pinia";
 import { useCustomFetch } from "~/composables/useCustomFetch";
+import { useCartStore } from "~/stores/cart";
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -36,6 +37,12 @@ export const useAuthStore = defineStore('auth', {
                 const user = await useCustomFetch<{ id: number; user_name: string; email: string }>('/api/user');
                 this.user = user;
                 this.isAuthenticated = true;
+                // After authenticating, sync any guest cart items to DB and refresh
+                try {
+                    const cartStore = useCartStore();
+                    await cartStore.syncGuestCart();
+                    await cartStore.index();
+                } catch (_) {}
             } catch (error) {
                 this.logout();
                 throw error;

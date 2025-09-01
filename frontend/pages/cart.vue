@@ -165,8 +165,12 @@ const decreaseQty = (item: any) => {
             </div>
           </div>
 
-          <button class="mt-6 w-full bg-black text-white py-3 px-4 rounded-md font-medium hover:bg-gray-800 transition">
-            Checkout
+          <button
+            class="mt-6 w-full bg-black text-white py-3 px-4 rounded-md font-medium hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="!isAuthenticated"
+            @click="() => { if (!isAuthenticated) return navigateTo('/login'); navigateTo('/checkout') }"
+          >
+            {{ isAuthenticated ? 'Checkout' : 'Login to Checkout' }}
           </button>
 
           <p class="mt-4 text-center text-sm text-gray-500">

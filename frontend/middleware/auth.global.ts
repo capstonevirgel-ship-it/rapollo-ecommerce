@@ -29,4 +29,16 @@ export default defineNuxtRouteMiddleware(async (to) => {
       }
     }
   }
+
+  // Protect checkout for guests
+  if (to.path.startsWith('/checkout')) {
+    if (!auth.isAuthenticated) {
+      try {
+        await auth.fetchUser()
+      } catch {}
+      if (!auth.isAuthenticated) {
+        return navigateTo('/login')
+      }
+    }
+  }
 })
