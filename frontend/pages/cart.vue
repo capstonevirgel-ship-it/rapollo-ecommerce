@@ -25,7 +25,8 @@ const cartItems = computed(() => {
     return cart.value.map(item => ({
       variant: item.variant,
       product: item.variant.product,
-      quantity: item.quantity
+      quantity: item.quantity,
+      image: item.variant.images?.[0]?.url || item.variant.product.images?.[0]?.url || ''
     }))
   } else {
     // Guest: cart from localStorage
@@ -34,10 +35,10 @@ const cartItems = computed(() => {
       variant: { id: item.variant_id, price: 0 },
       product: {
         name: 'Product',
-        description: '',
-        image: ''
+        description: ''
       },
-      quantity: item.quantity
+      quantity: item.quantity,
+      image: ''
     }))
   }
 })
@@ -97,7 +98,7 @@ const decreaseQty = (item: any) => {
               <!-- Product -->
               <div class="col-span-6 flex items-center space-x-4">
                 <img 
-                  :src="getImageUrl(item.product.image)" 
+                  :src="getImageUrl(item.image)" 
                   :alt="item.product.name"
                   class="w-20 h-20 object-cover rounded"
                 />
