@@ -33,19 +33,22 @@ if (product.value?.subcategory_id) {
     .map((p, index) => ({ ...p, id: index })) || []
 }
 
-const addToCart = () => {
+const addToCart = async () => {
   if (!product.value) return
 
   const variant = product.value.variants?.[0]
   if (!variant) return
 
-  cartStore.addToCart(
-    {
-      variant_id: variant.id,
-      quantity: 1,
-    },
-    authStore.isAuthenticated 
-  )
+  const payload = {
+    variant_id: variant.id,
+    quantity: 1,
+  }
+
+  if (authStore.isAuthenticated) {
+    await cartStore.store(payload)
+  } else {
+    await cartStore.addToCart(payload, false)
+  }
 }
 </script>
 

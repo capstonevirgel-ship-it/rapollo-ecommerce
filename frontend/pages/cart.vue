@@ -14,7 +14,7 @@ const { cart } = storeToRefs(cartStore)
 // Load cart data on page load
 onMounted(async () => {
   if (isAuthenticated.value) {
-    await cartStore.fetchCart()
+    await cartStore.index()
   }
 })
 
