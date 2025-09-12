@@ -5,6 +5,8 @@ definePageMeta({
 
 import { onMounted, computed } from 'vue'
 import DataTable from '@/components/DataTable.vue'
+import AdminActionButton from '@/components/AdminActionButton.vue'
+import AdminAddButton from '@/components/AdminAddButton.vue'
 import { useProductStore } from '@/stores/product'
 import { getImageUrl } from '@/utils/imageHelper'
 
@@ -18,7 +20,6 @@ const productStore = useProductStore()
 // ---------------------
 const columns = [
   { label: 'Product Image', key: 'image' }, // new first column
-  { label: 'ID', key: 'id' },
   { label: 'Name', key: 'name' },
   { label: 'Price', key: 'price' },
   { label: 'Category', key: 'category' },
@@ -68,7 +69,10 @@ const selectedIds = ref<number[]>([])
 
 <template>
   <div class="p-4">
-    <h1 class="text-2xl font-bold mb-4">Products</h1>
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">Products</h1>
+      <AdminAddButton text="Add Product" @click="navigateTo('/admin/add-product')" />
+    </div>
 
     <DataTable
       :columns="columns"
@@ -101,13 +105,19 @@ const selectedIds = ref<number[]>([])
 
       <!-- Slot for action buttons -->
       <template #cell-actions="{ row }">
-        <div class="flex gap-2">
-          <button class="text-blue-600 hover:text-blue-800" @click="console.log('Edit', row.slug)">
-            <Icon name="mdi:pencil" />
-          </button>
-          <button class="text-red-600 hover:text-red-800" @click="console.log('Delete', row.slug)">
-            <Icon name="mdi:delete" />
-          </button>
+        <div class="flex gap-2 justify-center">
+          <AdminActionButton
+            icon="mdi:pencil"
+            text="Edit"
+            variant="primary"
+            @click="console.log('Edit', row.slug)"
+          />
+          <AdminActionButton
+            icon="mdi:delete"
+            text="Delete"
+            variant="danger"
+            @click="console.log('Delete', row.slug)"
+          />
         </div>
       </template>
     </DataTable>

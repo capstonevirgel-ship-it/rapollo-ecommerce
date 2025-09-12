@@ -11,6 +11,14 @@ class Category extends Model
 
     protected $fillable = ['name', 'slug', 'meta_title', 'meta_description'];
 
+    /**
+     * Get the route key for the model.
+     */
+    public function getRouteKeyName()
+    {
+        return 'slug';
+    }
+
     public function subcategories()
     {
         return $this->hasMany(Subcategory::class);

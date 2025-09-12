@@ -28,5 +28,18 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('admin123'), // change as needed
             'role' => 'admin',
         ]);
+
+        // Run seeders in correct order
+        $this->call([
+            BrandSeeder::class,
+            ColorSeeder::class,
+            SizeSeeder::class,
+            CategorySeeder::class,
+            SubcategorySeeder::class,
+            ProductSeeder::class,
+            ProductVariantSeeder::class,
+            ProductImageSeeder::class,
+            EventSeeder::class,
+        ]);
     }
 }

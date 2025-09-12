@@ -1,8 +1,11 @@
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="min-h-screen flex flex-col bg-gray-50">
+    <AdminHeader />
     <Header />
     <main class="flex-grow">
-      <slot />
+      <div class="max-w-7xl mx-auto">
+        <NuxtPage></NuxtPage>
+      </div>
     </main>
     <Footer />
   </div>

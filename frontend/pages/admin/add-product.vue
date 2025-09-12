@@ -144,7 +144,7 @@ async function submitProduct() {
       </h1>
       <button
         @click="submitProduct"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2"
+        class="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded flex items-center gap-2"
       >
         <Icon name="mdi:content-save" /> Save Product
       </button>
@@ -179,7 +179,7 @@ async function submitProduct() {
           </select>
           <div v-if="brandId === '__new'" class="mt-2">
             <button type="button" @click="newBrandMode = true; brandId = null;"
-                    class="px-3 py-2 bg-green-600 text-white rounded">Create New Brand</button>
+                    class="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded">Create New Brand</button>
           </div>
         </div>
         <div v-else class="flex gap-2 mt-2">

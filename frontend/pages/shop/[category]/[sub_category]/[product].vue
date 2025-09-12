@@ -7,6 +7,7 @@ import { useProductStore } from '~/stores/product'
 import { useSubcategoryStore } from '~/stores/subcategory'
 import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from "~/stores/auth"
+import { onMounted, ref } from 'vue'
 
 import { getImageUrl } from '~/utils/imageHelper'
 
@@ -21,17 +22,28 @@ const authStore = useAuthStore()
 
 const { product, loading, error } = storeToRefs(productStore)
 
-// Fetch product on page load
-await productStore.fetchProduct(productSlug as string)
+// Local state for data fetching
+const isDataLoaded = ref(false)
+const relatedProducts = ref<any[]>([])
 
-// Related products from same subcategory
-let relatedProducts: any[] = []
-if (product.value?.subcategory_id) {
-  await subcategoryStore.fetchSubcategory(product.value.subcategory_id)
-  relatedProducts = subcategoryStore.subcategory?.products
-    ?.filter(p => p.slug !== productSlug)
-    .map((p, index) => ({ ...p, id: index })) || []
-}
+// Fetch product data on component mount
+onMounted(async () => {
+  try {
+    await productStore.fetchProduct(productSlug as string)
+    
+    // Related products from same subcategory
+    if (product.value?.subcategory_id) {
+      await subcategoryStore.fetchSubcategoryById(product.value.subcategory_id)
+      relatedProducts.value = subcategoryStore.subcategory?.products
+        ?.filter(p => p.slug !== productSlug)
+        .map((p, index) => ({ ...p, id: index })) || []
+    }
+    
+    isDataLoaded.value = true
+  } catch (error) {
+    console.error('Failed to fetch product:', error)
+  }
+})
 
 const addToCart = async () => {
   if (!product.value) return
@@ -39,33 +51,39 @@ const addToCart = async () => {
   const variant = product.value.variants?.[0]
   if (!variant) return
 
-  if (authStore.isAuthenticated) {
-    await cartStore.store({ variant_id: variant.id, quantity: 1 })
-  } else {
-    const guestItem = {
-      id: 0,
-      user_id: 0,
-      variant_id: variant.id,
-      quantity: 1,
-      created_at: '',
-      updated_at: '',
-      variant: {
-        id: variant.id,
-        product_id: product.value.id,
-        color_id: variant.color_id,
-        size_id: variant.size_id,
-        price: variant.price,
-        stock: variant.stock,
-        sku: variant.sku,
+  try {
+    if (authStore.isAuthenticated) {
+      // Logged in: use store method directly
+      await cartStore.store({ variant_id: variant.id, quantity: 1 })
+    } else {
+      // Guest: create proper guest item and use addToCart
+      const guestItem = {
+        id: 0,
+        user_id: 0,
+        variant_id: variant.id,
+        quantity: 1,
         created_at: '',
         updated_at: '',
-        product: product.value,
-        color: variant.color,
-        size: variant.size,
-        images: variant.images || []
+        variant: {
+          id: variant.id,
+          product_id: product.value.id,
+          color_id: variant.color_id,
+          size_id: variant.size_id,
+          price: variant.price,
+          stock: variant.stock,
+          sku: variant.sku,
+          created_at: '',
+          updated_at: '',
+          product: product.value,
+          color: variant.color,
+          size: variant.size,
+          images: variant.images || []
+        }
       }
+      await cartStore.addToCart({ variant_id: variant.id, quantity: 1 }, false, guestItem as any)
     }
-    await cartStore.addToCart({ variant_id: variant.id, quantity: 1 }, false, guestItem as any)
+  } catch (error) {
+    console.error('Failed to add to cart:', error)
   }
 }
 </script>
@@ -75,7 +93,7 @@ const addToCart = async () => {
     <Breadcrumbs />
 
     <!-- Loading skeleton -->
-    <div v-if="loading" class="space-y-4 animate-pulse">
+    <div v-if="!isDataLoaded || loading" class="space-y-4 animate-pulse">
       <div class="h-64 bg-gray-200 rounded"></div>
       <div class="h-6 bg-gray-200 rounded w-1/3"></div>
       <div class="h-4 bg-gray-200 rounded w-2/3"></div>
@@ -86,7 +104,7 @@ const addToCart = async () => {
     <p v-else-if="error" class="text-red-500">{{ error }}</p>
 
     <!-- Product detail -->
-    <div v-else-if="product" class="space-y-8">
+    <div v-else-if="product && isDataLoaded" class="space-y-8">
       <div class="flex flex-col md:flex-row gap-6">
         <img
           :src="getImageUrl(product.images?.[0]?.url)"

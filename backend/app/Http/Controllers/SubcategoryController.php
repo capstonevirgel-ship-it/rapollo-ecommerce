@@ -45,7 +45,30 @@ class SubcategoryController extends Controller
      */
     public function show(Subcategory $subcategory)
     {
-        return response()->json($subcategory->load('category', 'products'));
+        return response()->json($subcategory->load([
+            'category',
+            'products.brand',
+            'products.variants.color',
+            'products.variants.size',
+            'products.variants.images',
+            'products.images'
+        ]));
+    }
+
+    /**
+     * Display the specified subcategory by ID.
+     */
+    public function showById($id)
+    {
+        $subcategory = Subcategory::with([
+            'category',
+            'products.brand',
+            'products.variants.color',
+            'products.variants.size',
+            'products.variants.images',
+            'products.images'
+        ])->findOrFail($id);
+        return response()->json($subcategory);
     }
 
     /**

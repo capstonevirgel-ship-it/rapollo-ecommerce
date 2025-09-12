@@ -9,7 +9,7 @@ class Event extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['admin_id', 'title', 'description', 'date', 'location', 'poster_url'];
+    protected $fillable = ['admin_id', 'title', 'description', 'date', 'location', 'poster_url', 'ticket_price', 'max_tickets', 'available_tickets'];
 
     public function admin()
     {
@@ -19,5 +19,25 @@ class Event extends Model
     public function comments()
     {
         return $this->hasMany(EventComment::class);
+    }
+
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
+    public function getBookedTicketsCountAttribute()
+    {
+        return $this->tickets()->whereIn('status', ['pending', 'confirmed'])->count();
+    }
+
+    public function getRemainingTicketsAttribute()
+    {
+        return $this->max_tickets - $this->booked_tickets_count;
+    }
+
+    public function isFullyBooked()
+    {
+        return $this->booked_tickets_count >= $this->max_tickets;
     }
 }

@@ -13,7 +13,7 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        $categories = Category::get();
+        $categories = Category::with('subcategories')->get();
         return response()->json($categories);
     }
 
@@ -44,6 +44,15 @@ class CategoryController extends Controller
     public function show(Category $category)
     {
         return response()->json($category->load('subcategories'));
+    }
+
+    /**
+     * Display the specified category by ID.
+     */
+    public function showById($id)
+    {
+        $category = Category::with('subcategories')->findOrFail($id);
+        return response()->json($category);
     }
 
     /**

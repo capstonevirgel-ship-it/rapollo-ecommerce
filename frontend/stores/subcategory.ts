@@ -12,6 +12,8 @@ export const useSubcategoryStore = defineStore("subcategory", {
 
   actions: {
     async fetchSubcategories() {
+      if (this.loading) return;
+      
       this.loading = true;
       this.error = null;
       try {
@@ -24,14 +26,44 @@ export const useSubcategoryStore = defineStore("subcategory", {
       }
     },
 
-    async fetchSubcategory(id: number) {
+    async fetchSubcategory(slug: string) {
       this.loading = true;
       this.error = null;
       try {
-        const data = await useCustomFetch<Subcategory>(`/api/subcategories/${id}`);
-        this.subcategory = data;
+        const response = await useCustomFetch<any>(`/api/subcategories/${slug}`);
+        // Handle both direct response and wrapped response
+        this.subcategory = response.data || response;
       } catch (error: any) {
         this.error = error.data?.message || error.message || "Failed to load subcategory";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchSubcategoryById(id: number) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await useCustomFetch<any>(`/api/subcategories/by-id/${id}`);
+        // Handle both direct response and wrapped response
+        this.subcategory = response.data || response;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to load subcategory";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchSubcategoryBySlug(slug: string) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const data = await useCustomFetch<Subcategory>(`/api/subcategories/${slug}`);
+        this.subcategory = data;
+        return data;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to load subcategory";
+        throw error;
       } finally {
         this.loading = false;
       }
@@ -41,10 +73,12 @@ export const useSubcategoryStore = defineStore("subcategory", {
       this.loading = true;
       this.error = null;
       try {
-        const data = await useCustomFetch<Subcategory>("/api/subcategories", {
+        const response = await useCustomFetch<any>("/api/subcategories", {
           method: "POST",
           body: payload,
         });
+        // Handle both direct response and wrapped response
+        const data = response.data || response;
         this.subcategories.push(data);
         return data;
       } catch (error: any) {
@@ -91,5 +125,5 @@ export const useSubcategoryStore = defineStore("subcategory", {
     },
   },
 
-  persist: true,
+  // persist: true, // Disabled - subcategories are static data, no need to cache
 });

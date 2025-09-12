@@ -6,6 +6,8 @@ definePageMeta({
 import { ref, onMounted } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import Dialog from '@/components/Dialog.vue'
+import AdminActionButton from '@/components/AdminActionButton.vue'
+import AdminAddButton from '@/components/AdminAddButton.vue'
 import { useCategoryStore } from '~/stores/category'
 import type { Category } from '~/types'
 
@@ -14,11 +16,9 @@ const categoryStore = useCategoryStore()
 const isDialogOpen = ref(false)
 
 const columns = [
-  { label: 'ID', key: 'id' },
   { label: 'Name', key: 'name' },
   { label: 'Slug', key: 'slug' },
-  { label: 'Meta Title', key: 'meta_title' },
-  { label: 'Meta Description', key: 'meta_description' }
+  { label: 'Actions', key: 'actions' }
 ]
 
 const selectedIds = ref<number[]>([])
@@ -39,9 +39,14 @@ const isCategoryLoading = ref(false)
 
 const handleRowClick = async (row: any) => {
   isCategoryLoading.value = true
-  await categoryStore.fetchCategory(row.id)
-  selectedCategory.value = categoryStore.category
-  isCategoryLoading.value = false
+  try {
+    await categoryStore.fetchCategoryById(row.id)
+    selectedCategory.value = categoryStore.category
+  } catch (error) {
+    console.error('Error fetching category:', error)
+  } finally {
+    isCategoryLoading.value = false
+  }
 }
 
 const addCategory = () => {
@@ -61,12 +66,7 @@ const saveCategory = async () => {
   <div class="p-4 mb-4 bg-white shadow border-0">
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-2xl font-bold">Categories</h1>
-      <button
-        @click="addCategory"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-      >
-        Add Category
-      </button>
+      <AdminAddButton text="Add Category" @click="addCategory" />
     </div>
 
     <DataTable
@@ -76,7 +76,25 @@ const saveCategory = async () => {
       :rows-per-page="5"
       @row-click="handleRowClick"
       class="cursor-pointer"
-    />
+    >
+      <!-- Slot for action buttons -->
+      <template #cell-actions="{ row }">
+        <div class="flex gap-2 justify-center" @click.stop>
+          <AdminActionButton
+            icon="mdi:pencil"
+            text="Edit"
+            variant="primary"
+            @click="console.log('Edit category', row.id)"
+          />
+          <AdminActionButton
+            icon="mdi:delete"
+            text="Delete"
+            variant="danger"
+            @click="console.log('Delete category', row.id)"
+          />
+        </div>
+      </template>
+    </DataTable>
   </div>
   
 <div class="p-4 bg-white shadow border-0">
@@ -125,7 +143,7 @@ const saveCategory = async () => {
     </div>
     <div class="mt-6 flex justify-end space-x-2">
       <button @click="isDialogOpen = false" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">Cancel</button>
-      <button @click="saveCategory" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Save</button>
+      <button @click="saveCategory" class="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded">Save</button>
     </div>
   </Dialog>
 </template>

@@ -2,14 +2,14 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import Menu from '@/components/navigation/Menu.vue'
 import Drawer from '@/components/navigation/Drawer.vue'
-import { useShopCategories } from '@/composables/useShopCategories'
+import { useAuthStore } from '~/stores/auth'
 
 const isMenuOpen = ref(false)
 const isShopDrawerOpen = ref(false)
 const activeCategory = ref<string | null>(null)
 const activeMobileCategory = ref<string | null>(null)
 
-const shopCategories = useShopCategories()
+const authStore = useAuthStore()
 
 const lastScrollY = ref(0)
 const isHeaderVisible = ref(true)
@@ -93,19 +93,41 @@ const navLinks: NavLink[] = [
         <div class="flex justify-center">
           <Menu
             :navLinks="navLinks"
-            :shopCategories="shopCategories"
             :activeCategory="activeCategory"
             :toggleCategory="toggleCategory"
           />
         </div>
 
-        <!-- Cart + Auth -->
+        <!-- Cart + Auth + Theme -->
         <div class="flex justify-end items-center space-x-4">
           <NuxtLink to="/cart" aria-label="Cart">
             <Icon name="mdi:cart-outline" class="text-2xl hover:text-primary-600" />
           </NuxtLink>
-          <NuxtLink to="/login" class="text-base text-gray-300 hover:text-white">Sign In</NuxtLink>
-          <NuxtLink to="/register" class="text-base text-gray-300 hover:text-white">Register</NuxtLink>
+          
+          <!-- Theme Toggle -->
+          
+          <!-- Authenticated User -->
+          <div v-if="authStore.isAuthenticated" class="flex items-center space-x-4">
+            <NuxtLink to="/my-tickets" class="text-base text-gray-300 hover:text-white">
+              My Tickets
+            </NuxtLink>
+            <NuxtLink v-if="authStore.user?.role === 'admin'" to="/admin/events" class="text-base text-gray-300 hover:text-white">
+              Admin
+            </NuxtLink>
+            <span class="text-base text-gray-300">Welcome, {{ authStore.user?.user_name }}</span>
+            <button 
+              @click="authStore.logout()" 
+              class="text-base text-gray-300 hover:text-white"
+            >
+              Logout
+            </button>
+          </div>
+          
+          <!-- Guest User -->
+          <div v-else class="flex items-center space-x-4">
+            <NuxtLink to="/login" class="text-base text-gray-300 hover:text-white">Sign In</NuxtLink>
+            <NuxtLink to="/register" class="text-base text-gray-300 hover:text-white">Register</NuxtLink>
+          </div>
         </div>
       </div>
 
@@ -140,6 +162,59 @@ const navLinks: NavLink[] = [
             <Icon :name="link.icon" class="text-lg" />
             <span>{{ link.label }}</span>
           </NuxtLink>
+          
+          <!-- Mobile Auth + Theme -->
+          <div class="border-t border-gray-700 pt-3 mt-3">
+            <!-- Theme Toggle for Mobile -->
+            <div class="px-4 py-2 flex items-center justify-between">
+              <span class="text-gray-300">Theme</span>
+            </div>
+            
+            <div v-if="authStore.isAuthenticated" class="px-4 py-2">
+              <span class="text-gray-300">Welcome, {{ authStore.user?.user_name }}</span>
+              <div class="mt-2 space-y-2">
+                <NuxtLink
+                  to="/my-tickets"
+                  @click="isMenuOpen = false"
+                  class="block text-gray-300 hover:text-white"
+                >
+                  My Tickets
+                </NuxtLink>
+                <NuxtLink
+                  v-if="authStore.user?.role === 'admin'"
+                  to="/admin/events"
+                  @click="isMenuOpen = false"
+                  class="block text-gray-300 hover:text-white"
+                >
+                  Admin Panel
+                </NuxtLink>
+                <button 
+                  @click="authStore.logout(); isMenuOpen = false" 
+                  class="block w-full text-left text-gray-300 hover:text-white"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+            <div v-else class="space-y-2">
+              <NuxtLink
+                to="/login"
+                @click="isMenuOpen = false"
+                class="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-50 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Icon name="mdi:login" class="text-lg" />
+                <span>Sign In</span>
+              </NuxtLink>
+              <NuxtLink
+                to="/register"
+                @click="isMenuOpen = false"
+                class="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-50 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Icon name="mdi:account-plus" class="text-lg" />
+                <span>Register</span>
+              </NuxtLink>
+            </div>
+          </div>
         </div>
       </Transition>
     </div>
@@ -148,7 +223,6 @@ const navLinks: NavLink[] = [
   <!-- Drawer Navigation -->
   <Drawer
     :isOpen="isShopDrawerOpen"
-    :shopCategories="shopCategories"
     :activeMobileCategory="activeMobileCategory"
     @close="isShopDrawerOpen = false"
     @toggle-category="slug => activeMobileCategory = activeMobileCategory === slug ? null : slug"

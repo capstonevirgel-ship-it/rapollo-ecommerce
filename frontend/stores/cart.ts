@@ -10,6 +10,7 @@ export const useCartStore = defineStore("cart", {
     loading: false,
     error: null as string | null,
     guestVersion: 0,
+    isSyncing: false, // Flag to prevent multiple syncs
   }),
 
   getters: {
@@ -107,14 +108,6 @@ export const useCartStore = defineStore("cart", {
       this.loading = true
       this.error = null
       try {
-        // If on client and there is a guest cart, sync it first after login
-        if (import.meta.client) {
-          const guestItems = this.loadGuestCart()
-          if (guestItems.length) {
-            await this.syncGuestCart()
-          }
-        }
-
         const data = await useCustomFetch<Cart[]>("/api/cart")
         this.cart = data
         return data
@@ -252,6 +245,7 @@ export const useCartStore = defineStore("cart", {
     // ✅ Clear cart locally (DB + store)
     clearCart() {
       this.cart = []
+      this.isSyncing = false
       if (import.meta.client) {
         localStorage.removeItem(GUEST_CART_KEY)
       }
@@ -270,16 +264,40 @@ export const useCartStore = defineStore("cart", {
     // ✅ Sync guest cart to DB after login
     async syncGuestCart() {
       if (!import.meta.client) return
+      
+      // Prevent multiple simultaneous syncs
+      if (this.isSyncing) {
+        console.log('🛒 Sync already in progress, skipping')
+        return
+      }
+      
       const guestCart = this.loadGuestCart()
       if (!guestCart.length) return
 
-      for (const item of guestCart) {
-        await this.store({ variant_id: item.variant_id, quantity: item.quantity })
-      }
+      console.log('🛒 Syncing guest cart:', guestCart)
+      this.isSyncing = true
 
-      localStorage.removeItem(GUEST_CART_KEY)
-      // Refresh authoritative cart from backend
-      await this.index().catch(() => {})
+      try {
+        // Clear any persisted cart state first to avoid interference
+        this.cart = []
+        
+        // Process each guest cart item - backend now handles the logic properly
+        for (const guestItem of guestCart) {
+          console.log(`🛒 Syncing item ${guestItem.variant_id} with quantity ${guestItem.quantity}`)
+          await this.store({ variant_id: guestItem.variant_id, quantity: guestItem.quantity })
+        }
+
+        localStorage.removeItem(GUEST_CART_KEY)
+        this.guestVersion++
+        // Refresh authoritative cart from backend
+        await this.index().catch(() => {})
+        console.log('🛒 Sync completed, final cart:', this.cart)
+      } catch (error) {
+        console.error('Failed to sync guest cart:', error)
+        // Don't clear guest cart if sync fails
+      } finally {
+        this.isSyncing = false
+      }
     },
   },
 

@@ -34,7 +34,7 @@ const close = () => {
       <h2 v-if="title" class="text-lg font-semibold mb-4">{{ title }}</h2>
 
       <div>
-        <slot />
+        <slot></slot>
       </div>
     </div>
   </div>

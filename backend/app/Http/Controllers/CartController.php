@@ -11,7 +11,7 @@ class CartController extends Controller
 {
     public function index()
     {
-        $items = Cart::with('variant.product', 'variant.color', 'variant.size')
+        $items = Cart::with('variant.product', 'variant.color', 'variant.size', 'variant.images')
             ->where('user_id', Auth::id())
             ->get();
 
@@ -32,15 +32,28 @@ class CartController extends Controller
             return response()->json(['message' => 'Not enough stock'], 400);
         }
 
-        $cartItem = Cart::updateOrCreate(
-            [
+        // Check if item already exists
+        $existingItem = Cart::where('user_id', Auth::id())
+            ->where('variant_id', $data['variant_id'])
+            ->first();
+
+        if ($existingItem) {
+            // Update existing item by adding quantity
+            $existingItem->update([
+                'quantity' => $existingItem->quantity + $data['quantity']
+            ]);
+            $cartItem = $existingItem;
+        } else {
+            // Create new item with exact quantity
+            $cartItem = Cart::create([
                 'user_id'   => Auth::id(),
                 'variant_id'=> $data['variant_id'],
-            ],
-            [
-                'quantity'  => \DB::raw("quantity + {$data['quantity']}"),
-            ]
-        );
+                'quantity'  => $data['quantity'],
+            ]);
+        }
+
+        // Load the relationships for the response
+        $cartItem->load('variant.product', 'variant.color', 'variant.size', 'variant.images');
 
         return response()->json($cartItem, 201);
     }
@@ -61,6 +74,9 @@ class CartController extends Controller
         }
 
         $cart->update($data);
+
+        // Load the relationships for the response
+        $cart->load('variant.product', 'variant.color', 'variant.size', 'variant.images');
 
         return response()->json($cart);
     }

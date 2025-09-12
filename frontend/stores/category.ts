@@ -1,10 +1,10 @@
 import { defineStore } from "pinia";
 import { useCustomFetch } from "~/composables/useCustomFetch";
-import type { Category } from "~/types";
+import type { Category, CategoryWithSubcategories } from "~/types";
 
 export const useCategoryStore = defineStore("category", {
   state: () => ({
-    categories: [] as Category[],
+    categories: [] as CategoryWithSubcategories[],
     category: null as Category | null,
     loading: false,
     error: null as string | null,
@@ -12,11 +12,13 @@ export const useCategoryStore = defineStore("category", {
 
   actions: {
     async fetchCategories() {
+      if (this.loading) return;
+      
       this.loading = true;
       this.error = null;
       try {
-        const data = await useCustomFetch<Category[]>("/api/categories");
-        this.categories = data;
+        const response = await useCustomFetch<{value: CategoryWithSubcategories[]}>("/api/categories");
+        this.categories = response.value || response as any;
       } catch (error: any) {
         this.error = error.data?.message || error.message || "Failed to load categories";
       } finally {
@@ -24,14 +26,44 @@ export const useCategoryStore = defineStore("category", {
       }
     },
 
-    async fetchCategory(id: number) {
+    async fetchCategory(slug: string) {
       this.loading = true;
       this.error = null;
       try {
-        const data = await useCustomFetch<Category>(`/api/categories/${id}`);
-        this.category = data;
+        const response = await useCustomFetch<any>(`/api/categories/${slug}`);
+        // Handle both direct response and wrapped response
+        this.category = response.data || response;
       } catch (error: any) {
         this.error = error.data?.message || error.message || "Failed to load category";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchCategoryById(id: number) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await useCustomFetch<any>(`/api/categories/by-id/${id}`);
+        // Handle both direct response and wrapped response
+        this.category = response.data || response;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to load category";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchCategoryBySlug(slug: string) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const data = await useCustomFetch<Category>(`/api/categories/${slug}`);
+        this.category = data;
+        return data;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to load category";
+        throw error;
       } finally {
         this.loading = false;
       }
@@ -41,10 +73,12 @@ export const useCategoryStore = defineStore("category", {
       this.loading = true;
       this.error = null;
       try {
-        const data = await useCustomFetch<Category>("/api/categories", {
+        const response = await useCustomFetch<any>("/api/categories", {
           method: "POST",
           body: payload,
         });
+        // Handle both direct response and wrapped response
+        const data = response.data || response;
         this.categories.push(data);
         return data;
       } catch (error: any) {
@@ -59,7 +93,7 @@ export const useCategoryStore = defineStore("category", {
       this.loading = true;
       this.error = null;
       try {
-        const data = await useCustomFetch<Category>(`/api/categories/${id}`, {
+        const data = await useCustomFetch<CategoryWithSubcategories>(`/api/categories/${id}`, {
           method: "PUT",
           body: payload,
         });
@@ -91,5 +125,5 @@ export const useCategoryStore = defineStore("category", {
     },
   },
 
-  persist: true,
+  // persist: true, // Disabled - categories are static data, no need to cache
 });

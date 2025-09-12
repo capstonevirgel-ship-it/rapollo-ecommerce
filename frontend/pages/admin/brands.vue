@@ -4,6 +4,8 @@ import { useBrandStore } from "~/stores/brand";
 import { getImageUrl } from "~/utils/imageHelper";
 import DataTable from "@/components/DataTable.vue";
 import Dialog from "@/components/Dialog.vue";
+import AdminActionButton from "@/components/AdminActionButton.vue";
+import AdminAddButton from "@/components/AdminAddButton.vue";
 import type { BrandPayload } from "~/types";
 
 definePageMeta({
@@ -13,7 +15,6 @@ definePageMeta({
 const brandStore = useBrandStore();
 
 const columns = [
-  { label: "ID", key: "id" },
   { label: "Logo", key: "logo" },
   { label: "Name", key: "name" },
   { label: "Actions", key: "actions" },
@@ -113,12 +114,7 @@ const selectedIds = ref<number[]>([]);
       <h1 class="text-2xl font-bold flex items-center gap-2">
         <Icon name="mdi:tag-multiple" /> Brands
       </h1>
-      <button
-        @click="addBrand"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2"
-      >
-        <Icon name="mdi:plus" /> Add Brand
-      </button>
+      <AdminAddButton text="Add Brand" @click="addBrand" />
     </div>
 
     <!-- DataTable -->
@@ -141,13 +137,19 @@ const selectedIds = ref<number[]>([]);
 
       <!-- Actions Slot -->
       <template #cell-actions="{ row }">
-        <div class="flex gap-2 justify-center">
-          <button
-            @click.stop="handleDelete(row.id)"
-            class="px-2 py-1 bg-red-600 text-white rounded text-sm flex items-center gap-1"
-          >
-            <Icon name="mdi:delete" /> Delete
-          </button>
+        <div class="flex gap-2 justify-center" @click.stop>
+          <AdminActionButton
+            icon="mdi:pencil"
+            text="Edit"
+            variant="primary"
+            @click="console.log('Edit brand', row.id)"
+          />
+          <AdminActionButton
+            icon="mdi:delete"
+            text="Delete"
+            variant="danger"
+            @click="handleDelete(row.id)"
+          />
         </div>
       </template>
     </DataTable>
@@ -227,7 +229,7 @@ const selectedIds = ref<number[]>([]);
         </button>
         <button
           @click="saveBrand"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          class="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded"
         >
           Save
         </button>

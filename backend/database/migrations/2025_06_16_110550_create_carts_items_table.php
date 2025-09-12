@@ -14,6 +14,7 @@ return new class extends Migration
             $table->foreignId('variant_id')->constrained('product_variants')->cascadeOnDelete();
             $table->integer('quantity')->default(1);
             $table->timestamp('added_at')->useCurrent();
+            $table->timestamps(); // This adds created_at and updated_at columns
 
             $table->unique(['user_id', 'variant_id']);
         });

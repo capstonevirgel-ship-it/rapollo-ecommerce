@@ -1,9 +1,41 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { useShopCategories } from '@/composables/useShopCategories'
+import { storeToRefs } from 'pinia'
+import { useCategoryStore } from '~/stores/category'
+import { useSubcategoryStore } from '~/stores/subcategory'
+import { useProductStore } from '~/stores/product'
 
 const route = useRoute()
-const categories = useShopCategories()
+
+// Stores
+const categoryStore = useCategoryStore()
+const subcategoryStore = useSubcategoryStore()
+const productStore = useProductStore()
+
+const { category } = storeToRefs(categoryStore)
+const { subcategory } = storeToRefs(subcategoryStore)
+const { product } = storeToRefs(productStore)
+
+// Watch for route changes and fetch data if needed
+watch(() => route.params, async (newParams) => {
+  // Fetch category if we're on a category/subcategory/product page and don't have it
+  if (newParams.category && !category.value) {
+    try {
+      await categoryStore.fetchCategoryBySlug(newParams.category as string)
+    } catch (error) {
+      console.error('Failed to fetch category for breadcrumbs:', error)
+    }
+  }
+
+  // Fetch subcategory if we're on a subcategory/product page and don't have it
+  if (newParams.sub_category && !subcategory.value) {
+    try {
+      await subcategoryStore.fetchSubcategoryBySlug(newParams.sub_category as string)
+    } catch (error) {
+      console.error('Failed to fetch subcategory for breadcrumbs:', error)
+    }
+  }
+}, { immediate: true })
 
 const breadcrumbs = computed(() => {
   const crumbs: Array<{ name: string; path: string }> = []
@@ -17,45 +49,27 @@ const breadcrumbs = computed(() => {
   }
 
   // Handle category level
-  if (route.params.category) {
-    const category = categories.find(c => c.slug === route.params.category)
-    if (category) {
-      crumbs.push({
-        name: category.name,
-        path: `/shop/${category.slug}`
-      })
-    }
+  if (route.params.category && category.value) {
+    crumbs.push({
+      name: category.value.name,
+      path: `/shop/${category.value.slug}`
+    })
   }
 
   // Handle subcategory level
-  if (route.params.sub_category) {
-    const category = categories.find(c => c.slug === route.params.category)
-    if (category) {
-      const subcategory = category.subcategories.find(sc => sc.slug === route.params.sub_category)
-      if (subcategory) {
-        crumbs.push({
-          name: subcategory.name,
-          path: `/shop/${category.slug}/${subcategory.slug}`
-        })
-      }
-    }
+  if (route.params.sub_category && subcategory.value) {
+    crumbs.push({
+      name: subcategory.value.name,
+      path: `/shop/${route.params.category}/${subcategory.value.slug}`
+    })
   }
 
   // Handle product level
-  if (route.params.product) {
-    const category = categories.find(c => c.slug === route.params.category)
-    if (category) {
-      const subcategory = category.subcategories.find(sc => sc.slug === route.params.sub_category)
-      if (subcategory) {
-        const product = subcategory.products.find(p => p.slug === route.params.product)
-        if (product) {
-          crumbs.push({
-            name: product.name,
-            path: route.path // Current path
-          })
-        }
-      }
-    }
+  if (route.params.product && product.value) {
+    crumbs.push({
+      name: product.value.name,
+      path: route.path // Current path
+    })
   }
 
   return crumbs
@@ -67,7 +81,14 @@ const breadcrumbs = computed(() => {
     <ol class="flex flex-wrap items-center gap-x-1 gap-y-2 text-base">
       <li v-for="(crumb, index) in breadcrumbs" :key="index" class="inline-flex items-center">
         <template v-if="index > 0">
-          <Icon name="mdi:chevron-right" class="mx-1 text-gray-400" />
+          <svg 
+            class="mx-1 h-4 w-4 text-gray-400" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
         </template>
         <NuxtLink
           :to="crumb.path"

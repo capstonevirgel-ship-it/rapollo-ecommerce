@@ -2,6 +2,22 @@
 import HeroCard from '@/components/HeroCard.vue';
 import Carousel from '@/components/Carousel.vue'; 
 import EventGallery from '@/components/EventGallery.vue';
+import { useEventStore } from '~/stores/event';
+import { useBrandStore } from '~/stores/brand';
+import { getImageUrl } from '~/utils/imageHelper';
+import { onMounted, reactive, computed } from 'vue';
+
+const eventStore = useEventStore();
+const brandStore = useBrandStore();
+
+// Track image load errors for brands
+const brandImageError = reactive<Record<number, boolean>>({});
+
+// Duplicate brands array for seamless loop (like the React example)
+const allBrands = computed(() => {
+  const brands = brandStore.brands;
+  return [...brands, ...brands, ...brands]; // Triple for better seamless effect
+});
 
 const newArrivals = [
   {
@@ -39,6 +55,18 @@ const newArrivals = [
 const handleProductClick = (product: any) => {
   console.log('Product clicked:', product);
 };
+
+// Fetch events and brands on component mount
+onMounted(async () => {
+  try {
+    await Promise.all([
+      eventStore.fetchEvents(),
+      brandStore.fetchBrands()
+    ]);
+  } catch (error) {
+    console.error('Failed to fetch data:', error);
+  }
+});
 </script>
 
 <template>
@@ -120,7 +148,7 @@ const handleProductClick = (product: any) => {
                 </div>
                 <div class="p-4">
                   <button 
-                    class="w-full bg-black text-white py-2 rounded-md hover:bg-gray-800 transition-colors cursor-pointer"
+                    class="w-full bg-zinc-900 text-white py-2 rounded-md hover:bg-zinc-800 transition-colors cursor-pointer"
                     @click.stop="handleProductClick(item)"
                   >
                     View Details
@@ -133,18 +161,78 @@ const handleProductClick = (product: any) => {
 
         <RouterLink 
           to="#" 
-          class="mt-8 inline-block text-center bg-black text-white px-6 py-3 rounded-md hover:bg-gray-800 transition-colors mx-auto"
+          class="mt-8 inline-block text-center bg-zinc-900 text-white px-6 py-3 rounded-md hover:bg-zinc-800 transition-colors mx-auto"
         >
           View All Products
         </RouterLink>
       </div>
     </section>
 
-    <section class="py-[60px]" id="events">
+    <!-- Brands Section -->
+    <section class="py-[60px] bg-gray-50" id="brands">
+      <div class="mx-auto px-10 max-w-[1440px]">
+        <div class="text-center mb-12">
+          <h2 class="text-3xl font-bold text-gray-900 mb-4">Our Brands</h2>
+          <p class="text-gray-600 max-w-2xl mx-auto">
+            Discover the premium brands we partner with to bring you the best products
+          </p>
+        </div>
+        
+        <!-- Brands Marquee -->
+        <div class="relative overflow-hidden">
+          <div class="flex gap-16 items-center animate-scroll">
+            <div v-for="(brand, index) in allBrands" :key="index" class="flex-shrink-0 w-32 h-16 flex items-center justify-center grayscale hover:grayscale-0 transition-all duration-300 opacity-60 hover:opacity-100">
+              <div class="w-24 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm border">
+                <img 
+                  v-if="!brandImageError[brand.id]"
+                  :src="getImageUrl(brand.logo_url, 'brand')"
+                  :alt="brand.name"
+                  class="w-16 h-8 object-contain"
+                  @error="brandImageError[brand.id] = true"
+                />
+                <img 
+                  v-else
+                  :src="getImageUrl(null, 'brand')"
+                  :alt="brand.name"
+                  class="w-16 h-8 object-contain"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-[60px] bg-white" id="events">
       <div class="mx-auto px-10 max-w-[1440px] items-center">
-        <h2 class="text-3xl font-bold text-gray-900 text-center">Events</h2>
-        <EventGallery />
+        <div class="text-center mb-12">
+          <h2 class="text-3xl font-bold text-gray-900 mb-4">Upcoming Events</h2>
+          <p class="text-gray-600 max-w-2xl mx-auto">
+            Don't miss out on our exciting rap battle events and competitions
+          </p>
+        </div>
+        <EventGallery :events="eventStore.events" :loading="eventStore.loading" />
       </div>
     </section>
   </div>
 </template>
+
+<style scoped>
+.animate-scroll {
+  animation: scroll 45s linear infinite;
+  width: max-content;
+}
+
+.animate-scroll:hover {
+  animation-play-state: paused;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-33.333%);
+  }
+}
+</style>

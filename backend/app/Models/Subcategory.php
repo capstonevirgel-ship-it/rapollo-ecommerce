@@ -8,6 +8,14 @@ class Subcategory extends Model
 {
     protected $fillable = ['category_id', 'name', 'slug', 'meta_title', 'meta_description'];
 
+    /**
+     * Get the route key for the model.
+     */
+    public function getRouteKeyName()
+    {
+        return 'slug';
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);
