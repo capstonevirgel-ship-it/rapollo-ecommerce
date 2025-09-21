@@ -66,8 +66,8 @@ const proceedToCheckout = async () => {
     return
   }
   
-  // Navigate to simple checkout page
-  await navigateTo('/checkout/simple')
+  // Navigate to checkout page
+  await navigateTo('/checkout/1')
 }
 
 // Handlers
