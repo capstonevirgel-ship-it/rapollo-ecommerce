@@ -12,6 +12,7 @@ RUN apk add --no-cache \
     unzip \
     git \
     curl \
+    curl-dev \
     oniguruma-dev \
     libxml2-dev \
     icu-dev \
