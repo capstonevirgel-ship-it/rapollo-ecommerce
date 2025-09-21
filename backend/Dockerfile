@@ -14,20 +14,29 @@ RUN apk add --no-cache \
     curl \
     oniguruma-dev \
     libxml2-dev \
-    icu-dev
+    icu-dev \
+    autoconf \
+    g++ \
+    make
 
-# Install PHP extensions
+# Install PHP extensions one by one to avoid conflicts
+RUN docker-php-ext-install pdo pdo_pgsql
+
+RUN docker-php-ext-install mbstring
+
+RUN docker-php-ext-install xml
+
+RUN docker-php-ext-install curl
+
+RUN docker-php-ext-install zip
+
+RUN docker-php-ext-install intl
+
+RUN docker-php-ext-install bcmath
+
+# Configure and install GD extension
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) \
-        pdo \
-        pdo_pgsql \
-        mbstring \
-        xml \
-        curl \
-        zip \
-        gd \
-        intl \
-        bcmath
+    && docker-php-ext-install gd
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
