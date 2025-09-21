@@ -11,7 +11,10 @@ RUN apk add --no-cache \
     zip \
     unzip \
     git \
-    curl
+    curl \
+    oniguruma-dev \
+    libxml2-dev \
+    icu-dev
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
