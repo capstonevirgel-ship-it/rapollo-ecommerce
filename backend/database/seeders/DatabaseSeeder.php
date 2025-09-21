@@ -14,11 +14,12 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Create default user
-        User::factory()->create([
+        User::create([
             'user_name' => 'testuser',
             'email' => 'test@example.com',
             'password' => Hash::make('password'),
             'role' => 'user',
+            'email_verified_at' => now(),
         ]);
 
         // Create admin user
@@ -27,6 +28,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'admin@example.com',
             'password' => Hash::make('admin123'), // change as needed
             'role' => 'admin',
+            'email_verified_at' => now(),
         ]);
 
         // Run seeders in correct order
