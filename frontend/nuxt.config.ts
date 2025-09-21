@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineNuxtConfig({
   runtimeConfig: {
     public: {
-      apiBase: 'http://localhost:8000',
+      apiBase: 'https://rapollo-ecommerce.onrender.com/api',
       baseURL: 'http://localhost:3000'
     }
   },
@@ -21,7 +21,7 @@ export default defineNuxtConfig({
   nitro: {
     devProxy: {
       '/api': {
-        target: 'http://localhost:8000/api',
+        target: 'https://rapollo-ecommerce.onrender.com/api',
         changeOrigin: true,
         prependPath: true
       }

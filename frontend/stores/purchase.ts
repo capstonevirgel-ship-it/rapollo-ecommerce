@@ -42,6 +42,20 @@ export interface PaymentResponse {
   purchase_status: string
 }
 
+export interface PayMongoPaymentResponse {
+  message: string
+  payment_intent_id: string
+  client_key: string
+  purchase_id: number
+  redirect_url: string
+}
+
+export interface PayMongoVerifyResponse {
+  status: string
+  amount: number
+  currency: string
+}
+
 export const usePurchaseStore = defineStore('purchase', () => {
   const createPurchase = async (cartItems: any[]) => {
     const response = await $fetch('/api/purchases', {
@@ -66,8 +80,29 @@ export const usePurchaseStore = defineStore('purchase', () => {
     return response as PaymentResponse
   }
 
+  // PayMongo payment methods
+  const createPayMongoPayment = async (cartData: any): Promise<PayMongoPaymentResponse> => {
+    const response = await $fetch('/api/payments/paymongo/create', {
+      method: 'POST',
+      body: cartData
+    })
+    return response as PayMongoPaymentResponse
+  }
+
+  const verifyPayMongoPayment = async (paymentIntentId: string): Promise<PayMongoVerifyResponse> => {
+    const response = await $fetch('/api/payments/paymongo/verify', {
+      method: 'POST',
+      body: {
+        payment_intent_id: paymentIntentId
+      }
+    })
+    return response as PayMongoVerifyResponse
+  }
+
   return {
     createPurchase,
-    createPayment
+    createPayment,
+    createPayMongoPayment,
+    verifyPayMongoPayment
   }
 })

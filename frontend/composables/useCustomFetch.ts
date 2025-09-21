@@ -5,8 +5,15 @@ export const useCustomFetch = async <T>(url: string, opts: any = {}): Promise<T>
   // Get the auth token from cookies
   const token = useCookie('auth-token')
   
-  // Use the proxy for development
-  const fullUrl = url.startsWith('/api') ? url : `/api${url}`
+  // Build the full URL - use live server in production, proxy in development
+  let fullUrl: string
+  if (process.dev) {
+    // Development: use proxy
+    fullUrl = url.startsWith('/api') ? url : `/api${url}`
+  } else {
+    // Production: use live server
+    fullUrl = url.startsWith('/api') ? `${config.public.apiBase}${url.slice(4)}` : `${config.public.apiBase}${url}`
+  }
   
   try {
     const response = await $fetch<T>(fullUrl, {
