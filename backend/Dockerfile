@@ -18,7 +18,8 @@ RUN apk add --no-cache \
     icu-dev \
     autoconf \
     g++ \
-    make
+    make \
+    bash
 
 # Install PHP extensions one by one to avoid conflicts
 RUN docker-php-ext-install pdo pdo_pgsql
