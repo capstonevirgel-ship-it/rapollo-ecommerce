@@ -33,6 +33,10 @@ php artisan route:cache
 echo "Running migrations..."
 php artisan migrate --force
 
+# Seed the database
+echo "Seeding database..."
+php artisan db:seed --force
+
 # Clear and cache views
 echo "Caching views..."
 php artisan view:cache
