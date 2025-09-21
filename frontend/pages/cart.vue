@@ -54,58 +54,20 @@ const shipping = computed(() => 5.99) // example
 const tax = computed(() => subtotal.value * 0.08)
 const total = computed(() => subtotal.value + shipping.value + tax.value)
 
-// PayMongo checkout flow - create purchase and navigate to PayMongo checkout
+// Navigate to simple checkout page
 const proceedToCheckout = async () => {
-  isLoading.value = true
-
-  try {
-    // Check if user is authenticated
-    if (!authStore.isAuthenticated) {
-      throw new Error('User not authenticated')
-    }
-    
-    // Ensure cart is loaded with relationships
-    await cartStore.index()
-    
-    // Check if cart is empty
-    if (!cart.value || cart.value.length === 0) {
-      throw new Error('Cart is empty')
-    }
-    
-    // Create purchase first
-    console.log('Creating purchase...', cart.value)
-    
-    // Map cart items to the format expected by createPurchase
-    const cartItemsForPurchase = cart.value.map((item) => {
-      // Check if variant exists and has price
-      if (!item.variant) {
-        throw new Error(`Variant not loaded for cart item ${item.id}`)
-      }
-      
-      if (!item.variant.price) {
-        throw new Error(`Price not found for variant ${item.variant_id}`)
-      }
-      
-      return {
-        variant_id: item.variant_id,
-        quantity: item.quantity,
-        price: item.variant.price
-      }
-    })
-    
-    const purchase = await purchaseStore.createPurchase(cartItemsForPurchase)
-    console.log('Purchase created:', purchase)
-    console.log('Purchase ID type:', typeof purchase.id)
-    console.log('Purchase ID value:', purchase.id)
-    
-    // Navigate to checkout page with purchase data
-    await navigateTo(`/checkout/${purchase.id}`)
-  } catch (error) {
-    console.error('Checkout setup failed:', error)
-    alert(`Checkout setup failed: ${error.message}`)
-  } finally {
-    isLoading.value = false
+  if (!authStore.isAuthenticated) {
+    await navigateTo('/login')
+    return
   }
+  
+  if (!cart.value || cart.value.length === 0) {
+    alert('Your cart is empty')
+    return
+  }
+  
+  // Navigate to simple checkout page
+  await navigateTo('/checkout/simple')
 }
 
 // Handlers
@@ -242,10 +204,10 @@ const decreaseQty = (item: any) => {
            <button
              class="mt-6 w-full bg-zinc-900 text-white py-3 px-4 rounded-md font-medium hover:bg-zinc-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
              :disabled="!authStore.isAuthenticated || isLoading"
-             @click="() => { if (!authStore.isAuthenticated) return navigateTo('/login'); proceedToCheckout() }"
+             @click="proceedToCheckout"
            >
              <span v-if="isLoading">Processing...</span>
-             <span v-else>{{ authStore.isAuthenticated ? 'Checkout' : 'Login to Checkout' }}</span>
+             <span v-else>{{ authStore.isAuthenticated ? 'Proceed to Checkout' : 'Login to Checkout' }}</span>
            </button>
 
           <p class="mt-4 text-center text-sm text-gray-500">
