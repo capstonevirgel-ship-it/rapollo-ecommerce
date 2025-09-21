@@ -20,7 +20,7 @@ const { cart } = storeToRefs(cartStore)
 // State
 const isLoading = ref(false)
 const paymentStatus = ref('pending') // pending, processing, success, failed
-const paymentData = ref(null)
+const paymentData = ref<any>(null)
 
 // Computed properties
 const cartItems = computed(() => {
@@ -92,10 +92,11 @@ const proceedToPayMongo = async () => {
     // Redirect to PayMongo gateway
     window.location.href = payment.redirect_url
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('PayMongo checkout failed:', error)
     paymentStatus.value = 'failed'
-    alert(`Checkout failed: ${error.message}`)
+    const errorMessage = error?.message || 'An unknown error occurred'
+    alert(`Checkout failed: ${errorMessage}`)
   } finally {
     isLoading.value = false
   }
