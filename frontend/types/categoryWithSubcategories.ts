@@ -1,4 +1,4 @@
-export interface Subcategory {
+export interface SubcategoryItem {
   id: number;
   category_id: number;
   name: string;
@@ -17,5 +17,5 @@ export interface CategoryWithSubcategories {
   meta_description?: string;
   created_at: string;
   updated_at: string;
-  subcategories: Subcategory[];
+  subcategories: SubcategoryItem[];
 }

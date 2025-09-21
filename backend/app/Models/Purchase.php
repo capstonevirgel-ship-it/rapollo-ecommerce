@@ -9,11 +9,35 @@ class Purchase extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'total', 'status'];
+    protected $fillable = [
+        'user_id', 
+        'total_amount', 
+        'status', 
+        'payment_status', 
+        'payment_intent_id',
+        'payment_amount',
+        'payment_currency',
+        'payment_failure_code',
+        'payment_failure_message',
+        'shipping_address',
+        'billing_address',
+        'paid_at'
+    ];
+
+    protected $casts = [
+        'shipping_address' => 'array',
+        'billing_address' => 'array',
+        'paid_at' => 'datetime',
+    ];
+
+    public function purchaseItems()
+    {
+        return $this->hasMany(PurchaseItem::class);
+    }
 
     public function items()
     {
-        return $this->hasMany(PurchaseItem::class);
+        return $this->purchaseItems();
     }
 
     public function user()
@@ -24,5 +48,10 @@ class Purchase extends Model
     public function ratings()
     {
         return $this->hasMany(Rating::class);
+    }
+
+    public function payment()
+    {
+        return $this->hasOne(Payment::class);
     }
 }

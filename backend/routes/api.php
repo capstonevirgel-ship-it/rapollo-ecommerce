@@ -10,6 +10,9 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\PayMongoWebhookController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
@@ -86,4 +89,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('tickets/{id}', [TicketController::class, 'show']);
     Route::put('tickets/{id}/cancel', [TicketController::class, 'cancel']);
     Route::put('tickets/{id}/status', [TicketController::class, 'updateStatus']);
+
+    // Purchases
+    Route::get('purchases', [PurchaseController::class, 'index']);
+    Route::post('purchases', [PurchaseController::class, 'store']);
+    Route::get('purchases/{id}', [PurchaseController::class, 'show']);
+
+    // Payments
+    Route::post('payments/create', [PaymentController::class, 'createPayment']);
+    Route::post('payments/paymongo/create', [PaymentController::class, 'createPayMongoPayment']);
+    Route::post('payments/paymongo/verify', [PaymentController::class, 'verifyPayMongoPayment']);
 });
+
+// ----------------------
+// Webhooks (No authentication required)
+// ----------------------
+Route::post('webhooks/paymongo', [PayMongoWebhookController::class, 'handle']);

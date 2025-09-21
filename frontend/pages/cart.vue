@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from '~/stores/auth'
+import { usePurchaseStore } from '~/stores/purchase'
 import { getImageUrl } from '~/utils/imageHelper'
 
 // Stores
 const cartStore = useCartStore()
 const authStore = useAuthStore()
+const purchaseStore = usePurchaseStore()
 const { cart, guestVersion } = storeToRefs(cartStore)
+
+// Loading state
+const isLoading = ref(false)
 
 // Load cart data on page load
 onMounted(async () => {
@@ -48,6 +53,60 @@ const subtotal = computed(() => cartItems.value.reduce((sum, item) => sum + ((it
 const shipping = computed(() => 5.99) // example
 const tax = computed(() => subtotal.value * 0.08)
 const total = computed(() => subtotal.value + shipping.value + tax.value)
+
+// PayMongo checkout flow - create purchase and navigate to PayMongo checkout
+const proceedToCheckout = async () => {
+  isLoading.value = true
+
+  try {
+    // Check if user is authenticated
+    if (!authStore.isAuthenticated) {
+      throw new Error('User not authenticated')
+    }
+    
+    // Ensure cart is loaded with relationships
+    await cartStore.index()
+    
+    // Check if cart is empty
+    if (!cart.value || cart.value.length === 0) {
+      throw new Error('Cart is empty')
+    }
+    
+    // Create purchase first
+    console.log('Creating purchase...', cart.value)
+    
+    // Map cart items to the format expected by createPurchase
+    const cartItemsForPurchase = cart.value.map((item) => {
+      // Check if variant exists and has price
+      if (!item.variant) {
+        throw new Error(`Variant not loaded for cart item ${item.id}`)
+      }
+      
+      if (!item.variant.price) {
+        throw new Error(`Price not found for variant ${item.variant_id}`)
+      }
+      
+      return {
+        variant_id: item.variant_id,
+        quantity: item.quantity,
+        price: item.variant.price
+      }
+    })
+    
+    const purchase = await purchaseStore.createPurchase(cartItemsForPurchase)
+    console.log('Purchase created:', purchase)
+    console.log('Purchase ID type:', typeof purchase.id)
+    console.log('Purchase ID value:', purchase.id)
+    
+    // Navigate to checkout page with purchase data
+    await navigateTo(`/checkout/${purchase.id}`)
+  } catch (error) {
+    console.error('Checkout setup failed:', error)
+    alert(`Checkout setup failed: ${error.message}`)
+  } finally {
+    isLoading.value = false
+  }
+}
 
 // Handlers
 const increaseQty = (item: any) => {
@@ -182,10 +241,11 @@ const decreaseQty = (item: any) => {
 
            <button
              class="mt-6 w-full bg-zinc-900 text-white py-3 px-4 rounded-md font-medium hover:bg-zinc-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-             :disabled="!authStore.isAuthenticated"
-             @click="() => { if (!authStore.isAuthenticated) return navigateTo('/login'); navigateTo('/checkout') }"
+             :disabled="!authStore.isAuthenticated || isLoading"
+             @click="() => { if (!authStore.isAuthenticated) return navigateTo('/login'); proceedToCheckout() }"
            >
-             {{ authStore.isAuthenticated ? 'Checkout' : 'Login to Checkout' }}
+             <span v-if="isLoading">Processing...</span>
+             <span v-else>{{ authStore.isAuthenticated ? 'Checkout' : 'Login to Checkout' }}</span>
            </button>
 
           <p class="mt-4 text-center text-sm text-gray-500">
@@ -194,5 +254,6 @@ const decreaseQty = (item: any) => {
         </div>
       </div>
     </div>
+
   </div>
 </template>
