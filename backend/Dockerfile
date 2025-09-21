@@ -1,41 +1,33 @@
-FROM nginx:alpine
+FROM php:8.1-fpm-alpine
 
-# Install PHP and required extensions
+# Install system dependencies
 RUN apk add --no-cache \
-    php81 \
-    php81-fpm \
-    php81-pdo \
-    php81-pdo_pgsql \
-    php81-mbstring \
-    php81-xml \
-    php81-curl \
-    php81-zip \
-    php81-tokenizer \
-    php81-fileinfo \
-    php81-openssl \
-    php81-json \
-    php81-ctype \
-    php81-bcmath \
-    php81-gd \
-    php81-intl \
-    php81-xmlreader \
-    php81-xmlwriter \
-    php81-simplexml \
-    php81-dom \
-    php81-xml \
-    php81-tokenizer \
-    php81-fileinfo \
-    php81-openssl \
-    php81-json \
-    php81-ctype \
-    php81-bcmath \
-    php81-gd \
-    php81-intl \
-    php81-xmlreader \
-    php81-xmlwriter \
-    php81-simplexml \
-    php81-dom \
-    composer
+    nginx \
+    postgresql-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    libzip-dev \
+    zip \
+    unzip \
+    git \
+    curl
+
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        pdo \
+        pdo_pgsql \
+        mbstring \
+        xml \
+        curl \
+        zip \
+        gd \
+        intl \
+        bcmath
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www/html
@@ -56,9 +48,6 @@ RUN chown -R www-data:www-data /var/www/html \
 
 # Copy nginx configuration
 COPY docker/nginx.conf /etc/nginx/nginx.conf
-
-# Copy PHP-FPM configuration
-COPY docker/php-fpm.conf /etc/php81/php-fpm.d/www.conf
 
 # Copy startup script
 COPY docker/start.sh /start.sh

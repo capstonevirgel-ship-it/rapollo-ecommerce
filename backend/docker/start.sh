@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 echo "Starting PHP-FPM..."
-php-fpm81 -D
+php-fpm -D
 
 echo "Starting NGINX..."
 nginx
