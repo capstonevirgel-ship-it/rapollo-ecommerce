@@ -12,7 +12,6 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PurchaseController;
-use App\Http\Controllers\PayMongoWebhookController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
@@ -97,11 +96,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Payments
     Route::post('payments/create', [PaymentController::class, 'createPayment']);
-    Route::post('payments/paymongo/create', [PaymentController::class, 'createPayMongoPayment']);
-    Route::post('payments/paymongo/verify', [PaymentController::class, 'verifyPayMongoPayment']);
 });
 
-// ----------------------
-// Webhooks (No authentication required)
-// ----------------------
-Route::post('webhooks/paymongo', [PayMongoWebhookController::class, 'handle']);

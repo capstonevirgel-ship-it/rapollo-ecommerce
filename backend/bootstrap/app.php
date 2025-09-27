@@ -12,8 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Configure API middleware for token-based authentication
-        // Removed EnsureFrontendRequestsAreStateful for token-based auth
+        // Configure API middleware for local development
+        $middleware->api(prepend: [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        ]);
 
         // Remove CSRF protection from API routes
         $middleware->validateCsrfTokens(except: [
@@ -21,7 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'sanctum/*',
         ]);
 
-        // Web routes don't need stateful API middleware for token-based auth
+        // Apply stateful API to web routes for local development
+        $middleware->web(append: [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        ]);
 
         $middleware->alias([
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
