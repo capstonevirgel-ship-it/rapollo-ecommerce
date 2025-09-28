@@ -164,12 +164,11 @@ const exportTickets = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="p-4">
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900">Manage Tickets</h1>
-        <p class="mt-2 text-gray-600">Manage and monitor all rap battle event ticket bookings</p>
+        <p class="mt-2 text-gray-600">Manage and monitor all event ticket bookings</p>
       </div>
 
       <!-- Statistics Cards -->
@@ -239,7 +238,7 @@ const exportTickets = () => {
               <div class="ml-5 w-0 flex-1">
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
-                  <dd class="text-lg font-medium text-gray-900">${{ formatRevenue(statistics.total_revenue) }}</dd>
+                  <dd class="text-lg font-medium text-gray-900">₱{{ formatRevenue(statistics.total_revenue) }}</dd>
                 </dl>
               </div>
             </div>
@@ -327,7 +326,7 @@ const exportTickets = () => {
         <!-- Price -->
         <template #cell-price="{ row }">
           <div class="text-sm text-gray-900">
-            ${{ formatPrice(row.price) }}
+            ₱{{ formatPrice(row.price) }}
           </div>
         </template>
 
@@ -357,6 +356,5 @@ const exportTickets = () => {
           </div>
         </template>
       </DataTable>
-    </div>
   </div>
 </template>

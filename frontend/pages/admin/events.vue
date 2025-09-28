@@ -129,14 +129,13 @@ const formatTime = (dateString: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="p-4">
       <!-- Header -->
       <div class="mb-8">
         <div class="flex justify-between items-center">
           <div>
-            <h1 class="text-3xl font-bold text-gray-900">Rap Battle Event Management</h1>
-            <p class="mt-2 text-gray-600">Create and manage rap battle events</p>
+            <h1 class="text-3xl font-bold text-gray-900">Manage Events</h1>
+            <p class="mt-2 text-gray-600">Create and manage events</p>
           </div>
           <button
             @click="openCreateModal"
@@ -145,7 +144,7 @@ const formatTime = (dateString: string) => {
             <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            Create Rap Battle Event
+            Create Event
           </button>
         </div>
       </div>
@@ -174,14 +173,14 @@ const formatTime = (dateString: string) => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No rap battle events found</h3>
-        <p class="mt-1 text-sm text-gray-500">Get started by creating your first rap battle event.</p>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No events found</h3>
+        <p class="mt-1 text-sm text-gray-500">Get started by creating your first event.</p>
         <div class="mt-6">
           <button
             @click="openCreateModal"
             class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-zinc-900 hover:bg-zinc-800"
           >
-            Create Rap Battle Event
+            Create Event
           </button>
         </div>
       </div>
@@ -256,7 +255,7 @@ const formatTime = (dateString: string) => {
       <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
         <div class="mt-3">
           <h3 class="text-lg font-medium text-gray-900 mb-4">
-            {{ showCreateModal ? 'Create Rap Battle Event' : 'Edit Rap Battle Event' }}
+            {{ showCreateModal ? 'Create Event' : 'Edit Event' }}
           </h3>
           
           <form @submit.prevent="showCreateModal ? createEvent() : updateEvent()" class="space-y-4">
@@ -353,12 +352,11 @@ const formatTime = (dateString: string) => {
                 :disabled="eventStore.loading"
                 class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50"
               >
-                {{ eventStore.loading ? 'Saving...' : (showCreateModal ? 'Create Rap Battle Event' : 'Update Rap Battle Event') }}
+                {{ eventStore.loading ? 'Saving...' : (showCreateModal ? 'Create Event' : 'Update Event') }}
               </button>
             </div>
           </form>
         </div>
       </div>
-    </div>
   </div>
 </template>

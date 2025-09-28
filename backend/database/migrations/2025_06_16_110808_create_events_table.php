@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('location', 100)->nullable();
             $table->string('poster_url', 255)->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

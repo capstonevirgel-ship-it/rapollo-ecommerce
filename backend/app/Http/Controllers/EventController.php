@@ -17,6 +17,12 @@ class EventController extends Controller
             ->orderBy('date', 'asc')
             ->paginate(12);
 
+        // Append the computed attributes to ensure they're included in the response
+        $events->getCollection()->transform(function ($event) {
+            $event->append(['booked_tickets_count', 'remaining_tickets']);
+            return $event;
+        });
+
         return response()->json($events);
     }
 
@@ -27,6 +33,9 @@ class EventController extends Controller
     {
         $event = Event::with(['admin', 'tickets', 'comments.user'])
             ->findOrFail($id);
+
+        // Append the computed attributes
+        $event->append(['booked_tickets_count', 'remaining_tickets']);
 
         return response()->json($event);
     }

@@ -4,12 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Event extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = ['admin_id', 'title', 'description', 'date', 'location', 'poster_url', 'ticket_price', 'max_tickets', 'available_tickets'];
+    
+    protected $appends = ['booked_tickets_count', 'remaining_tickets'];
 
     public function admin()
     {

@@ -93,7 +93,46 @@ const decreaseQty = (item: any) => {
   <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <h1 class="text-3xl font-bold text-gray-900 mb-8">Your Cart</h1>
 
-    <div class="flex flex-col lg:flex-row gap-8">
+    <!-- Empty Cart State -->
+    <div v-if="cartItems.length === 0" class="text-center py-16">
+      <div class="max-w-md mx-auto">
+        <!-- Shopping Cart Icon with Sad Face -->
+        <div class="mb-8">
+          <svg class="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9m-9 0a2 2 0 100 4 2 2 0 000-4zm9 0a2 2 0 100 4 2 2 0 000-4z" />
+            <!-- Sad face emoji overlay -->
+            <circle cx="8" cy="8" r="1" fill="currentColor" class="text-gray-400" />
+            <circle cx="16" cy="8" r="1" fill="currentColor" class="text-gray-400" />
+            <path d="M10 12c0 1-1 2-2 2s-2-1-2-2" stroke="currentColor" stroke-width="1" fill="none" class="text-gray-400" />
+          </svg>
+        </div>
+        
+        <!-- Witty Message -->
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Your cart is feeling lonely! 😢</h2>
+        <p class="text-lg text-gray-600 mb-2">It's like a shopping basket that forgot to go shopping.</p>
+        <p class="text-gray-500 mb-8">Don't worry, even the best carts start empty. Time to fill it with some amazing finds!</p>
+        
+        <!-- Action Buttons -->
+        <div class="space-y-4">
+          <NuxtLink 
+            to="/shop" 
+            class="inline-flex items-center justify-center px-8 py-3 bg-zinc-900 text-white font-medium rounded-lg hover:bg-zinc-800 transition-colors"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            Start Shopping Spree
+          </NuxtLink>
+          
+          <div class="text-sm text-gray-500">
+            <p>💡 <strong>Pro tip:</strong> The best deals are waiting for you!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cart with Items -->
+    <div v-else class="flex flex-col lg:flex-row gap-8">
       <!-- Cart Items -->
       <div class="lg:w-3/4">
         <div class="bg-white rounded-lg shadow-sm divide-y divide-gray-200">
@@ -123,7 +162,7 @@ const decreaseQty = (item: any) => {
 
                <!-- Price -->
                <div class="col-span-2 text-center">
-                 <span class="text-lg font-semibold text-gray-900">${{ (item.variant.price ?? 0).toFixed(2) }}</span>
+                 <span class="text-lg font-semibold text-gray-900">₱{{ (item.variant.price ?? 0).toFixed(2) }}</span>
                </div>
 
                <!-- Quantity -->
@@ -151,7 +190,7 @@ const decreaseQty = (item: any) => {
 
                <!-- Subtotal -->
                <div class="col-span-2 text-center">
-                 <span class="text-lg font-bold text-gray-900">${{ ((item.variant.price ?? 0) * item.quantity).toFixed(2) }}</span>
+                 <span class="text-lg font-bold text-gray-900">₱{{ ((item.variant.price ?? 0) * item.quantity).toFixed(2) }}</span>
                </div>
 
                <!-- Delete Button -->
@@ -185,19 +224,19 @@ const decreaseQty = (item: any) => {
           <div class="space-y-4">
             <div class="flex justify-between">
               <span class="text-gray-600">Subtotal</span>
-              <span class="font-medium">${{ subtotal.toFixed(2) }}</span>
+              <span class="font-medium">₱{{ subtotal.toFixed(2) }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-600">Shipping</span>
-              <span class="font-medium">${{ shipping.toFixed(2) }}</span>
+              <span class="font-medium">₱{{ shipping.toFixed(2) }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-600">Tax</span>
-              <span class="font-medium">${{ tax.toFixed(2) }}</span>
+              <span class="font-medium">₱{{ tax.toFixed(2) }}</span>
             </div>
             <div class="border-t border-gray-200 pt-4 flex justify-between">
               <span class="text-lg font-bold text-gray-900">Total</span>
-              <span class="text-lg font-bold text-gray-900">${{ total.toFixed(2) }}</span>
+              <span class="text-lg font-bold text-gray-900">₱{{ total.toFixed(2) }}</span>
             </div>
           </div>
 

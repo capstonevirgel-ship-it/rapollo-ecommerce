@@ -22,6 +22,7 @@ return new class extends Migration
             $table->boolean('is_hot')->default(false);
             $table->boolean('is_new')->default(false);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

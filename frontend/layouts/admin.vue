@@ -42,5 +42,8 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    
+    <!-- Global Alert Component -->
+    <Alert />
   </div>
 </template>

@@ -11,8 +11,8 @@ Welcome to **Rapollo**, your one-stop online shopping destination! We offer a wi
 - Track your orders and manage your account
 
 ### 💳 **Secure Payments**
-- Pay with credit/debit cards, GCash, PayMaya, and more
-- All payments are processed securely through PayMongo
+- Pay with credit/debit cards, Cash on Delivery, and more
+- All payments are processed securely
 - Your payment information is always protected
 
 ### 🚚 **Fast & Reliable Delivery**

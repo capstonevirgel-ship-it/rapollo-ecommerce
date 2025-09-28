@@ -4,7 +4,10 @@ import { storeToRefs } from 'pinia'
 import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from '~/stores/auth'
 import { usePurchaseStore } from '~/stores/purchase'
+import { useAlert } from '~/composables/useAlert'
 import { getImageUrl } from '~/utils/imageHelper'
+import BillingForm from '~/components/BillingForm.vue'
+import OrderReview from '~/components/OrderReview.vue'
 
 // Define page meta
 definePageMeta({
@@ -15,10 +18,13 @@ definePageMeta({
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 const purchaseStore = usePurchaseStore()
+const { success, error } = useAlert()
 const { cart } = storeToRefs(cartStore)
 
 // State
 const isLoading = ref(false)
+const currentStep = ref(1) // 1: billing, 2: review, 3: processing
+const billingData = ref<any>(null)
 const paymentStatus = ref('pending') // pending, processing, success, failed
 const paymentData = ref<any>(null)
 
@@ -42,10 +48,16 @@ const shipping = computed(() => 5.99)
 const tax = computed(() => subtotal.value * 0.08)
 const total = computed(() => subtotal.value + shipping.value + tax.value)
 
-// PayMongo checkout flow
-const proceedToPayMongo = async () => {
+// Handle billing form submission
+const handleBillingSubmit = (data: any) => {
+  billingData.value = data
+  currentStep.value = 2 // Move to review step
+}
+
+// Handle order confirmation
+const handleConfirmOrder = async () => {
+  currentStep.value = 3 // Move to processing step
   isLoading.value = true
-  paymentStatus.value = 'processing'
 
   try {
     // Check if user is authenticated
@@ -61,45 +73,60 @@ const proceedToPayMongo = async () => {
       throw new Error('Cart is empty')
     }
     
-    // Prepare cart data for PayMongo
-    const cartData = {
-      cart_data: {
-        items: cart.value.map((item) => {
-          if (!item.variant) {
-            throw new Error(`Variant not loaded for cart item ${item.id}`)
-          }
-          
-          if (!item.variant.price) {
-            throw new Error(`Price not found for variant ${item.variant_id}`)
-          }
-          
-          return {
-            product_variant_id: item.variant_id,
-            quantity: item.quantity,
-            price: item.variant.price
-          }
-        })
-      }
+    // Create purchase
+    const purchase = await purchaseStore.createPurchase(cart.value)
+    console.log('Purchase created:', purchase)
+    
+    // Create payment
+    const payment = await purchaseStore.createPayment(purchase.id, total.value, billingData.value.paymentMethod)
+    paymentData.value = payment
+    console.log('Payment created:', payment)
+    
+    // Show success message
+    success('Order Confirmed', 'Your order has been placed successfully!')
+    
+    // Store order data for success page
+    const orderData = {
+      orderId: purchase.id || 'RAP-' + Date.now(),
+      total: total.value,
+      paymentMethod: billingData.value.paymentMethod,
+      billingData: billingData.value,
+      purchase: purchase,
+      payment: payment
     }
     
-    console.log('Creating PayMongo payment...', cartData)
+    sessionStorage.setItem('orderData', JSON.stringify(orderData))
     
-    // Create PayMongo payment intent
-    const payment = await purchaseStore.createPayMongoPayment(cartData)
-    paymentData.value = payment
-    console.log('PayMongo payment created:', payment)
-    
-    // Redirect to PayMongo gateway
-    window.location.href = payment.redirect_url
+    // Navigate to success page
+    await navigateTo('/payment/success')
     
   } catch (error: any) {
-    console.error('PayMongo checkout failed:', error)
-    paymentStatus.value = 'failed'
-    const errorMessage = error?.message || 'An unknown error occurred'
-    alert(`Checkout failed: ${errorMessage}`)
+    console.error('Checkout failed:', error)
+    
+    // Show error message
+    error('Checkout Failed', error?.message || 'Unable to process your order. Please try again.')
+    
+    // Store error data for failure page
+    const errorData = {
+      message: error?.message || 'An unknown error occurred',
+      code: error?.code || 'CHECKOUT_ERROR',
+      amount: total.value,
+      paymentMethod: billingData.value.paymentMethod,
+      orderId: 'FAILED-' + Date.now()
+    }
+    
+    sessionStorage.setItem('paymentError', JSON.stringify(errorData))
+    
+    // Navigate to failure page
+    await navigateTo('/payment/failure')
   } finally {
     isLoading.value = false
   }
+}
+
+// Go back to billing step
+const goBackToBilling = () => {
+  currentStep.value = 1
 }
 
 // Load cart data on mount
@@ -112,52 +139,129 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Header -->
-      <div class="text-center mb-8">
+      <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900">Checkout</h1>
-        <p class="mt-2 text-gray-600">Review your order and complete payment</p>
+        <p class="text-gray-600 mt-2">Complete your purchase in a few simple steps</p>
+        
+        <!-- Progress Steps -->
+        <div class="mt-6">
+          <nav aria-label="Progress">
+            <ol class="flex items-center space-x-5">
+              <li class="flex items-center">
+                <div class="flex items-center">
+                  <div :class="[
+                    'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
+                    currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-500'
+                  ]">
+                    <span class="text-sm font-medium">1</span>
+                  </div>
+                  <span class="ml-3 text-sm font-medium text-gray-900">Billing</span>
+                </div>
+              </li>
+              
+              <li class="flex items-center">
+                <div class="flex items-center">
+                  <div :class="[
+                    'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
+                    currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-500'
+                  ]">
+                    <span class="text-sm font-medium">2</span>
+                  </div>
+                  <span class="ml-3 text-sm font-medium text-gray-900">Review</span>
+                </div>
+              </li>
+              
+              <li class="flex items-center">
+                <div class="flex items-center">
+                  <div :class="[
+                    'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
+                    currentStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-500'
+                  ]">
+                    <span class="text-sm font-medium">3</span>
+                  </div>
+                  <span class="ml-3 text-sm font-medium text-gray-900">Payment</span>
+                </div>
+              </li>
+            </ol>
+          </nav>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Order Summary -->
+        <!-- Main Content -->
         <div class="lg:col-span-2">
-          <div class="bg-white rounded-lg shadow-sm p-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-6">Order Summary</h2>
+          <!-- Step 1: Billing Form -->
+          <div v-if="currentStep === 1">
+            <BillingForm @submit="handleBillingSubmit" />
+          </div>
+          
+          <!-- Step 2: Order Review -->
+          <div v-else-if="currentStep === 2">
+            <OrderReview
+              :cart-items="cartItems"
+              :billing-data="billingData"
+              :subtotal="subtotal"
+              :shipping="shipping"
+              :tax="tax"
+              :total="total"
+              :is-processing="false"
+              @back="goBackToBilling"
+              @confirm="handleConfirmOrder"
+            />
+            </div>
+
+          <!-- Step 3: Processing -->
+          <div v-else-if="currentStep === 3" class="bg-white rounded-lg shadow-sm p-8">
+            <div class="text-center">
+              <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-8 h-8 text-blue-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <h3 class="text-xl font-semibold text-gray-900 mb-2">Processing Your Order</h3>
+              <p class="text-gray-600">Please wait while we process your payment and create your order...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Summary Sidebar -->
+        <div class="lg:col-span-1">
+          <div class="bg-white rounded-lg shadow-sm p-6 sticky top-4">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
             
+            <div v-if="cartItems.length === 0" class="text-center py-4">
+              <p class="text-gray-500">Your cart is empty</p>
+            </div>
+            
+            <div v-else>
             <!-- Cart Items -->
-            <div class="space-y-4">
-              <div
-                v-for="item in cartItems"
-                :key="item.id"
-                class="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg"
-              >
+              <div class="space-y-3 mb-6">
+                <div v-for="item in cartItems.slice(0, 3)" :key="item.id" class="flex items-center space-x-3">
                 <img
                   :src="item.image"
-                  :alt="item.product.name"
-                  class="w-20 h-20 object-cover rounded-lg"
+                    :alt="item.product.name || 'Product'"
+                    class="w-12 h-12 object-cover rounded-md"
                 />
                 <div class="flex-1 min-w-0">
-                  <h3 class="text-lg font-medium text-gray-900 truncate">
-                    {{ item.product.name }}
-                  </h3>
-                  <p class="text-sm text-gray-500">
-                    Quantity: {{ item.quantity }}
-                  </p>
-                  <p class="text-sm text-gray-500">
-                    Price: ₱{{ item.price.toFixed(2) }} each
-                  </p>
+                    <h4 class="text-sm font-medium text-gray-900 truncate">
+                      {{ item.product.name || 'Product' }}
+                    </h4>
+                    <p class="text-xs text-gray-500">Qty: {{ item.quantity }}</p>
                 </div>
-                <div class="text-right">
-                  <p class="text-lg font-semibold text-gray-900">
+                  <p class="text-sm font-medium text-gray-900">
                     ₱{{ (item.price * item.quantity).toFixed(2) }}
                   </p>
                 </div>
+                
+                <div v-if="cartItems.length > 3" class="text-center">
+                  <p class="text-sm text-gray-500">+{{ cartItems.length - 3 }} more items</p>
               </div>
             </div>
 
-            <!-- Order Totals -->
-            <div class="mt-6 space-y-3 border-t pt-6">
+              <!-- Totals -->
+              <div class="space-y-2 border-t pt-4">
               <div class="flex justify-between text-sm">
                 <span class="text-gray-600">Subtotal</span>
                 <span class="text-gray-900">₱{{ subtotal.toFixed(2) }}</span>
@@ -170,92 +274,10 @@ onMounted(async () => {
                 <span class="text-gray-600">Tax</span>
                 <span class="text-gray-900">₱{{ tax.toFixed(2) }}</span>
               </div>
-              <div class="flex justify-between text-lg font-bold border-t pt-3">
+                <div class="flex justify-between text-lg font-bold border-t pt-2">
                 <span class="text-gray-900">Total</span>
                 <span class="text-gray-900">₱{{ total.toFixed(2) }}</span>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Payment Section -->
-        <div class="lg:col-span-1">
-          <div class="bg-white rounded-lg shadow-sm p-6 sticky top-4">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Payment</h3>
-            
-            <!-- Payment Status -->
-            <div v-if="paymentStatus === 'pending'" class="text-center py-8">
-              <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-              </div>
-              <h4 class="text-lg font-medium text-gray-900 mb-2">Ready to Pay</h4>
-              <p class="text-gray-600 mb-6">Click the button below to proceed to secure payment</p>
-              
-              <button
-                @click="proceedToPayMongo"
-                :disabled="isLoading || !authStore.isAuthenticated"
-                class="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span v-if="isLoading">Processing...</span>
-                <span v-else-if="!authStore.isAuthenticated">Login Required</span>
-                <span v-else>Pay with PayMongo</span>
-              </button>
-            </div>
-
-            <!-- Processing Status -->
-            <div v-else-if="paymentStatus === 'processing'" class="text-center py-8">
-              <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-yellow-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </div>
-              <h4 class="text-lg font-medium text-gray-900 mb-2">Processing Payment</h4>
-              <p class="text-gray-600">Redirecting to PayMongo...</p>
-            </div>
-
-            <!-- Success Status -->
-            <div v-else-if="paymentStatus === 'success'" class="text-center py-8">
-              <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h4 class="text-lg font-medium text-gray-900 mb-2">Payment Successful!</h4>
-              <p class="text-gray-600 mb-6">Your order has been processed successfully.</p>
-              <NuxtLink
-                to="/checkout/success"
-                class="inline-block w-full bg-green-600 text-white py-3 px-4 rounded-md font-medium hover:bg-green-700 transition"
-              >
-                View Order Details
-              </NuxtLink>
-            </div>
-
-            <!-- Failed Status -->
-            <div v-else-if="paymentStatus === 'failed'" class="text-center py-8">
-              <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <h4 class="text-lg font-medium text-gray-900 mb-2">Payment Failed</h4>
-              <p class="text-gray-600 mb-6">There was an issue processing your payment. Please try again.</p>
-              <button
-                @click="paymentStatus = 'pending'"
-                class="w-full bg-red-600 text-white py-3 px-4 rounded-md font-medium hover:bg-red-700 transition"
-              >
-                Try Again
-              </button>
-            </div>
-
-            <!-- Security Badge -->
-            <div class="mt-6 text-center">
-              <div class="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
-                </svg>
-                <span>Secure payment by PayMongo</span>
               </div>
             </div>
           </div>

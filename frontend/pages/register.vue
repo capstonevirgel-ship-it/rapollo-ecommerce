@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import { useAlert } from '~/composables/useAlert'
 
 // Disable default layout
 definePageMeta({
@@ -8,6 +9,7 @@ definePageMeta({
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { success, error } = useAlert()
 
 // Form data
 const form = reactive({
@@ -62,6 +64,10 @@ const handleSubmit = async () => {
       password: form.password,
       password_confirmation: form.password_confirmation
     })
+    
+    // Show success message
+    success('Registration Successful', 'Your account has been created successfully!')
+    
     // Redirect will be handled by the store
   } catch (error: any) {
     console.error('Registration error:', error)
@@ -69,8 +75,10 @@ const handleSubmit = async () => {
     // Handle validation errors
     if (error.data && error.data.errors) {
       errors.value = error.data.errors
+      error('Registration Failed', 'Please check the form for errors.')
     } else {
       errors.value.general = authStore.error || 'Registration failed. Please try again.'
+      error('Registration Failed', authStore.error || 'Registration failed. Please try again.')
     }
   }
 }
@@ -355,6 +363,9 @@ const handleSubmit = async () => {
         </form>
       </div>
     </div>
+    
+    <!-- Alert Component -->
+    <Alert />
   </div>
 </template>
 

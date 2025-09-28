@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import { useAlert } from '~/composables/useAlert'
 
 // Disable default layout
 definePageMeta({
@@ -8,6 +9,7 @@ definePageMeta({
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { success, error } = useAlert()
 
 // Form data
 const form = reactive({
@@ -43,10 +45,16 @@ const handleSubmit = async () => {
       password: form.password,
       remember: form.remember
     })
+    
+    // Show success message
+    success('Login Successful', 'Welcome back!')
+    
     // Redirect will be handled by the store
   } catch (error: any) {
     console.error('Login error:', error)
-    // Error is already handled in the store
+    
+    // Show error message
+    error('Login Failed', error?.message || 'Invalid credentials. Please try again.')
   }
 }
 
@@ -291,6 +299,9 @@ onMounted(() => {
         </form>
       </div>
     </div>
+    
+    <!-- Alert Component -->
+    <Alert />
   </div>
 </template>
 

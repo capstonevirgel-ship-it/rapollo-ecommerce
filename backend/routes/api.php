@@ -12,6 +12,8 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\RatingController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
@@ -96,5 +98,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Payments
     Route::post('payments/create', [PaymentController::class, 'createPayment']);
+
+    // Ratings
+    Route::get('ratings', [RatingController::class, 'index']);
+    Route::get('ratings/user', [RatingController::class, 'show']);
+    Route::post('ratings', [RatingController::class, 'store']);
+    Route::delete('ratings', [RatingController::class, 'destroy']);
+    Route::get('ratings/reviewable-products', [RatingController::class, 'reviewableProducts']);
+    Route::get('ratings/statistics', [RatingController::class, 'statistics']);
+
+    // Dashboard (protected)
+    Route::get('dashboard/statistics', [DashboardController::class, 'statistics']);
+    Route::get('dashboard/revenue-chart', [DashboardController::class, 'revenueChart']);
+    Route::get('dashboard/order-status-chart', [DashboardController::class, 'orderStatusChart']);
+    Route::get('dashboard/category-chart', [DashboardController::class, 'categoryChart']);
+    Route::get('dashboard/top-products', [DashboardController::class, 'topProducts']);
+    Route::get('dashboard/recent-orders', [DashboardController::class, 'recentOrders']);
 });
 

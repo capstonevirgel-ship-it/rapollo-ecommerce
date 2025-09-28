@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { Event } from '~/types'
+import Dialog from '~/components/Dialog.vue'
 
 const eventStore = useEventStore()
 const ticketStore = useTicketStore()
 const authStore = useAuthStore()
+const { success, error } = useAlert()
 
 // Fetch events on client side
 onMounted(async () => {
@@ -56,15 +58,33 @@ const bookTickets = async () => {
   try {
     const response = await ticketStore.bookTickets(bookingEvent.value.id, selectedQuantity.value)
     
+    // Update the event's booked tickets count with data from API response
+    if (response.event) {
+      const eventIndex = eventStore.events.findIndex(e => e.id === response.event.id)
+      if (eventIndex !== -1) {
+        eventStore.events[eventIndex].booked_tickets_count = response.event.booked_tickets_count
+        eventStore.events[eventIndex].remaining_tickets = response.event.remaining_tickets
+      }
+    } else {
+      // Fallback: update locally if API doesn't return updated event
+      const eventIndex = eventStore.events.findIndex(e => e.id === bookingEvent.value!.id)
+      if (eventIndex !== -1) {
+        eventStore.events[eventIndex].booked_tickets_count = (eventStore.events[eventIndex].booked_tickets_count || 0) + selectedQuantity.value
+      }
+    }
+    
+    // Alternative: Refresh the entire events list to ensure accuracy
+    // await eventStore.fetchEvents()
+    
     // Show success message
-    alert(`Successfully booked ${selectedQuantity.value} ticket(s) for ${bookingEvent.value.title}!`)
+    success('Tickets Booked!', `Successfully booked ${selectedQuantity.value} ticket(s) for ${bookingEvent.value.title}!`)
     
     closeBookingModal()
     
     // Navigate to my tickets page
     navigateTo('/my-tickets')
-  } catch (error: any) {
-    alert(error.data?.message || 'Failed to book tickets')
+  } catch (err: any) {
+    error('Booking Failed', err.data?.message || 'Failed to book tickets. Please try again.')
   } finally {
     bookingLoading.value = false
   }
@@ -202,49 +222,91 @@ const canBookTickets = (event: Event) => {
       </div>
     </div>
 
-    <!-- Booking Modal -->
-    <div v-if="showBookingModal && bookingEvent" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Book Tickets</h3>
-          
-          <div class="mb-4">
-            <h4 class="text-md font-semibold text-gray-700">{{ bookingEvent.title }}</h4>
-            <p class="text-sm text-gray-500">{{ formatDate(bookingEvent.date) }} at {{ formatTime(bookingEvent.date) }}</p>
-            <p v-if="bookingEvent.location" class="text-sm text-gray-500">{{ bookingEvent.location }}</p>
+    <!-- Booking Dialog -->
+    <Dialog 
+      v-model="showBookingModal" 
+      title="Book Tickets"
+      width="400px"
+    >
+      <div v-if="bookingEvent" class="space-y-6">
+        <!-- Event Details -->
+        <div class="bg-gray-50 rounded-lg p-4">
+          <h4 class="text-lg font-semibold text-gray-900 mb-2">{{ bookingEvent.title }}</h4>
+          <div class="space-y-1 text-sm text-gray-600">
+            <p class="flex items-center">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {{ formatDate(bookingEvent.date) }} at {{ formatTime(bookingEvent.date) }}
+            </p>
+            <p v-if="bookingEvent.location" class="flex items-center">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {{ bookingEvent.location }}
+            </p>
+            <p class="flex items-center">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+              </svg>
+              {{ getRemainingTickets(bookingEvent) }} tickets remaining
+            </p>
+          </div>
           </div>
 
-          <div class="mb-4">
+        <!-- Ticket Selection -->
+        <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Number of Tickets</label>
-            <select v-model="selectedQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option v-for="i in Math.min(5, getRemainingTickets(bookingEvent))" :key="i" :value="i">{{ i }}</option>
+          <select 
+            v-model="selectedQuantity" 
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option v-for="i in Math.min(5, getRemainingTickets(bookingEvent))" :key="i" :value="i">
+              {{ i }} ticket{{ i > 1 ? 's' : '' }}
+            </option>
             </select>
+          <p class="mt-1 text-xs text-gray-500">Maximum 5 tickets per person to prevent scalping</p>
           </div>
 
-          <div class="mb-4">
+        <!-- Price Summary -->
+        <div class="bg-blue-50 rounded-lg p-4">
             <div class="flex justify-between items-center">
               <span class="text-sm font-medium text-gray-700">Total Price:</span>
-              <span class="text-lg font-bold text-gray-900">${{ (parseFloat(bookingEvent.ticket_price!.toString()) * selectedQuantity).toFixed(2) }}</span>
+            <span class="text-xl font-bold text-blue-900">₱{{ (parseFloat(bookingEvent.ticket_price!.toString()) * selectedQuantity).toFixed(2) }}</span>
             </div>
+          <p class="text-xs text-gray-500 mt-1">₱{{ bookingEvent.ticket_price }} per ticket</p>
           </div>
 
-          <div class="flex space-x-3">
+        <!-- Action Buttons -->
+        <div class="flex space-x-3 pt-4">
             <button
               @click="closeBookingModal"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
             >
               Cancel
             </button>
             <button
               @click="bookTickets"
-              :disabled="bookingLoading"
-              class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50"
-            >
-              {{ bookingLoading ? 'Booking...' : 'Confirm Booking' }}
+            :disabled="bookingLoading || getRemainingTickets(bookingEvent) === 0"
+            class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <span v-if="bookingLoading" class="flex items-center justify-center">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Booking...
+            </span>
+            <span v-else-if="getRemainingTickets(bookingEvent) === 0">
+              Sold Out
+            </span>
+            <span v-else>
+              Confirm Booking
+            </span>
             </button>
-          </div>
         </div>
       </div>
-    </div>
+    </Dialog>
   </div>
 </template>

@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { useProductStore } from "~/stores/product";
 import { useBrandStore } from "~/stores/brand";
 import { useSubcategoryStore } from "~/stores/subcategory";
+import { useAlert } from "~/composables/useAlert";
 
 definePageMeta({
   layout: 'admin'
@@ -11,6 +12,7 @@ definePageMeta({
 const productStore = useProductStore();
 const brandStore = useBrandStore();
 const subcategoryStore = useSubcategoryStore();
+const { success, error, info } = useAlert();
 
 // Product state
 const name = ref("");
@@ -112,7 +114,7 @@ async function submitProduct() {
       })),
     });
 
-    alert("Product created ✅");
+    success("Product Created", "Product has been created successfully!");
 
     // Reset
     name.value = "";
@@ -129,7 +131,7 @@ async function submitProduct() {
     newBrandName.value = "";
   } catch (err) {
     console.error(err);
-    alert("Failed to create product ❌");
+    error("Failed to Create Product", "Unable to create product. Please check all fields and try again.");
   }
 }
 

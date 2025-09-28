@@ -30,6 +30,57 @@ class ProductController extends Controller
         if ($request->has('is_featured')) {
             $query->where('is_featured', $request->boolean('is_featured'));
         }
+        if ($request->has('is_hot')) {
+            $query->where('is_hot', $request->boolean('is_hot'));
+        }
+        if ($request->has('is_new')) {
+            $query->where('is_new', $request->boolean('is_new'));
+        }
+        
+        // Search filter
+        if ($request->has('search') && !empty($request->get('search'))) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhereHas('brand', function ($brandQuery) use ($search) {
+                      $brandQuery->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+        
+        // Brand filter
+        if ($request->has('brand')) {
+            $query->whereHas('brand', function ($q) use ($request) {
+                $q->where('slug', $request->get('brand'));
+            });
+        }
+        
+        // Category filter
+        if ($request->has('category')) {
+            $query->whereHas('subcategory.category', function ($q) use ($request) {
+                $q->where('slug', $request->get('category'));
+            });
+        }
+        
+        // Subcategory filter
+        if ($request->has('subcategory')) {
+            $query->whereHas('subcategory', function ($q) use ($request) {
+                $q->where('slug', $request->get('subcategory'));
+            });
+        }
+        
+        // Price range filter
+        if ($request->has('min_price')) {
+            $query->whereHas('variants', function ($q) use ($request) {
+                $q->where('price', '>=', $request->get('min_price'));
+            });
+        }
+        if ($request->has('max_price')) {
+            $query->whereHas('variants', function ($q) use ($request) {
+                $q->where('price', '<=', $request->get('max_price'));
+            });
+        }
 
         // Pagination
         $perPage = $request->get('per_page', 15);

@@ -8,6 +8,9 @@
       </div>
     </main>
     <Footer />
+    
+    <!-- Global Alert Component -->
+    <Alert />
   </div>
 </template>
 

@@ -6,6 +6,7 @@ import { useAuthStore } from '~/stores/auth'
 
 const isMenuOpen = ref(false)
 const isShopDrawerOpen = ref(false)
+const isProfileDrawerOpen = ref(false)
 const activeCategory = ref<string | null>(null)
 const activeMobileCategory = ref<string | null>(null)
 
@@ -29,12 +30,26 @@ const toggleCategory = (category: string | null) => {
 
 const toggleShopDrawer = () => {
   isShopDrawerOpen.value = !isShopDrawerOpen.value
-  if (isShopDrawerOpen.value) isMenuOpen.value = false
+  if (isShopDrawerOpen.value) {
+    isMenuOpen.value = false
+    isProfileDrawerOpen.value = false
+  }
+}
+
+const toggleProfileDrawer = () => {
+  isProfileDrawerOpen.value = !isProfileDrawerOpen.value
+  if (isProfileDrawerOpen.value) {
+    isMenuOpen.value = false
+    isShopDrawerOpen.value = false
+  }
 }
 
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value
-  if (isMenuOpen.value) isShopDrawerOpen.value = false
+  if (isMenuOpen.value) {
+    isShopDrawerOpen.value = false
+    isProfileDrawerOpen.value = false
+  }
 }
 
 interface NavLink {
@@ -108,18 +123,15 @@ const navLinks: NavLink[] = [
           
           <!-- Authenticated User -->
           <div v-if="authStore.isAuthenticated" class="flex items-center space-x-4">
-            <NuxtLink to="/my-tickets" class="text-base text-gray-300 hover:text-white">
-              My Tickets
-            </NuxtLink>
-            <NuxtLink v-if="authStore.user?.role === 'admin'" to="/admin/events" class="text-base text-gray-300 hover:text-white">
-              Admin
-            </NuxtLink>
-            <span class="text-base text-gray-300">Welcome, {{ authStore.user?.user_name }}</span>
             <button 
-              @click="authStore.logout()" 
-              class="text-base text-gray-300 hover:text-white"
+              @click="toggleProfileDrawer"
+              class="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-800 transition-colors"
             >
-              Logout
+              <img 
+                src="/uploads/avatar_placeholder.png" 
+                :alt="authStore.user?.user_name || 'User'"
+                class="w-8 h-8 rounded-full object-cover border-2 border-gray-600 hover:border-white transition-colors"
+              />
             </button>
           </div>
           
@@ -171,14 +183,52 @@ const navLinks: NavLink[] = [
             </div>
             
             <div v-if="authStore.isAuthenticated" class="px-4 py-2">
-              <span class="text-gray-300">Welcome, {{ authStore.user?.user_name }}</span>
-              <div class="mt-2 space-y-2">
+              <div class="flex items-center space-x-3 mb-3">
+                <img 
+                  src="/uploads/avatar_placeholder.png" 
+                  :alt="authStore.user?.user_name || 'User'"
+                  class="w-10 h-10 rounded-full object-cover"
+                />
+                <div>
+                  <p class="text-gray-300 font-medium">{{ authStore.user?.user_name }}</p>
+                  <p class="text-gray-400 text-sm">{{ authStore.user?.email }}</p>
+                </div>
+              </div>
+              <div class="space-y-2">
                 <NuxtLink
                   to="/my-tickets"
                   @click="isMenuOpen = false"
                   class="block text-gray-300 hover:text-white"
                 >
                   My Tickets
+                </NuxtLink>
+                <NuxtLink
+                  to="/my-orders"
+                  @click="isMenuOpen = false"
+                  class="block text-gray-300 hover:text-white"
+                >
+                  Order History
+                </NuxtLink>
+                <NuxtLink
+                  to="/my-reviews"
+                  @click="isMenuOpen = false"
+                  class="block text-gray-300 hover:text-white"
+                >
+                  My Reviews
+                </NuxtLink>
+                <NuxtLink
+                  to="/profile"
+                  @click="isMenuOpen = false"
+                  class="block text-gray-300 hover:text-white"
+                >
+                  Profile
+                </NuxtLink>
+                <NuxtLink
+                  to="/settings"
+                  @click="isMenuOpen = false"
+                  class="block text-gray-300 hover:text-white"
+                >
+                  Settings
                 </NuxtLink>
                 <NuxtLink
                   v-if="authStore.user?.role === 'admin'"
@@ -190,7 +240,7 @@ const navLinks: NavLink[] = [
                 </NuxtLink>
                 <button 
                   @click="authStore.logout(); isMenuOpen = false" 
-                  class="block w-full text-left text-gray-300 hover:text-white"
+                  class="block w-full text-left text-red-400 hover:text-red-300"
                 >
                   Logout
                 </button>
@@ -227,6 +277,117 @@ const navLinks: NavLink[] = [
     @close="isShopDrawerOpen = false"
     @toggle-category="slug => activeMobileCategory = activeMobileCategory === slug ? null : slug"
   />
+
+  <!-- Profile Drawer -->
+  <Transition name="drawer-slide">
+    <div 
+      v-if="isProfileDrawerOpen" 
+      class="fixed inset-0 z-50 flex justify-end"
+      @click="isProfileDrawerOpen = false"
+    >
+      <!-- Backdrop -->
+      <div class="absolute inset-0 bg-black/50"></div>
+      
+      <!-- Drawer Content -->
+      <div 
+        class="relative w-80 h-full bg-white shadow-xl transform transition-transform duration-300"
+        @click.stop
+      >
+        <!-- Header -->
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+          <div class="flex items-center space-x-3">
+            <img 
+              src="/uploads/avatar_placeholder.png" 
+              :alt="authStore.user?.user_name || 'User'"
+              class="w-12 h-12 rounded-full object-cover"
+            />
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900">{{ authStore.user?.user_name || 'User' }}</h3>
+              <p class="text-sm text-gray-500">{{ authStore.user?.email }}</p>
+            </div>
+          </div>
+          <button 
+            @click="isProfileDrawerOpen = false"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <Icon name="mdi:close" class="text-xl" />
+          </button>
+        </div>
+
+        <!-- Navigation Items -->
+        <div class="p-4">
+          <nav class="space-y-2">
+            <NuxtLink
+              to="/my-tickets"
+              @click="isProfileDrawerOpen = false"
+              class="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Icon name="mdi:ticket-outline" class="text-xl text-gray-400" />
+              <span>My Tickets</span>
+            </NuxtLink>
+            
+            <NuxtLink
+              to="/my-orders"
+              @click="isProfileDrawerOpen = false"
+              class="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Icon name="mdi:package-variant" class="text-xl text-gray-400" />
+              <span>Order History</span>
+            </NuxtLink>
+            
+            <NuxtLink
+              to="/my-reviews"
+              @click="isProfileDrawerOpen = false"
+              class="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Icon name="mdi:star-outline" class="text-xl text-gray-400" />
+              <span>My Reviews</span>
+            </NuxtLink>
+            
+            <NuxtLink
+              to="/profile"
+              @click="isProfileDrawerOpen = false"
+              class="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Icon name="mdi:account-outline" class="text-xl text-gray-400" />
+              <span>Profile</span>
+            </NuxtLink>
+            
+            <NuxtLink
+              to="/settings"
+              @click="isProfileDrawerOpen = false"
+              class="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Icon name="mdi:cog-outline" class="text-xl text-gray-400" />
+              <span>Settings</span>
+            </NuxtLink>
+
+            <!-- Admin Panel (if admin) -->
+            <NuxtLink
+              v-if="authStore.user?.role === 'admin'"
+              to="/admin/events"
+              @click="isProfileDrawerOpen = false"
+              class="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Icon name="mdi:shield-account" class="text-xl text-gray-400" />
+              <span>Admin Panel</span>
+            </NuxtLink>
+          </nav>
+
+          <!-- Logout Button -->
+          <div class="mt-6 pt-4 border-t border-gray-200">
+            <button 
+              @click="authStore.logout(); isProfileDrawerOpen = false"
+              class="flex items-center space-x-3 w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <Icon name="mdi:logout" class="text-xl" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>

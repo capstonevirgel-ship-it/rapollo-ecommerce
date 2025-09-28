@@ -1,5 +1,6 @@
 import { defineStore } from "pinia"
 import { useCustomFetch } from "~/composables/useCustomFetch"
+import { useAlert } from "~/composables/useAlert"
 import type { Cart, CartPayload } from "~/types"
 
 const GUEST_CART_KEY = "guest_cart"
@@ -156,6 +157,9 @@ export const useCartStore = defineStore("cart", {
     async store(payload: CartPayload) {
       this.loading = true
       this.error = null
+      
+      const { success, error } = useAlert()
+      
       try {
         const data = await useCustomFetch<Cart>("/api/cart", {
           method: "POST",
@@ -169,9 +173,16 @@ export const useCartStore = defineStore("cart", {
           this.cart.push(data)
         }
 
+        // Show success message
+        success('Added to Cart', 'Item has been added to your cart!')
+        
         return data
       } catch (error: any) {
         this.error = error.data?.message || error.message || "Failed to add to cart"
+        
+        // Show error message
+        error('Failed to Add Item', this.error)
+        
         throw error
       } finally {
         this.loading = false
@@ -221,12 +232,18 @@ export const useCartStore = defineStore("cart", {
     // ✅ Remove item from cart
     async removeFromCart(idOrVariantId: number, isLoggedIn: boolean = true) {
       this.error = null
+      
+      const { success, error } = useAlert()
+      
       if (!isLoggedIn) {
         if (!import.meta.client) return
         const guestCart: Cart[] = this.loadGuestCart()
         const after = guestCart.filter((item) => item.variant_id !== idOrVariantId)
         localStorage.setItem(GUEST_CART_KEY, JSON.stringify(after))
         this.guestVersion++
+        
+        // Show success message for guest
+        success('Removed from Cart', 'Item has been removed from your cart!')
         return
       }
 
@@ -234,8 +251,15 @@ export const useCartStore = defineStore("cart", {
       try {
         await useCustomFetch(`/api/cart/${idOrVariantId}`, { method: "DELETE" })
         this.cart = this.cart.filter((item) => item.id !== idOrVariantId)
+        
+        // Show success message
+        success('Removed from Cart', 'Item has been removed from your cart!')
       } catch (error: any) {
         this.error = error.data?.message || error.message || "Failed to remove item"
+        
+        // Show error message
+        error('Failed to Remove Item', this.error)
+        
         throw error
       } finally {
         this.loading = false

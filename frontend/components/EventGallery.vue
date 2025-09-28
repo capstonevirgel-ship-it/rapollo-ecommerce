@@ -123,7 +123,7 @@ onUnmounted(() => {
         @click="handleEventClick(events[currentIndex])"
       >
         <img
-          :src="getImageUrl(events[currentIndex].poster_url, 'event')"
+          :src="getImageUrl(events[currentIndex].poster_url || null, 'event')"
           :alt="events[currentIndex].title"
           class="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105"
         />
@@ -160,23 +160,8 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Tickets Available -->
-            <div v-if="events[currentIndex].remaining_tickets !== undefined" class="mb-4">
-              <div class="flex items-center gap-2">
-                <div class="flex-1 bg-gray-700 rounded-full h-2">
-                  <div 
-                    class="bg-primary-500 h-2 rounded-full transition-all duration-300"
-                    :style="{ width: `${(events[currentIndex].remaining_tickets / events[currentIndex].max_tickets) * 100}%` }"
-                  ></div>
-                </div>
-                <span class="text-xs text-gray-300">
-                  {{ events[currentIndex].remaining_tickets }} of {{ events[currentIndex].max_tickets }} tickets left
-                </span>
-              </div>
-            </div>
-
             <!-- CTA Button -->
-            <button class="w-full py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 transition-colors">
+            <button class="w-full py-3 bg-white text-black font-medium rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
               View Event Details
             </button>
           </div>
@@ -192,12 +177,12 @@ onUnmounted(() => {
           :class="[
             'relative w-full h-[calc(25%-9px)] lg:h-[calc(25%-9px)] rounded-lg overflow-hidden cursor-pointer transition-all duration-300 group',
             currentIndex === idx 
-              ? 'ring-2 ring-primary-500 scale-105 shadow-lg' 
+              ? 'ring-2 ring-gray-900 scale-105 shadow-lg' 
               : 'opacity-70 hover:opacity-100 hover:scale-105'
           ]"
         >
           <img
-            :src="getImageUrl(event.poster_url, 'event')"
+            :src="getImageUrl(event.poster_url || null, 'event')"
             :alt="event.title"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

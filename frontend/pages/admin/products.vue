@@ -8,12 +8,14 @@ import DataTable from '@/components/DataTable.vue'
 import AdminActionButton from '@/components/AdminActionButton.vue'
 import AdminAddButton from '@/components/AdminAddButton.vue'
 import { useProductStore } from '@/stores/product'
+import { useAlert } from '@/composables/useAlert'
 import { getImageUrl } from '@/utils/imageHelper'
 
 // ---------------------
 // Pinia store
 // ---------------------
 const productStore = useProductStore()
+const { success, error, info } = useAlert()
 
 // ---------------------
 // Columns
@@ -58,12 +60,33 @@ const products = computed(() =>
 onMounted(async () => {
   try {
     await productStore.fetchProducts({ per_page: 20 })
+    info('Products Loaded', 'Product list has been loaded successfully')
   } catch (err) {
     console.error('Failed to fetch products', err)
+    error('Failed to Load Products', 'Unable to fetch products. Please try again.')
   }
 })
 
 const selectedIds = ref<number[]>([])
+
+// Methods
+const editProduct = (slug: string) => {
+  info('Edit Product', `Opening edit form for product: ${slug}`)
+  // TODO: Navigate to edit page or open modal
+  console.log('Edit product:', slug)
+}
+
+const deleteProduct = async (slug: string, name: string) => {
+  if (confirm(`Are you sure you want to delete "${name}"?`)) {
+    try {
+      // TODO: Implement delete functionality
+      success('Product Deleted', `"${name}" has been deleted successfully`)
+      console.log('Delete product:', slug)
+    } catch (err) {
+      error('Delete Failed', 'Failed to delete product. Please try again.')
+    }
+  }
+}
 
 </script>
 
@@ -110,13 +133,13 @@ const selectedIds = ref<number[]>([])
             icon="mdi:pencil"
             text="Edit"
             variant="primary"
-            @click="console.log('Edit', row.slug)"
+            @click="editProduct(row.slug)"
           />
           <AdminActionButton
             icon="mdi:delete"
             text="Delete"
             variant="danger"
-            @click="console.log('Delete', row.slug)"
+            @click="deleteProduct(row.slug, row.name)"
           />
         </div>
       </template>

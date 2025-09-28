@@ -70,6 +70,12 @@ class TicketController extends Controller
             return response()->json(['error' => 'This event does not have ticket sales enabled'], 400);
         }
 
+        // Check if user has already booked tickets for this event
+        $existingTickets = $user->tickets()->where('event_id', $event->id)->whereIn('status', ['pending', 'confirmed'])->count();
+        if ($existingTickets + $quantity > 5) {
+            return response()->json(['error' => 'You can only book a maximum of 5 tickets per event'], 400);
+        }
+
         // Check if enough tickets are available
         if ($event->isFullyBooked() || $event->remaining_tickets < $quantity) {
             return response()->json(['error' => 'Not enough tickets available'], 400);
@@ -96,10 +102,15 @@ class TicketController extends Controller
 
             DB::commit();
 
+            // Refresh the event to get updated ticket counts
+            $event->refresh();
+            $event->append(['booked_tickets_count', 'remaining_tickets']);
+
             return response()->json([
                 'message' => 'Tickets booked successfully',
                 'tickets' => $tickets,
-                'total_price' => $totalPrice
+                'total_price' => $totalPrice,
+                'event' => $event
             ], 201);
 
         } catch (\Exception $e) {

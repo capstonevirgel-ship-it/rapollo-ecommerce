@@ -42,26 +42,21 @@ export interface PaymentResponse {
   purchase_status: string
 }
 
-export interface PayMongoPaymentResponse {
-  message: string
-  payment_intent_id: string
-  client_key: string
-  purchase_id: number
-  redirect_url: string
-}
-
-export interface PayMongoVerifyResponse {
-  status: string
-  amount: number
-  currency: string
-}
+// Removed PayMongo interfaces
 
 export const usePurchaseStore = defineStore('purchase', () => {
   const createPurchase = async (cartItems: any[]) => {
+    // Map cart items to the format expected by the backend
+    const items = cartItems.map(item => ({
+      variant_id: item.variant_id,
+      quantity: item.quantity,
+      price: item.variant.price // Extract price from variant
+    }))
+
     const response = await $fetch('/api/purchases', {
       method: 'POST',
       body: {
-        items: cartItems // cartItems are already mapped in cart.vue
+        items: items
       }
     })
     return response.data
@@ -80,29 +75,10 @@ export const usePurchaseStore = defineStore('purchase', () => {
     return response as PaymentResponse
   }
 
-  // PayMongo payment methods
-  const createPayMongoPayment = async (cartData: any): Promise<PayMongoPaymentResponse> => {
-    const response = await $fetch('/api/payments/paymongo/create', {
-      method: 'POST',
-      body: cartData
-    })
-    return response as PayMongoPaymentResponse
-  }
-
-  const verifyPayMongoPayment = async (paymentIntentId: string): Promise<PayMongoVerifyResponse> => {
-    const response = await $fetch('/api/payments/paymongo/verify', {
-      method: 'POST',
-      body: {
-        payment_intent_id: paymentIntentId
-      }
-    })
-    return response as PayMongoVerifyResponse
-  }
+  // Removed PayMongo payment methods
 
   return {
     createPurchase,
-    createPayment,
-    createPayMongoPayment,
-    verifyPayMongoPayment
+    createPayment
   }
 })
