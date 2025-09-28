@@ -39,10 +39,18 @@ export const useRatingStore = defineStore("rating", {
         const response = await useCustomFetch<Rating>("/api/ratings/user", {
           query: { variant_id: variantId }
         })
-        this.userRating = response
+        // Ensure we handle null/undefined responses correctly
+        this.userRating = response && response.id ? response : null
         return response
       } catch (err: any) {
+        // Don't set error for 403/404 - user might not have purchased the product
+        if (err.status === 403 || err.status === 404 || err.statusCode === 403 || err.statusCode === 404) {
+          this.userRating = null
+          return null
+        }
+        
         this.error = err.data?.message || err.message || "Failed to fetch user rating"
+        this.userRating = null
         throw err
       } finally {
         this.loading = false
@@ -83,6 +91,22 @@ export const useRatingStore = defineStore("rating", {
       }
     },
 
+    async fetchReviewedProducts() {
+      this.loading = true
+      this.error = null
+      
+      try {
+        const response = await useCustomFetch<ReviewableProduct[]>("/api/ratings/reviewed-products")
+        this.reviewableProducts = response
+        return response
+      } catch (err: any) {
+        this.error = err.data?.message || err.message || "Failed to fetch reviewed products"
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
     async createRating(payload: RatingPayload) {
       this.loading = true
       this.error = null
@@ -104,7 +128,7 @@ export const useRatingStore = defineStore("rating", {
         this.userRating = response
         return response
       } catch (err: any) {
-        this.error = err.data?.message || err.message || "Failed to create rating"
+        // Don't set global error for submission errors - let the component handle it
         throw err
       } finally {
         this.loading = false
@@ -127,11 +151,15 @@ export const useRatingStore = defineStore("rating", {
         
         return true
       } catch (err: any) {
-        this.error = err.data?.message || err.message || "Failed to delete rating"
+        // Don't set global error for deletion errors - let the component handle it
         throw err
       } finally {
         this.loading = false
       }
+    },
+
+    clearError() {
+      this.error = null
     }
   }
 })

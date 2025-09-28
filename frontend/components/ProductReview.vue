@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRatingStore } from '~/stores/rating'
+import { useAuthStore } from '~/stores/auth'
 import { useAlert } from '~/composables/useAlert'
 import type { RatingPayload } from '~/types'
 
@@ -11,6 +12,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const ratingStore = useRatingStore()
+const authStore = useAuthStore()
 const { success, error } = useAlert()
 
 const isSubmitting = ref(false)
@@ -29,7 +31,7 @@ const totalRatings = computed(() => {
 })
 
 const hasUserRated = computed(() => {
-  return !!ratingStore.userRating
+  return !!(ratingStore.userRating && ratingStore.userRating.id && ratingStore.userRating.stars > 0)
 })
 
 const starDistribution = computed(() => {
@@ -48,17 +50,30 @@ const starDistribution = computed(() => {
 })
 
 onMounted(async () => {
+  // Clear any existing errors
+  ratingStore.clearError()
+  
   try {
+    // Always fetch public ratings and statistics
     await Promise.all([
       ratingStore.fetchRatings(props.variantId),
-      ratingStore.fetchUserRating(props.variantId),
       ratingStore.fetchStatistics(props.variantId)
     ])
     
-    // If user has already rated, populate the form
-    if (ratingStore.userRating) {
-      stars.value = ratingStore.userRating.stars
-      comment.value = ratingStore.userRating.comment || ''
+    // Only fetch user rating if authenticated
+    if (authStore.isAuthenticated) {
+      try {
+        await ratingStore.fetchUserRating(props.variantId)
+        
+        // If user has already rated, populate the form
+        if (ratingStore.userRating) {
+          stars.value = ratingStore.userRating.stars
+          comment.value = ratingStore.userRating.comment || ''
+        }
+      } catch (err) {
+        // Silently handle user rating fetch errors (user might not have purchased)
+        console.log('User rating not available:', err)
+      }
     }
   } catch (err) {
     console.error('Failed to load ratings:', err)
@@ -104,7 +119,24 @@ const submitReview = async () => {
     
     showReviewForm.value = false
   } catch (err: any) {
-    error('Review Failed', err.message || 'Failed to submit review. Please try again.')
+    let errorTitle = 'Review Failed'
+    let errorMessage = 'Failed to submit review. Please try again.'
+    
+    // Handle specific error cases
+    if (err.status === 403 || err.statusCode === 403) {
+      errorTitle = 'Cannot Review Product'
+      errorMessage = 'You can only review products you have purchased and received. Please complete your order first.'
+    } else if (err.status === 401 || err.statusCode === 401) {
+      errorTitle = 'Authentication Required'
+      errorMessage = 'Please log in to write a review.'
+    } else if (err.data?.error) {
+      errorTitle = 'Review Error'
+      errorMessage = err.data.error
+    } else if (err.message) {
+      errorMessage = err.message
+    }
+    
+    error(errorTitle, errorMessage)
   } finally {
     isSubmitting.value = false
   }
@@ -129,6 +161,7 @@ const deleteReview = async () => {
 }
 
 const editReview = () => {
+  ratingStore.clearError()
   showReviewForm.value = true
 }
 
@@ -147,12 +180,21 @@ const cancelReview = () => {
     <div class="flex items-center justify-between mb-6">
       <h3 class="text-lg font-semibold text-gray-900">Customer Reviews</h3>
       <button
-        v-if="!hasUserRated"
-        @click="showReviewForm = true"
+        v-if="!hasUserRated && authStore.isAuthenticated"
+        @click="ratingStore.clearError(); showReviewForm = true"
         class="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors"
       >
         Write a Review
       </button>
+      <div
+        v-else-if="!authStore.isAuthenticated"
+        class="text-sm text-gray-500"
+      >
+        <NuxtLink to="/login" class="text-blue-600 hover:text-blue-800 underline">
+          Log in
+        </NuxtLink>
+        to write a review
+      </div>
     </div>
 
     <!-- Rating Summary -->
@@ -232,7 +274,7 @@ const cancelReview = () => {
       </div>
       <p v-if="ratingStore.userRating!.comment" class="text-gray-700">{{ ratingStore.userRating!.comment }}</p>
       <p class="text-xs text-gray-500 mt-2">
-        Reviewed on {{ new Date(ratingStore.userRating!.created_at).toLocaleDateString() }}
+        Reviewed on {{ ratingStore.userRating!.created_at ? new Date(ratingStore.userRating!.created_at).toLocaleDateString() : 'Unknown date' }}
       </p>
     </div>
 
@@ -298,8 +340,19 @@ const cancelReview = () => {
       </div>
     </div>
 
+    <!-- Error State -->
+    <div v-if="ratingStore.error" class="text-center py-8">
+      <div class="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+        <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <h4 class="text-lg font-medium text-gray-900 mb-2">Error Loading Reviews</h4>
+      <p class="text-gray-500">{{ ratingStore.error }}</p>
+    </div>
+
     <!-- Reviews List -->
-    <div v-if="ratingStore.ratings.length > 0" class="space-y-4">
+    <div v-else-if="ratingStore.ratings.length > 0" class="space-y-4">
       <h4 class="font-medium text-gray-900">Customer Reviews</h4>
       <div
         v-for="rating in ratingStore.ratings"
@@ -333,14 +386,16 @@ const cancelReview = () => {
     </div>
 
     <!-- No Reviews -->
-    <div v-else-if="totalRatings === 0" class="text-center py-8">
+    <div v-else-if="totalRatings === 0 && !ratingStore.error" class="text-center py-8">
       <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
         <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
         </svg>
       </div>
       <h4 class="text-lg font-medium text-gray-900 mb-2">No Reviews Yet</h4>
-      <p class="text-gray-500">Be the first to review this product!</p>
+      <p class="text-gray-500">
+        {{ authStore.isAuthenticated ? 'Be the first to review this product!' : 'No reviews yet for this product.' }}
+      </p>
     </div>
   </div>
 </template>

@@ -48,6 +48,10 @@ Route::get('products/{slug}', [ProductController::class, 'show']);
 Route::get('events', [EventController::class, 'index']);
 Route::get('events/{id}', [EventController::class, 'show']);
 
+// Public Ratings (view only)
+Route::get('ratings', [RatingController::class, 'index']);
+Route::get('ratings/statistics', [RatingController::class, 'statistics']);
+
 // ----------------------
 // Protected
 // ----------------------
@@ -99,13 +103,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Payments
     Route::post('payments/create', [PaymentController::class, 'createPayment']);
 
-    // Ratings
-    Route::get('ratings', [RatingController::class, 'index']);
+    // Protected Ratings (create, update, delete, user-specific)
     Route::get('ratings/user', [RatingController::class, 'show']);
     Route::post('ratings', [RatingController::class, 'store']);
     Route::delete('ratings', [RatingController::class, 'destroy']);
     Route::get('ratings/reviewable-products', [RatingController::class, 'reviewableProducts']);
-    Route::get('ratings/statistics', [RatingController::class, 'statistics']);
+    Route::get('ratings/reviewed-products', [RatingController::class, 'reviewedProducts']);
 
     // Dashboard (protected)
     Route::get('dashboard/statistics', [DashboardController::class, 'statistics']);

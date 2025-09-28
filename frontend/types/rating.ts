@@ -41,6 +41,16 @@ export interface ReviewableProduct {
     id: number
     name: string
     slug: string
+    subcategory?: {
+      id: number
+      name: string
+      slug: string
+      category?: {
+        id: number
+        name: string
+        slug: string
+      }
+    }
   }
   variant: {
     id: number

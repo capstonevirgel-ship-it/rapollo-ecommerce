@@ -84,6 +84,26 @@
                     ₱{{ formatPrice((item.price || 0) * (item.quantity || 0)) }}
                   </p>
                   <p class="text-xs text-gray-500">₱{{ formatPrice(item.price) }} each</p>
+                  
+                  <!-- Review Button for Completed Orders -->
+                  <div v-if="order.status === 'completed' && item.variant?.id" class="mt-2">
+                    <button
+                      v-if="!isVariantReviewed(item.variant.id)"
+                      @click="navigateToProduct(item)"
+                      class="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                    >
+                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                      Write Review
+                    </button>
+                    <div v-else class="flex items-center text-xs text-green-600">
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      Reviewed
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -118,9 +138,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { usePurchaseStore } from '~/stores/purchase'
+import { useRatingStore } from '~/stores/rating'
 import { getImageUrl } from '~/utils/imageHelper'
 
 // Define page meta
@@ -131,8 +152,10 @@ definePageMeta({
 
 const authStore = useAuthStore()
 const purchaseStore = usePurchaseStore()
+const ratingStore = useRatingStore()
 const orders = ref<any[]>([])
 const isLoading = ref(false)
+const reviewedVariants = ref<Set<number>>(new Set())
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -165,12 +188,34 @@ const getStatusColor = (status: string) => {
   }
 }
 
+const isVariantReviewed = (variantId: number) => {
+  return reviewedVariants.value.has(variantId)
+}
+
+const navigateToProduct = (item: any) => {
+  const product = item.variant?.product
+  if (product?.subcategory?.category?.slug && product?.subcategory?.slug) {
+    navigateTo(`/shop/${product.subcategory.category.slug}/${product.subcategory.slug}/${product.slug}`)
+  } else {
+    // Fallback to just product slug if category/subcategory info is not available
+    navigateTo(`/shop/${product?.slug}`)
+  }
+}
+
 onMounted(async () => {
   isLoading.value = true
   try {
     // Fetch real orders from the API
     const response = await $fetch('/api/purchases')
     orders.value = response.data || []
+    
+    // Fetch reviewed products to check which variants have been reviewed
+    try {
+      const reviewedProducts = await ratingStore.fetchReviewedProducts()
+      reviewedVariants.value = new Set(reviewedProducts.map(p => p.variant_id))
+    } catch (error) {
+      console.error('Failed to fetch reviewed products:', error)
+    }
   } catch (error) {
     console.error('Failed to fetch orders:', error)
     // Fallback to empty array if API fails

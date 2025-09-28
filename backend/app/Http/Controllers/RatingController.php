@@ -70,7 +70,7 @@ class RatingController extends Controller
 
         if (!$hasPurchased) {
             return response()->json([
-                'error' => 'You can only review products you have purchased'
+                'error' => 'You can only review products you have purchased and received. Please complete your order first.'
             ], 403);
         }
 
@@ -161,7 +161,12 @@ class RatingController extends Controller
     {
         $user = Auth::user();
 
-        $reviewableProducts = Purchase::with(['purchaseItems.variant.product:id,name,slug', 'purchaseItems.variant:id,product_id,size_id,color_id'])
+        $reviewableProducts = Purchase::with([
+            'purchaseItems.variant.product:id,name,slug,subcategory_id',
+            'purchaseItems.variant.product.subcategory:id,name,slug,category_id',
+            'purchaseItems.variant.product.subcategory.category:id,name,slug',
+            'purchaseItems.variant:id,product_id,size_id,color_id'
+        ])
             ->where('user_id', $user->id)
             ->where('status', 'completed')
             ->whereHas('purchaseItems')
@@ -185,6 +190,51 @@ class RatingController extends Controller
             ->values();
 
         return response()->json($reviewableProducts);
+    }
+
+    /**
+     * Get user's reviewed products only
+     */
+    public function reviewedProducts(Request $request)
+    {
+        $user = Auth::user();
+
+        $reviewedProducts = Purchase::with([
+            'purchaseItems.variant.product:id,name,slug,subcategory_id',
+            'purchaseItems.variant.product.subcategory:id,name,slug,category_id',
+            'purchaseItems.variant.product.subcategory.category:id,name,slug',
+            'purchaseItems.variant:id,product_id,size_id,color_id'
+        ])
+            ->where('user_id', $user->id)
+            ->where('status', 'completed')
+            ->whereHas('purchaseItems')
+            ->get()
+            ->flatMap(function ($purchase) {
+                return $purchase->purchaseItems->map(function ($item) use ($purchase) {
+                    $hasRated = Rating::where('user_id', $purchase->user_id)
+                        ->where('variant_id', $item->variant_id)
+                        ->exists();
+                    
+                    // Only include products that have been reviewed
+                    if ($hasRated) {
+                        return [
+                            'purchase_id' => $purchase->id,
+                            'variant_id' => $item->variant_id,
+                            'product' => $item->variant->product,
+                            'variant' => $item->variant,
+                            'quantity' => $item->quantity,
+                            'purchased_at' => $purchase->created_at,
+                            'has_rated' => true
+                        ];
+                    }
+                    return null;
+                });
+            })
+            ->filter() // Remove null values
+            ->unique('variant_id')
+            ->values();
+
+        return response()->json($reviewedProducts);
     }
 
     /**

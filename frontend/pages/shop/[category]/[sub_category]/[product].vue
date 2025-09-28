@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Breadcrumbs from '@/components/navigation/Breadcrumbs.vue'
 import Carousel from '@/components/Carousel.vue'
+import ProductReview from '@/components/ProductReview.vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useProductStore } from '~/stores/product'
@@ -126,6 +127,14 @@ const addToCart = async () => {
             Add to Cart
           </button>
         </div>
+      </div>
+
+      <!-- Reviews Section -->
+      <div v-if="product.variants?.[0]?.id" class="mt-12">
+        <ProductReview 
+          :variant-id="product.variants[0].id" 
+          :product-name="product.name" 
+        />
       </div>
 
       <!-- Related Products -->

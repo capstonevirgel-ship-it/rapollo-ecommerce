@@ -67,7 +67,13 @@ class PurchaseController extends Controller
     public function index()
     {
         $purchases = Purchase::where('user_id', Auth::id())
-            ->with(['items.variant.product', 'payment'])
+            ->with([
+                'items.variant.product:id,name,slug,subcategory_id',
+                'items.variant.product.subcategory:id,name,slug,category_id',
+                'items.variant.product.subcategory.category:id,name,slug',
+                'items.variant:id,product_id,size_id,color_id',
+                'payment'
+            ])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -79,7 +85,13 @@ class PurchaseController extends Controller
     public function show($id)
     {
         $purchase = Purchase::where('user_id', Auth::id())
-            ->with(['items.variant.product', 'payment'])
+            ->with([
+                'items.variant.product:id,name,slug,subcategory_id',
+                'items.variant.product.subcategory:id,name,slug,category_id',
+                'items.variant.product.subcategory.category:id,name,slug',
+                'items.variant:id,product_id,size_id,color_id',
+                'payment'
+            ])
             ->findOrFail($id);
 
         return response()->json([
