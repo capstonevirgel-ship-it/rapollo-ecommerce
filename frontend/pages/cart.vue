@@ -4,16 +4,31 @@ import { storeToRefs } from 'pinia'
 import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from '~/stores/auth'
 import { usePurchaseStore } from '~/stores/purchase'
+import { usePayMongoStore } from '~/stores/paymongo'
 import { getImageUrl } from '~/utils/imageHelper'
+
+// PayMongo global types
+declare global {
+  interface Window {
+    PayMongo: {
+      createPaymentMethod: (options: any) => Promise<any>
+      confirmPayment: (paymentIntentId: string, paymentMethodId: string) => Promise<any>
+    }
+  }
+}
 
 // Stores
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 const purchaseStore = usePurchaseStore()
+const payMongoStore = usePayMongoStore()
 const { cart, guestVersion } = storeToRefs(cartStore)
 
 // Loading state
 const isLoading = ref(false)
+const isProcessingPayment = ref(false)
+const paymentError = ref('')
+
 
 // Load cart data on page load
 onMounted(async () => {
@@ -54,7 +69,7 @@ const shipping = computed(() => 5.99) // example
 const tax = computed(() => subtotal.value * 0.08)
 const total = computed(() => subtotal.value + shipping.value + tax.value)
 
-// Navigate to simple checkout page
+// Process PayMongo payment directly
 const proceedToCheckout = async () => {
   if (!authStore.isAuthenticated) {
     await navigateTo('/login')
@@ -66,9 +81,37 @@ const proceedToCheckout = async () => {
     return
   }
   
-  // Navigate to checkout page
-  await navigateTo('/checkout/1')
+  try {
+    isProcessingPayment.value = true
+    paymentError.value = ''
+    
+    // Create purchase first
+    const purchase = await purchaseStore.createPurchase(cart.value)
+    
+    // Create PayMongo payment intent
+    const paymentIntent = await payMongoStore.createPaymentIntent(
+      total.value,
+      purchase.id,
+      {
+        order_number: `ORD-${purchase.id}`,
+        items_count: cart.value.length
+      }
+    )
+    
+    // Redirect to PayMongo payment page
+    if (paymentIntent.payment_url) {
+      window.location.href = paymentIntent.payment_url
+    } else {
+      throw new Error('Payment URL not received')
+    }
+    
+  } catch (error: any) {
+    console.error('Payment initialization error:', error)
+    paymentError.value = error.data?.message || error.message || 'Failed to initialize payment'
+    isProcessingPayment.value = false
+  }
 }
+
 
 // Handlers
 const increaseQty = (item: any) => {
@@ -240,12 +283,23 @@ const decreaseQty = (item: any) => {
             </div>
           </div>
 
+           <!-- Payment Error Display -->
+           <div v-if="paymentError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+             <p class="text-sm text-red-600">{{ paymentError }}</p>
+           </div>
+
            <button
              class="mt-6 w-full bg-zinc-900 text-white py-3 px-4 rounded-md font-medium hover:bg-zinc-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-             :disabled="!authStore.isAuthenticated || isLoading"
+             :disabled="!authStore.isAuthenticated || isProcessingPayment"
              @click="proceedToCheckout"
            >
-             <span v-if="isLoading">Processing...</span>
+             <span v-if="isProcessingPayment" class="flex items-center justify-center">
+               <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+               </svg>
+               Processing Payment...
+             </span>
              <span v-else>{{ authStore.isAuthenticated ? 'Proceed to Checkout' : 'Login to Checkout' }}</span>
            </button>
 
@@ -255,6 +309,7 @@ const decreaseQty = (item: any) => {
         </div>
       </div>
     </div>
+
 
   </div>
 </template>

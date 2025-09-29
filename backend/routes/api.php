@@ -14,6 +14,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
@@ -51,6 +52,12 @@ Route::get('events/{id}', [EventController::class, 'show']);
 // Public Ratings (view only)
 Route::get('ratings', [RatingController::class, 'index']);
 Route::get('ratings/statistics', [RatingController::class, 'statistics']);
+
+// Webhooks (public endpoints for external services)
+Route::post('webhooks', [WebhookController::class, 'handle']);
+Route::get('webhooks/test', [WebhookController::class, 'test']);
+Route::post('webhooks/test', [WebhookController::class, 'test']);
+
 
 // ----------------------
 // Protected
@@ -102,6 +109,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Payments
     Route::post('payments/create', [PaymentController::class, 'createPayment']);
+    Route::post('payments/paymongo/intent', [PaymentController::class, 'createPaymentIntent']);
+    Route::post('payments/paymongo/confirm', [PaymentController::class, 'confirmPayment']);
+    Route::post('payments/paymongo/refund', [PaymentController::class, 'createRefund']);
 
     // Protected Ratings (create, update, delete, user-specific)
     Route::get('ratings/user', [RatingController::class, 'show']);

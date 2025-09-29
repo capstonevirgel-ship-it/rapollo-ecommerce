@@ -4,11 +4,13 @@ import Carousel from '@/components/Carousel.vue';
 import EventGallery from '@/components/EventGallery.vue';
 import { useEventStore } from '~/stores/event';
 import { useBrandStore } from '~/stores/brand';
+import { useProductStore } from '~/stores/product';
 import { getImageUrl } from '~/utils/imageHelper';
 import { onMounted, reactive, computed } from 'vue';
 
 const eventStore = useEventStore();
 const brandStore = useBrandStore();
+const productStore = useProductStore();
 
 // Track image load errors for brands
 const brandImageError = reactive<Record<number, boolean>>({});
@@ -56,16 +58,22 @@ const handleProductClick = (product: any) => {
   console.log('Product clicked:', product);
 };
 
-// Fetch events and brands on component mount
+// Fetch events, brands, and featured products on component mount
 onMounted(async () => {
   try {
     await Promise.all([
       eventStore.fetchEvents(),
-      brandStore.fetchBrands()
+      brandStore.fetchBrands(),
+      productStore.fetchProducts({ is_featured: true, per_page: 3 })
     ]);
   } catch (error) {
     console.error('Failed to fetch data:', error);
   }
+});
+
+// Get featured products for hero section
+const featuredProducts = computed(() => {
+  return productStore.products.filter(product => product.is_featured === 1).slice(0, 3);
 });
 </script>
 
@@ -76,36 +84,118 @@ onMounted(async () => {
         <div class="lg:w-1/2 py-6 w-full">
           <div>
             <h1 class="text-4xl font-extrabold text-zinc-900 mb-2">
-              Hello World
+              Rapollo Shop
             </h1>
             <h3 class="text-xl text-gray-700 mb-4">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+              Rap battle in the Philippines - Buy tickets and merchandises
             </h3>
             <p class="text-gray-500 text-base">
-              Lorem ipsum is simply dummy text of the printing and typesetting industry.
+              Experience the ultimate rap battle culture with exclusive merchandise and event tickets
             </p>
+            <div class="mt-6">
+              <NuxtLink 
+                to="/shop" 
+                class="inline-flex items-center px-6 py-3 bg-zinc-900 text-white font-semibold rounded-lg hover:bg-zinc-800 transition-colors"
+              >
+                View Products
+                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </NuxtLink>
+            </div>
           </div>
         </div>
         <div class="flex lg:w-1/2 w-full">
           <div class="flex w-full gap-4">
-            <div class="w-1/2">
-              <HeroCard
-                image-url="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80"
-                alt-text="Long Hero Image"
-                height-class="h-[500px]"
-              />
+            <!-- Featured Product 1 (Large) -->
+            <div class="w-1/2" v-if="featuredProducts[0]">
+              <div 
+                class="relative h-[500px] rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                @click="() => navigateTo(`/shop/${featuredProducts[0].subcategory?.category?.slug}/${featuredProducts[0].subcategory?.slug}/${featuredProducts[0].slug}`)"
+              >
+                <img 
+                  :src="getImageUrl(featuredProducts[0].images?.[0]?.url || '')" 
+                  :alt="featuredProducts[0].name"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-end">
+                  <div class="p-6 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 opacity-0 group-hover:opacity-100">
+                    <button class="w-full bg-white text-zinc-900 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                      View Product
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
+            <!-- Fallback for no featured products -->
+            <div class="w-1/2" v-else>
+              <div class="relative h-[500px] rounded-lg overflow-hidden shadow-lg bg-gray-200 flex items-center justify-center">
+                <div class="text-center text-gray-500">
+                  <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <p class="text-lg font-medium">No featured products yet</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Featured Products 2 & 3 (Small) -->
             <div class="flex flex-col w-1/2 gap-4">
-              <HeroCard
-                image-url="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=300&q=80"
-                alt-text="Short Hero Image 1"
-                height-class="h-[242px]"
-              />
-              <HeroCard
-                image-url="https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=300&q=80"
-                alt-text="Short Hero Image 2"
-                height-class="h-[242px]"
-              />
+              <div 
+                v-if="featuredProducts[1]"
+                class="relative h-[242px] rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                @click="() => navigateTo(`/shop/${featuredProducts[1].subcategory?.category?.slug}/${featuredProducts[1].subcategory?.slug}/${featuredProducts[1].slug}`)"
+              >
+                <img 
+                  :src="getImageUrl(featuredProducts[1].images?.[0]?.url || '')" 
+                  :alt="featuredProducts[1].name"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-end">
+                  <div class="p-4 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 opacity-0 group-hover:opacity-100">
+                    <button class="w-full bg-white text-zinc-900 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-sm">
+                      View Product
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- Fallback for second product -->
+              <div v-else class="relative h-[242px] rounded-lg overflow-hidden shadow-lg bg-gray-200 flex items-center justify-center">
+                <div class="text-center text-gray-500">
+                  <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <p class="text-sm">Coming Soon</p>
+                </div>
+              </div>
+              
+              <div 
+                v-if="featuredProducts[2]"
+                class="relative h-[242px] rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                @click="() => navigateTo(`/shop/${featuredProducts[2].subcategory?.category?.slug}/${featuredProducts[2].subcategory?.slug}/${featuredProducts[2].slug}`)"
+              >
+                <img 
+                  :src="getImageUrl(featuredProducts[2].images?.[0]?.url || '')" 
+                  :alt="featuredProducts[2].name"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-end">
+                  <div class="p-4 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 opacity-0 group-hover:opacity-100">
+                    <button class="w-full bg-white text-zinc-900 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-sm">
+                      View Product
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- Fallback for third product -->
+              <div v-else class="relative h-[242px] rounded-lg overflow-hidden shadow-lg bg-gray-200 flex items-center justify-center">
+                <div class="text-center text-gray-500">
+                  <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <p class="text-sm">Coming Soon</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
