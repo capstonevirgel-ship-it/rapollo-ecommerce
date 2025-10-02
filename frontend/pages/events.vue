@@ -2,6 +2,7 @@
 import type { Event } from '~/types'
 import Dialog from '~/components/Dialog.vue'
 import TicketReview from '~/components/TicketReview.vue'
+import Select from '~/components/Select.vue'
 
 const eventStore = useEventStore()
 const ticketStore = useTicketStore()
@@ -105,13 +106,30 @@ const isEventFullyBooked = (event: Event) => {
   return getRemainingTickets(event) <= 0
 }
 
+// Computed property for ticket quantity options
+const ticketQuantityOptions = computed(() => {
+  if (!bookingEvent.value) return []
+  
+  const maxTickets = Math.min(5, getRemainingTickets(bookingEvent.value))
+  const options = []
+  
+  for (let i = 1; i <= maxTickets; i++) {
+    options.push({
+      value: i,
+      label: `${i} ticket${i > 1 ? 's' : ''}`
+    })
+  }
+  
+  return options
+})
+
 const canBookTickets = (event: Event) => {
   return event.ticket_price && event.max_tickets && !isEventFullyBooked(event)
 }
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 py-8">
+  <div class="min-h-screen bg-gray-50 pt-8">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Header -->
       <div class="mb-8">
@@ -263,17 +281,16 @@ const canBookTickets = (event: Event) => {
 
         <!-- Ticket Selection -->
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Number of Tickets</label>
-          <select 
-            v-model="selectedQuantity" 
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option v-for="i in Math.min(5, getRemainingTickets(bookingEvent))" :key="i" :value="i">
-              {{ i }} ticket{{ i > 1 ? 's' : '' }}
-            </option>
-            </select>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Number of Tickets</label>
+          <Select
+            v-model="selectedQuantity"
+            :options="ticketQuantityOptions"
+            placeholder="Select quantity"
+            size="md"
+            variant="outline"
+          />
           <p class="mt-1 text-xs text-gray-500">Maximum 5 tickets per person to prevent scalping</p>
-          </div>
+        </div>
 
         <!-- Price Summary -->
         <div class="bg-blue-50 rounded-lg p-4">
@@ -320,11 +337,6 @@ const canBookTickets = (event: Event) => {
     />
 
     <!-- CTA Section -->
-    <CTA 
-      title="Ready to Join Our Events?"
-      description="Don't miss out on our exciting rap battle events and competitions. Book your tickets now!"
-      button-text="View All Events"
-      link="/events"
-    />
+    <CTA class="mt-12" />
   </div>
 </template>
