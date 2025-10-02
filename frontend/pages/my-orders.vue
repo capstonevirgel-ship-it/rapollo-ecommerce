@@ -36,23 +36,23 @@
         <div
           v-for="order in orders"
           :key="order.id"
-          class="bg-white rounded-lg shadow-sm overflow-hidden"
+          class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow duration-300"
         >
           <!-- Order Header -->
-          <div class="px-6 py-4 border-b border-gray-200">
+          <div class="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="text-lg font-medium text-gray-900">Order #{{ order.id }}</h3>
-                <p class="text-sm text-gray-500">Placed on {{ formatDate(order.created_at) }}</p>
+                <h3 class="text-xl font-bold text-gray-900">Order #{{ order.id }}</h3>
+                <p class="text-sm text-gray-600 mt-1">Placed on {{ formatDate(order.created_at) }}</p>
               </div>
               <div class="text-right">
                 <span :class="[
-                  'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                  'inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold',
                   getStatusColor(order.status)
                 ]">
                   {{ order.status }}
                 </span>
-                <p class="text-lg font-semibold text-gray-900 mt-1">₱{{ formatPrice(order.total) }}</p>
+                <p class="text-2xl font-bold text-gray-900 mt-2">₱{{ formatPrice(order.total) }}</p>
               </div>
             </div>
           </div>
@@ -63,42 +63,50 @@
               <div
                 v-for="item in order.items"
                 :key="item.id"
-                class="flex items-center space-x-4"
+                class="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <img
-                  :src="getImageUrl(item.variant?.images?.[0]?.url || item.variant?.product?.images?.[0]?.url || '')"
-                  :alt="item.variant?.product?.name || 'Product'"
-                  class="w-12 h-12 object-cover rounded-md"
-                />
+                <div class="relative">
+                  <img
+                    :src="getImageUrl(item.variant?.images?.[0]?.url || item.variant?.product?.images?.[0]?.url || '')"
+                    :alt="item.variant?.product?.name || 'Product'"
+                    class="w-20 h-20 object-cover rounded-lg shadow-sm border border-gray-200"
+                    @error="$event.target.src = getImageUrl('', 'product')"
+                  />
+                </div>
                 <div class="flex-1 min-w-0">
-                  <h4 class="text-sm font-medium text-gray-900 truncate">
+                  <h4 class="text-base font-semibold text-gray-900 truncate mb-1">
                     {{ item.variant?.product?.name || 'Product' }}
                   </h4>
-                  <p class="text-sm text-gray-500">
-                    {{ item.variant?.size?.name || '' }} {{ item.variant?.color?.name || '' }}
-                  </p>
-                  <p class="text-sm text-gray-500">Quantity: {{ item.quantity }}</p>
+                  <div class="flex flex-wrap gap-2 text-sm text-gray-500 mb-2">
+                    <span v-if="item.variant?.size?.name" class="inline-flex items-center px-2 py-1 bg-white rounded-md text-xs">
+                      Size: {{ item.variant.size.name }}
+                    </span>
+                    <span v-if="item.variant?.color?.name" class="inline-flex items-center px-2 py-1 bg-white rounded-md text-xs">
+                      Color: {{ item.variant.color.name }}
+                    </span>
+                  </div>
+                  <p class="text-sm text-gray-600 font-medium">Quantity: {{ item.quantity }}</p>
                 </div>
                 <div class="text-right">
-                  <p class="text-sm font-medium text-gray-900">
+                  <p class="text-lg font-bold text-gray-900">
                     ₱{{ formatPrice((item.price || 0) * (item.quantity || 0)) }}
                   </p>
-                  <p class="text-xs text-gray-500">₱{{ formatPrice(item.price) }} each</p>
+                  <p class="text-sm text-gray-500">₱{{ formatPrice(item.price) }} each</p>
                   
                   <!-- Review Button for Completed Orders -->
-                  <div v-if="order.status === 'completed' && item.variant?.id" class="mt-2">
+                  <div v-if="order.status === 'completed' && item.variant?.id" class="mt-3">
                     <button
                       v-if="!isVariantReviewed(item.variant.id)"
                       @click="navigateToProduct(item)"
-                      class="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                      class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors shadow-sm"
                     >
-                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                       </svg>
                       Write Review
                     </button>
-                    <div v-else class="flex items-center text-xs text-green-600">
-                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <div v-else class="flex items-center text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+                      <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
                       Reviewed
