@@ -218,13 +218,15 @@ class WebhookController extends Controller
      */
     private function handlePaymentPaid(array $data): JsonResponse
     {
+        // PayMongo webhook structure: data.attributes.data contains the payment data
         $paymentData = $data['data']['attributes']['data'] ?? null;
         $paymentIntentId = $paymentData['attributes']['payment_intent_id'] ?? null;
         $metadata = $paymentData['attributes']['metadata'] ?? [];
 
         Log::info('Processing payment.paid webhook', [
             'payment_intent_id' => $paymentIntentId,
-            'metadata' => $metadata
+            'metadata' => $metadata,
+            'full_data' => $data
         ]);
 
         if ($paymentIntentId) {
@@ -262,6 +264,35 @@ class WebhookController extends Controller
                     'payment_intent_id' => $paymentIntentId,
                     'purchase_id' => $metadata['purchase_id'] ?? 'not provided'
                 ]);
+            }
+        } else {
+            // For checkout sessions, try to find by checkout session ID
+            $checkoutSessionId = $data['data']['id'] ?? null;
+            if ($checkoutSessionId) {
+                $paymentRecord = Payment::where('transaction_id', $checkoutSessionId)->first();
+                
+                if ($paymentRecord) {
+                    $paymentRecord->update([
+                        'status' => 'paid',
+                        'payment_date' => now(),
+                        'notes' => 'Payment completed via PayMongo webhook (checkout session)',
+                        'metadata' => json_encode($data)
+                    ]);
+
+                    // Update purchase status
+                    $purchase = Purchase::find($paymentRecord->purchase_id);
+                    if ($purchase) {
+                        $purchase->update(['status' => 'processing']);
+                        Log::info('Purchase status updated to processing (checkout session)', [
+                            'purchase_id' => $purchase->id,
+                            'payment_id' => $paymentRecord->id
+                        ]);
+                    }
+                } else {
+                    Log::warning('Payment record not found for checkout session', [
+                        'checkout_session_id' => $checkoutSessionId
+                    ]);
+                }
             }
         }
 
@@ -349,5 +380,44 @@ class WebhookController extends Controller
                 'environment' => app()->environment(),
             ]
         ]);
+    }
+
+    /**
+     * Manual payment status update for testing
+     */
+    public function updatePaymentStatus(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'payment_id' => 'required|integer|exists:payments,id',
+            'status' => 'required|string|in:pending,paid,failed,processing'
+        ]);
+
+        try {
+            $payment = Payment::find($validated['payment_id']);
+            $payment->update([
+                'status' => $validated['status'],
+                'payment_date' => $validated['status'] === 'paid' ? now() : $payment->payment_date,
+                'notes' => 'Status updated manually for testing'
+            ]);
+
+            // Update purchase status if payment is paid
+            if ($validated['status'] === 'paid') {
+                $purchase = Purchase::find($payment->purchase_id);
+                if ($purchase) {
+                    $purchase->update(['status' => 'processing']);
+                }
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Payment status updated successfully',
+                'payment' => $payment->fresh()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 }

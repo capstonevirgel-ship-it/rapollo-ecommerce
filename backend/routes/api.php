@@ -57,6 +57,7 @@ Route::get('ratings/statistics', [RatingController::class, 'statistics']);
 Route::post('webhooks', [WebhookController::class, 'handle']);
 Route::get('webhooks/test', [WebhookController::class, 'test']);
 Route::post('webhooks/test', [WebhookController::class, 'test']);
+Route::post('webhooks/update-payment-status', [WebhookController::class, 'updatePaymentStatus']);
 
 
 // ----------------------
