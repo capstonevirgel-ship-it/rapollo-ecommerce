@@ -261,6 +261,14 @@
         </div>
       </div>
     </div>
+
+    <!-- CTA Section -->
+    <CTA 
+      title="Have Questions About Our Products?"
+      description="Our team is here to help you find the perfect items for your style and needs"
+      button-text="Browse Products"
+      link="/shop"
+    />
   </div>
 </template>
 

@@ -308,5 +308,13 @@ const canBookTickets = (event: Event) => {
         </div>
       </div>
     </Dialog>
+
+    <!-- CTA Section -->
+    <CTA 
+      title="Ready to Join Our Events?"
+      description="Don't miss out on our exciting rap battle events and competitions. Book your tickets now!"
+      button-text="View All Events"
+      link="/events"
+    />
   </div>
 </template>

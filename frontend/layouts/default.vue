@@ -3,7 +3,7 @@
     <AdminHeader />
     <Header />
     <main class="flex-grow">
-      <div class="max-w-7xl mx-auto">
+      <div class="mx-auto">
         <NuxtPage></NuxtPage>
       </div>
     </main>

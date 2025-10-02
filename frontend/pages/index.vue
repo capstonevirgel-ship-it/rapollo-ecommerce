@@ -304,6 +304,9 @@ const featuredProducts = computed(() => {
         <EventGallery :events="eventStore.events" :loading="eventStore.loading" />
       </div>
     </section>
+
+    <!-- CTA Section -->
+    <CTA />
   </div>
 </template>
 
