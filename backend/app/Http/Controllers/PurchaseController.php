@@ -71,7 +71,10 @@ class PurchaseController extends Controller
                 'items.variant.product:id,name,slug,subcategory_id',
                 'items.variant.product.subcategory:id,name,slug,category_id',
                 'items.variant.product.subcategory.category:id,name,slug',
-                'items.variant:id,product_id,size_id,color_id',
+                'items.variant:id,product_id,size_id,color_id,price',
+                'items.variant.size:id,name',
+                'items.variant.color:id,name',
+                'items.variant.images:id,variant_id,url',
                 'payment'
             ])
             ->orderBy('created_at', 'desc')
@@ -89,7 +92,10 @@ class PurchaseController extends Controller
                 'items.variant.product:id,name,slug,subcategory_id',
                 'items.variant.product.subcategory:id,name,slug,category_id',
                 'items.variant.product.subcategory.category:id,name,slug',
-                'items.variant:id,product_id,size_id,color_id',
+                'items.variant:id,product_id,size_id,color_id,price',
+                'items.variant.size:id,name',
+                'items.variant.color:id,name',
+                'items.variant.images:id,variant_id,url',
                 'payment'
             ])
             ->findOrFail($id);
