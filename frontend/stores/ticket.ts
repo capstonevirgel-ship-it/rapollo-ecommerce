@@ -24,7 +24,7 @@ export const useTicketStore = defineStore('ticket', () => {
     }
   }
 
-  // Book tickets for an event
+  // Book tickets for an event (without payment)
   const bookTickets = async (eventId: number, quantity: number) => {
     loading.value = true
     error.value = null
@@ -44,6 +44,56 @@ export const useTicketStore = defineStore('ticket', () => {
     } catch (err: any) {
       error.value = err.data?.message || 'Failed to book tickets'
       console.error('Error booking tickets:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Create payment intent for tickets
+  const createTicketPaymentIntent = async (eventId: number, quantity: number) => {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await useCustomFetch<any>('/api/tickets/payment-intent', {
+        method: 'POST',
+        body: {
+          event_id: eventId,
+          quantity
+        }
+      })
+      
+      return response
+    } catch (err: any) {
+      error.value = err.data?.message || 'Failed to create payment intent'
+      console.error('Error creating payment intent:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Confirm ticket payment
+  const confirmTicketPayment = async (paymentIntentId: string, paymentMethodId: string, ticketPurchaseId: number) => {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await useCustomFetch<any>('/api/tickets/confirm-payment', {
+        method: 'POST',
+        body: {
+          payment_intent_id: paymentIntentId,
+          payment_method_id: paymentMethodId,
+          ticket_purchase_id: ticketPurchaseId
+        }
+      })
+      
+      // Refresh tickets list
+      await fetchTickets()
+      
+      return response
+    } catch (err: any) {
+      error.value = err.data?.message || 'Failed to confirm payment'
+      console.error('Error confirming payment:', err)
       throw err
     } finally {
       loading.value = false
@@ -167,6 +217,8 @@ export const useTicketStore = defineStore('ticket', () => {
     error,
     fetchTickets,
     bookTickets,
+    createTicketPaymentIntent,
+    confirmTicketPayment,
     cancelTicket,
     getTicket,
     fetchAllTickets,

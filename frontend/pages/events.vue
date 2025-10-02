@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { Event } from '~/types'
 import Dialog from '~/components/Dialog.vue'
+import TicketReview from '~/components/TicketReview.vue'
 
 const eventStore = useEventStore()
 const ticketStore = useTicketStore()
 const authStore = useAuthStore()
+const payMongoStore = usePayMongoStore()
 const { success, error } = useAlert()
 
 // Fetch events on client side
@@ -17,7 +19,10 @@ onMounted(async () => {
 const selectedQuantity = ref(1)
 const bookingEvent = ref<Event | null>(null)
 const showBookingModal = ref(false)
+const showTicketReview = ref(false)
 const bookingLoading = ref(false)
+const paymentLoading = ref(false)
+const paymentError = ref('')
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -51,42 +56,43 @@ const closeBookingModal = () => {
   selectedQuantity.value = 1
 }
 
-const bookTickets = async () => {
+const openTicketReview = () => {
+  showBookingModal.value = false
+  showTicketReview.value = true
+}
+
+const closeTicketReview = () => {
+  showTicketReview.value = false
+  bookingEvent.value = null
+  selectedQuantity.value = 1
+  paymentError.value = ''
+}
+
+const proceedToPayment = async () => {
   if (!bookingEvent.value) return
   
-  bookingLoading.value = true
+  paymentLoading.value = true
+  paymentError.value = ''
+  
   try {
-    const response = await ticketStore.bookTickets(bookingEvent.value.id, selectedQuantity.value)
+    // Create payment intent for tickets
+    const paymentResponse = await ticketStore.createTicketPaymentIntent(
+      bookingEvent.value.id, 
+      selectedQuantity.value
+    )
     
-    // Update the event's booked tickets count with data from API response
-    if (response.event) {
-      const eventIndex = eventStore.events.findIndex(e => e.id === response.event.id)
-      if (eventIndex !== -1) {
-        eventStore.events[eventIndex].booked_tickets_count = response.event.booked_tickets_count
-        eventStore.events[eventIndex].remaining_tickets = response.event.remaining_tickets
-      }
+    // Redirect to PayMongo checkout
+    if (paymentResponse.checkout_url) {
+      window.location.href = paymentResponse.checkout_url
     } else {
-      // Fallback: update locally if API doesn't return updated event
-      const eventIndex = eventStore.events.findIndex(e => e.id === bookingEvent.value!.id)
-      if (eventIndex !== -1) {
-        eventStore.events[eventIndex].booked_tickets_count = (eventStore.events[eventIndex].booked_tickets_count || 0) + selectedQuantity.value
-      }
+      throw new Error('No checkout URL received')
     }
     
-    // Alternative: Refresh the entire events list to ensure accuracy
-    // await eventStore.fetchEvents()
-    
-    // Show success message
-    success('Tickets Booked!', `Successfully booked ${selectedQuantity.value} ticket(s) for ${bookingEvent.value.title}!`)
-    
-    closeBookingModal()
-    
-    // Navigate to my tickets page
-    navigateTo('/my-tickets')
   } catch (err: any) {
-    error('Booking Failed', err.data?.message || 'Failed to book tickets. Please try again.')
+    paymentError.value = err.data?.message || 'Failed to create payment. Please try again.'
+    error('Payment Error', paymentError.value)
   } finally {
-    bookingLoading.value = false
+    paymentLoading.value = false
   }
 }
 
@@ -287,27 +293,31 @@ const canBookTickets = (event: Event) => {
               Cancel
             </button>
             <button
-              @click="bookTickets"
-            :disabled="bookingLoading || getRemainingTickets(bookingEvent) === 0"
+              @click="openTicketReview"
+            :disabled="getRemainingTickets(bookingEvent) === 0"
             class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <span v-if="bookingLoading" class="flex items-center justify-center">
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Booking...
-            </span>
-            <span v-else-if="getRemainingTickets(bookingEvent) === 0">
+            <span v-if="getRemainingTickets(bookingEvent) === 0">
               Sold Out
             </span>
             <span v-else>
-              Confirm Booking
+              Review & Pay
             </span>
             </button>
         </div>
       </div>
     </Dialog>
+
+    <!-- Ticket Review Modal -->
+    <TicketReview
+      v-if="showTicketReview && bookingEvent"
+      :event="bookingEvent"
+      :quantity="selectedQuantity"
+      :user="authStore.user"
+      :loading="paymentLoading"
+      @close="closeTicketReview"
+      @proceed="proceedToPayment"
+    />
 
     <!-- CTA Section -->
     <CTA 

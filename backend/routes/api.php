@@ -96,6 +96,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Tickets
     Route::get('tickets', [TicketController::class, 'index']);
     Route::post('tickets', [TicketController::class, 'store']);
+    Route::post('tickets/payment-intent', [TicketController::class, 'createPaymentIntent']);
+    Route::post('tickets/confirm-payment', [TicketController::class, 'confirmPayment']);
     Route::get('tickets/admin/all', [TicketController::class, 'adminIndex']);
     Route::get('tickets/event/{eventId}', [TicketController::class, 'eventTickets']);
     Route::get('tickets/statistics', [TicketController::class, 'statistics']);
