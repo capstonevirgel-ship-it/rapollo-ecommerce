@@ -224,8 +224,9 @@ class ProductController extends Controller
                 }
                 $colorId = $color->id;
 
-                // Create individual variants for each available size only
+                // Create variants for each available size, or a single variant if no sizes
                 if (!empty($variantData['available_sizes'])) {
+                    // Create individual variants for each available size
                     foreach ($variantData['available_sizes'] as $sizeId) {
                         // Use individual stock per size if provided, otherwise use the general stock
                         $stock = $variantData['size_stocks'][$sizeId] ?? $variantData['stock'];
@@ -249,6 +250,28 @@ class ProductController extends Controller
                                     'sort_order' => $i,
                                 ]);
                             }
+                        }
+                    }
+                } else {
+                    // Create a single variant without size when no sizes are selected
+                    $variant = $product->variants()->create([
+                        'color_id' => $colorId,
+                        'size_id'  => null, // No size specified
+                        'price'    => $variantData['price'],
+                        'stock'    => $variantData['stock'],
+                        'sku'      => $variantData['sku'],
+                    ]);
+
+                    // Variant images for this variant
+                    if (!empty($variantData['images'])) {
+                        foreach ($variantData['images'] as $i => $variantImage) {
+                            $path = $variantImage->store('variants', 'public');
+                            $variant->images()->create([
+                                'product_id' => $product->id,
+                                'url'        => $path,
+                                'is_primary' => $i === 0,
+                                'sort_order' => $i,
+                            ]);
                         }
                     }
                 }

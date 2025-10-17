@@ -198,26 +198,26 @@ const selectedIds = ref<number[]>([]);
           v-model="newBrand.name"
           type="text"
           placeholder="Name"
-          class="w-full border p-2 rounded"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
         />
         <input
           v-model="newBrand.slug"
           type="text"
           placeholder="Slug"
-          class="w-full border p-2 rounded"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
         />
         <input
           v-model="newBrand.meta_title"
           type="text"
           placeholder="Meta Title"
-          class="w-full border p-2 rounded"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
         />
         <textarea
           v-model="newBrand.meta_description"
           placeholder="Meta Description"
-          class="w-full border p-2 rounded"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
         ></textarea>
-        <input type="file" @change="handleBrandLogo" class="w-full border p-2 rounded" />
+        <input type="file" @change="handleBrandLogo" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
       </div>
 
       <div class="mt-6 flex justify-end space-x-2">

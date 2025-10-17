@@ -158,17 +158,17 @@ const saveSubcategory = async () => {
   <Dialog v-model="isDialogOpen" title="Add Subcategory">
     <div class="space-y-4">
       <!-- Category dropdown -->
-      <select v-model="newSubcategory.category_id" class="w-full border p-2 rounded">
+      <select v-model="newSubcategory.category_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900">
         <option disabled value="">Select a Category</option>
         <option v-for="cat in categoryStore.categories" :key="cat.id" :value="cat.id">
           {{ cat.name }}
         </option>
       </select>
 
-      <input v-model="newSubcategory.name" type="text" placeholder="Name" class="w-full border p-2 rounded" />
-      <input v-model="newSubcategory.slug" type="text" placeholder="Slug" class="w-full border p-2 rounded" />
-      <input v-model="newSubcategory.meta_title" type="text" placeholder="Meta Title" class="w-full border p-2 rounded" />
-      <textarea v-model="newSubcategory.meta_description" placeholder="Meta Description" class="w-full border p-2 rounded"></textarea>
+      <input v-model="newSubcategory.name" type="text" placeholder="Name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
+      <input v-model="newSubcategory.slug" type="text" placeholder="Slug" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
+      <input v-model="newSubcategory.meta_title" type="text" placeholder="Meta Title" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
+      <textarea v-model="newSubcategory.meta_description" placeholder="Meta Description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"></textarea>
     </div>
     <div class="mt-6 flex justify-end space-x-2">
       <button @click="isDialogOpen = false" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">Cancel</button>

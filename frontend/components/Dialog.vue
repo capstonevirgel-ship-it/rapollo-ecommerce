@@ -17,7 +17,7 @@ const close = () => {
 <template>
   <div
     v-if="modelValue"
-    class="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
+    class="dialog-overlay flex items-center justify-center bg-black/50"
   >
     <div
       class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 relative"

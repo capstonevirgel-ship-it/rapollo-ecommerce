@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Event } from '~/types'
+import Dialog from '@/components/Dialog.vue'
 
 // Use admin layout
 definePageMeta({
@@ -32,6 +33,11 @@ const formData = ref({
   max_tickets: ''
 })
 
+// Image handling
+const posterFile = ref<File | null>(null)
+const posterPreview = ref<string | null>(null)
+const isUploadingImage = ref(false)
+
 const resetForm = () => {
   formData.value = {
     title: '',
@@ -42,6 +48,9 @@ const resetForm = () => {
     ticket_price: '',
     max_tickets: ''
   }
+  posterFile.value = null
+  posterPreview.value = null
+  isUploadingImage.value = false
 }
 
 const openCreateModal = () => {
@@ -60,6 +69,10 @@ const openEditModal = (event: Event) => {
     ticket_price: event.ticket_price?.toString() || '',
     max_tickets: event.max_tickets?.toString() || ''
   }
+  // Reset image upload state
+  posterFile.value = null
+  posterPreview.value = null
+  isUploadingImage.value = false
   showEditModal.value = true
 }
 
@@ -70,18 +83,66 @@ const closeModals = () => {
   resetForm()
 }
 
+// Handle poster image file selection
+const handlePosterChange = (event: any) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    posterFile.value = target.files[0]
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      posterPreview.value = e.target?.result as string
+    }
+    reader.readAsDataURL(target.files[0])
+  } else {
+    posterFile.value = null
+    posterPreview.value = null
+  }
+}
+
+// Upload image and get URL
+const uploadPosterImage = async (file: File): Promise<string> => {
+  const formData = new FormData()
+  formData.append('image', file)
+  
+  const response = await $fetch<{ url: string }>('/api/upload', {
+    method: 'POST',
+    body: formData
+  })
+  
+  return response.url
+}
+
+// Get poster image URL for display
+const getPosterImageUrl = (): string | null => {
+  if (posterPreview.value) return posterPreview.value
+  if (formData.value.poster_url) return formData.value.poster_url
+  return null
+}
+
 const createEvent = async () => {
   try {
+    isUploadingImage.value = true
+    
+    let posterUrl = formData.value.poster_url
+    
+    // Upload image if a file was selected
+    if (posterFile.value) {
+      posterUrl = await uploadPosterImage(posterFile.value)
+    }
+    
     const eventData = {
       ...formData.value,
-      ticket_price: formData.value.ticket_price ? parseFloat(formData.value.ticket_price) : null,
-      max_tickets: formData.value.max_tickets ? parseInt(formData.value.max_tickets) : null
+      poster_url: posterUrl,
+      ticket_price: formData.value.ticket_price ? parseFloat(formData.value.ticket_price) : undefined,
+      max_tickets: formData.value.max_tickets ? parseInt(formData.value.max_tickets) : undefined
     }
     
     await eventStore.createEvent(eventData)
     closeModals()
   } catch (error) {
     console.error('Error creating event:', error)
+  } finally {
+    isUploadingImage.value = false
   }
 }
 
@@ -89,16 +150,28 @@ const updateEvent = async () => {
   if (!editingEvent.value) return
   
   try {
+    isUploadingImage.value = true
+    
+    let posterUrl = formData.value.poster_url
+    
+    // Upload image if a file was selected
+    if (posterFile.value) {
+      posterUrl = await uploadPosterImage(posterFile.value)
+    }
+    
     const eventData = {
       ...formData.value,
-      ticket_price: formData.value.ticket_price ? parseFloat(formData.value.ticket_price) : null,
-      max_tickets: formData.value.max_tickets ? parseInt(formData.value.max_tickets) : null
+      poster_url: posterUrl,
+      ticket_price: formData.value.ticket_price ? parseFloat(formData.value.ticket_price) : undefined,
+      max_tickets: formData.value.max_tickets ? parseInt(formData.value.max_tickets) : undefined
     }
     
     await eventStore.updateEvent(editingEvent.value.id, eventData)
     closeModals()
   } catch (error) {
     console.error('Error updating event:', error)
+  } finally {
+    isUploadingImage.value = false
   }
 }
 
@@ -139,7 +212,7 @@ const formatTime = (dateString: string) => {
           </div>
           <button
             @click="openCreateModal"
-            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
           >
             <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -155,7 +228,7 @@ const formatTime = (dateString: string) => {
       </div>
 
       <!-- Error State -->
-      <div v-else-if="eventStore.error" class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+      <div v-else-if="eventStore.error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
         <div class="flex">
           <div class="ml-3">
             <h3 class="text-sm font-medium text-red-800">Error</h3>
@@ -178,7 +251,7 @@ const formatTime = (dateString: string) => {
         <div class="mt-6">
           <button
             @click="openCreateModal"
-            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-zinc-900 hover:bg-zinc-800"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-zinc-900 hover:bg-zinc-800"
           >
             Create Event
           </button>
@@ -249,13 +322,13 @@ const formatTime = (dateString: string) => {
             <div class="flex space-x-2">
               <button
                 @click="openEditModal(event)"
-                class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2"
+                class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-lg hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2"
               >
                 Edit
               </button>
               <button
                 @click="deleteEvent(event.id)"
-                class="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                class="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               >
                 Delete
               </button>
@@ -265,15 +338,15 @@ const formatTime = (dateString: string) => {
       </div>
     </div>
 
-    <!-- Create/Edit Modal -->
-    <div v-if="showCreateModal || showEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 custom-scrollbar">
-      <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">
-            {{ showCreateModal ? 'Create Event' : 'Edit Event' }}
-          </h3>
-          
-          <form @submit.prevent="showCreateModal ? createEvent() : updateEvent()" class="space-y-4">
+    <!-- Create/Edit Dialog -->
+    <Dialog 
+      v-model="showCreateModal" 
+      :title="'Create Event'"
+      width="800px"
+      class="max-h-[90vh] overflow-hidden"
+    >
+      <div class="max-h-[calc(90vh-120px)] overflow-y-auto pr-2">
+        <form @submit.prevent="createEvent()" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
@@ -281,7 +354,7 @@ const formatTime = (dateString: string) => {
                   v-model="formData.title"
                   type="text"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                   placeholder="Enter event title"
                 >
               </div>
@@ -292,7 +365,7 @@ const formatTime = (dateString: string) => {
                   v-model="formData.date"
                   type="date"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                 >
               </div>
             </div>
@@ -302,32 +375,66 @@ const formatTime = (dateString: string) => {
               <textarea
                 v-model="formData.description"
                 rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                 placeholder="Enter event description"
               ></textarea>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <input
-                  v-model="formData.location"
-                  type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter event location"
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+          <input
+            v-model="formData.location"
+            type="text"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            placeholder="Enter event location"
+          >
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Event Poster</label>
+          
+          <div class="flex gap-4">
+            <!-- Image Preview - 2/3 width -->
+            <div class="flex-1 max-w-[66.666%]">
+              <!-- Image Preview -->
+              <div v-if="getPosterImageUrl()" class="mb-4">
+                <div class="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200">
+                  <img 
+                    :src="getPosterImageUrl() || ''" 
+                    alt="Event poster preview" 
+                    class="w-full h-full object-cover" 
+                  />
+                </div>
+                <button
+                  v-if="posterFile || posterPreview"
+                  @click="posterFile = null; posterPreview = null"
+                  class="mt-2 text-sm text-red-600 hover:text-red-700 font-medium inline-flex items-center"
                 >
+                  <Icon name="mdi:close-circle" class="mr-1" />
+                  Remove Selected Image
+                </button>
               </div>
               
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Poster URL</label>
-                <input
-                  v-model="formData.poster_url"
-                  type="url"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter poster image URL"
-                >
+              <!-- Upload Area -->
+              <div v-else class="mb-4">
+                <div class="w-full aspect-video bg-gray-50 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                  <Icon name="mdi:image-outline" class="text-4xl text-gray-400" />
+                </div>
               </div>
             </div>
+            
+            <!-- File Input - 1/3 width -->
+            <div class="flex-1 max-w-[33.333%] flex flex-col justify-center">
+              <input
+                type="file"
+                @change="handlePosterChange"
+                accept="image/*"
+                class="block w-full"
+              />
+              <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF up to 2MB. Recommended: 16:9 aspect ratio.</p>
+            </div>
+          </div>
+        </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -337,7 +444,7 @@ const formatTime = (dateString: string) => {
                   type="number"
                   step="0.01"
                   min="0"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                   placeholder="0.00"
                 >
               </div>
@@ -348,7 +455,7 @@ const formatTime = (dateString: string) => {
                   v-model="formData.max_tickets"
                   type="number"
                   min="1"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                   placeholder="100"
                 >
               </div>
@@ -358,20 +465,161 @@ const formatTime = (dateString: string) => {
               <button
                 type="button"
                 @click="closeModals"
-                class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                :disabled="eventStore.loading"
-                class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50"
-              >
-                {{ eventStore.loading ? 'Saving...' : (showCreateModal ? 'Create Event' : 'Update Event') }}
-              </button>
-            </div>
-          </form>
+                :disabled="eventStore.loading || isUploadingImage"
+            class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-lg hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            {{ (eventStore.loading || isUploadingImage) ? 'Saving...' : 'Create Event' }}
+          </button>
         </div>
+        </form>
+      </div>
+    </Dialog>
+
+    <Dialog 
+      v-model="showEditModal" 
+      :title="'Edit Event'"
+      width="800px"
+      class="max-h-[90vh] overflow-hidden"
+    >
+      <div class="max-h-[calc(90vh-120px)] overflow-y-auto pr-2">
+        <form @submit.prevent="updateEvent()" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
+            <input
+              v-model="formData.title"
+              type="text"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+              placeholder="Enter event title"
+            >
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <input
+              v-model="formData.date"
+              type="date"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            >
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <textarea
+            v-model="formData.description"
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            placeholder="Enter event description"
+          ></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+          <input
+            v-model="formData.location"
+            type="text"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            placeholder="Enter event location"
+          >
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Event Poster</label>
+          
+          <div class="flex gap-4">
+            <!-- Image Preview - 2/3 width -->
+            <div class="flex-1 max-w-[66.666%]">
+              <!-- Image Preview -->
+              <div v-if="getPosterImageUrl()" class="mb-4">
+                <div class="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200">
+                  <img 
+                    :src="getPosterImageUrl() || ''" 
+                    alt="Event poster preview" 
+                    class="w-full h-full object-cover" 
+                  />
+                </div>
+                <button
+                  v-if="posterFile || posterPreview"
+                  @click="posterFile = null; posterPreview = null"
+                  class="mt-2 text-sm text-red-600 hover:text-red-700 font-medium inline-flex items-center"
+                >
+                  <Icon name="mdi:close-circle" class="mr-1" />
+                  Remove Selected Image
+                </button>
+              </div>
+              
+              <!-- Upload Area -->
+              <div v-else class="mb-4">
+                <div class="w-full aspect-video bg-gray-50 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                  <Icon name="mdi:image-outline" class="text-4xl text-gray-400" />
+                </div>
+              </div>
+            </div>
+            
+            <!-- File Input - 1/3 width -->
+            <div class="flex-1 max-w-[33.333%] flex flex-col justify-center">
+              <input
+                type="file"
+                @change="handlePosterChange"
+                accept="image/*"
+                class="block w-full"
+              />
+              <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF up to 2MB. Recommended: 16:9 aspect ratio.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ticket Price ($)</label>
+            <input
+              v-model="formData.ticket_price"
+              type="number"
+              step="0.01"
+              min="0"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+              placeholder="0.00"
+            >
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Max Tickets</label>
+            <input
+              v-model="formData.max_tickets"
+              type="number"
+              min="1"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+              placeholder="100"
+            >
       </div>
   </div>
+
+        <div class="flex space-x-3 pt-4">
+          <button
+            type="button"
+            @click="closeModals"
+            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            :disabled="eventStore.loading"
+            class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-lg hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            {{ (eventStore.loading || isUploadingImage) ? 'Saving...' : 'Update Event' }}
+          </button>
+        </div>
+        </form>
+      </div>
+    </Dialog>
 </template>

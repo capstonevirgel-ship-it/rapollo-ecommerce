@@ -32,6 +32,10 @@ const metaDescription = ref("");
 const metaKeywords = ref("");
 const images = ref<File[]>([]);
 
+// Master price and stock
+const masterPrice = ref<number>(0);
+const masterStock = ref<number>(10);
+
 // Size selection
 const selectedSizes = ref<number[]>([]);
 
@@ -65,7 +69,7 @@ const variants = ref<Variant[]>([
     color_hex: "#000000",
     size_id: null,
     price: 0,
-    stock: 0,
+    stock: 10,
     sku: "",
     images: [],
     available_sizes: [],
@@ -131,7 +135,7 @@ const accordionSections = [
 const isAccordionComplete = (sectionId: string) => {
   switch (sectionId) {
     case 'basic':
-      return name.value.trim() !== '' && subcategoryId.value !== null;
+      return name.value.trim() !== '' && subcategoryId.value !== null && masterPrice.value > 0 && masterStock.value >= 0;
     case 'media':
       return images.value.length > 0;
     case 'variants':
@@ -174,6 +178,25 @@ onMounted(async () => {
   initializeSelectedSizes();
 });
 
+// Watch master price and sync with variants (only if variant price hasn't been manually changed)
+watch(masterPrice, (newPrice, oldPrice) => {
+  variants.value.forEach(variant => {
+    // Only sync if variant price is 0 or matches the old master price (meaning it was synced)
+    if (variant.price === 0 || variant.price === oldPrice) {
+      variant.price = newPrice;
+    }
+  });
+});
+
+// Watch master stock and sync with variants that have no sizes
+watch(masterStock, (newStock) => {
+  variants.value.forEach(variant => {
+    if (variant.available_sizes.length === 0) {
+      variant.stock = newStock;
+    }
+  });
+});
+
 function handleProductImages(e: Event) {
   const target = e.target as HTMLInputElement;
   if (target.files) images.value = Array.from(target.files);
@@ -191,7 +214,7 @@ function addVariant() {
     color_hex: "#ffffff",
     size_id: null,
     price: 0,
-    stock: 0,
+    stock: 10,
     sku: "",
     images: [],
     available_sizes: [...selectedSizes.value], // Copy all selected sizes
@@ -316,8 +339,10 @@ async function submitProduct() {
     metaKeywords.value = "";
     images.value = [];
     selectedSizes.value = [];
+    masterPrice.value = 0;
+    masterStock.value = 10;
     variants.value = [
-      { color_name: "Black", color_hex: "#000000", size_id: null, price: 0, stock: 0, sku: "", images: [], available_sizes: [], size_stocks: {} },
+      { color_name: "Black", color_hex: "#000000", size_id: null, price: 0, stock: 10, sku: "", images: [], available_sizes: [], size_stocks: {} },
     ];
     newBrandMode.value = false;
     newBrandName.value = "";
@@ -356,7 +381,7 @@ async function submitProduct() {
       <button
         @click="submitProduct"
             :disabled="!canSubmit"
-            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            class="px-6 py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
       >
             <Icon name="mdi:content-save" />
             Save Product
@@ -376,7 +401,7 @@ async function submitProduct() {
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
           <div 
-            class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            class="bg-zinc-900 h-2 rounded-full transition-all duration-300"
             :style="{ width: `${(accordionSections.filter(s => isAccordionComplete(s.id)).length / accordionSections.length) * 100}%` }"
           ></div>
         </div>
@@ -420,7 +445,7 @@ async function submitProduct() {
                   v-model="name" 
                   type="text" 
                   placeholder="Enter product name"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                 />
     </div>
 
@@ -431,7 +456,7 @@ async function submitProduct() {
                   v-model="description" 
                   placeholder="Describe your product"
                   rows="4"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                 />
               </div>
 
@@ -443,7 +468,7 @@ async function submitProduct() {
                   <div class="relative">
                     <select 
                       v-model="subcategoryId" 
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                     >
                       <option disabled value="">Select a subcategory</option>
                       <optgroup v-for="group in groupedSubcategories" :key="group.categoryName" :label="group.categoryName">
@@ -470,7 +495,7 @@ async function submitProduct() {
                     <button 
                       v-if="brandId === '__new'"
                       @click="newBrandMode = true; brandId = null;"
-                      class="mt-2 text-sm text-blue-600 hover:text-blue-700"
+                      class="mt-2 text-sm text-zinc-900 hover:text-zinc-700"
                     >
                       Create new brand
                     </button>
@@ -480,7 +505,7 @@ async function submitProduct() {
                       v-model="newBrandName" 
                       type="text" 
                       placeholder="Enter brand name"
-                      class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                     />
                     <button 
                       @click="newBrandMode = false; newBrandName = '';"
@@ -501,7 +526,39 @@ async function submitProduct() {
                   placeholder="Select available sizes for this product"
                 />
                 <p class="text-xs text-gray-500 mt-1">Select all sizes this product can come in. You can remove specific sizes per variant later.</p>
-          </div>
+              </div>
+
+              <!-- Price and Stock -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Master Price -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Default Price *</label>
+                  <div class="relative">
+                    <span class="absolute left-3 top-2 text-gray-500">₱</span>
+                    <input 
+                      v-model="masterPrice" 
+                      type="number" 
+                      step="0.01" 
+                      placeholder="0.00"
+                      class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                    />
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1">Default price for all variants (can be overridden per variant)</p>
+                </div>
+
+                <!-- Master Stock -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Default Stock *</label>
+                  <input 
+                    v-model="masterStock" 
+                    type="number" 
+                    min="0"
+                    placeholder="0"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                  />
+                  <p class="text-xs text-gray-500 mt-1">Default stock for variants without sizes</p>
+                </div>
+              </div>
         </div>
         </div>
       </div>
@@ -547,7 +604,7 @@ async function submitProduct() {
                   class="hidden"
                   id="product-images"
                 />
-                <label for="product-images" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer">
+                <label for="product-images" class="inline-flex items-center px-4 py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer">
                   <Icon name="mdi:upload" class="mr-2" />
                   Choose Files
                 </label>
@@ -634,12 +691,12 @@ async function submitProduct() {
                       <span
                         v-for="sizeId in variant.available_sizes"
                         :key="sizeId"
-                        class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-md"
+                        class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-zinc-100 text-zinc-800 rounded-md"
                       >
                         {{ getSizeName(sizeId) }}
                         <button
                           @click="removeSizeFromVariant(index, sizeId)"
-                          class="text-blue-600 hover:text-blue-800 focus:outline-none"
+                          class="text-zinc-600 hover:text-zinc-800 focus:outline-none"
                         >
                           <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -665,10 +722,11 @@ async function submitProduct() {
                         type="number" 
                         step="0.01" 
                         placeholder="0.00"
-                        class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                       />
                     </div>
-        </div>
+                    <p class="text-xs text-gray-500 mt-1">Override default price if needed</p>
+                  </div>
 
                   <!-- SKU -->
                   <div>
@@ -677,10 +735,10 @@ async function submitProduct() {
                       v-model="variant.sku" 
                       type="text" 
                       placeholder="Product SKU"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                     />
                   </div>
-        </div>
+                </div>
 
                 <!-- Individual Stock per Size -->
                 <div v-if="variant.available_sizes.length > 0" class="mb-4">
@@ -694,12 +752,28 @@ async function submitProduct() {
                         type="number" 
                         min="0"
                         placeholder="0"
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                       />
                     </div>
                   </div>
                   <p class="text-xs text-gray-500 mt-1">Set individual stock quantities for each size</p>
-        </div>
+                </div>
+
+                <!-- Stock for variants without sizes -->
+                <div v-else class="mb-4">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Stock</label>
+                  <div class="flex items-center gap-2">
+                    <input 
+                      v-model="variant.stock" 
+                      type="number" 
+                      min="0"
+                      placeholder="0"
+                      class="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                    />
+                    <span class="text-sm text-gray-500">units</span>
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1">Stock for this variant (no sizes selected)</p>
+                </div>
 
         <!-- Variant Images -->
         <div>
@@ -709,7 +783,7 @@ async function submitProduct() {
                     multiple 
                     accept="image/*"
                     @change="(e) => handleVariantImages(e, index)" 
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                   />
         </div>
       </div>
@@ -766,7 +840,7 @@ async function submitProduct() {
                       :class="[
                         'py-2 px-1 border-b-2 font-medium text-sm transition-colors',
                         activePreviewTab === 'search'
-                          ? 'border-blue-500 text-blue-600'
+                          ? 'border-zinc-900 text-zinc-900'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       ]"
                     >
@@ -777,7 +851,7 @@ async function submitProduct() {
                       :class="[
                         'py-2 px-1 border-b-2 font-medium text-sm transition-colors',
                         activePreviewTab === 'shop'
-                          ? 'border-blue-500 text-blue-600'
+                          ? 'border-zinc-900 text-zinc-900'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       ]"
                     >
@@ -795,7 +869,7 @@ async function submitProduct() {
                         <span class="font-medium truncate">{{ searchPreview.url }}</span>
                         <Icon name="mdi:chevron-down" class="text-xs flex-shrink-0" />
                       </div>
-                      <h3 class="text-xl text-blue-600 hover:underline cursor-pointer break-words">
+                      <h3 class="text-xl text-zinc-900 hover:underline cursor-pointer break-words">
                         {{ searchPreview.title }}
                       </h3>
                       <p class="text-sm text-gray-600 leading-relaxed break-words whitespace-normal">
@@ -879,7 +953,7 @@ async function submitProduct() {
                       v-model="seoTitle" 
                       type="text" 
                       placeholder="Optimized title for search engines"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                     />
                     <p class="text-xs text-gray-500 mt-1">Recommended: 50-60 characters</p>
                   </div>
@@ -890,7 +964,7 @@ async function submitProduct() {
                       v-model="seoDescription" 
                       placeholder="Meta description for search results"
                       rows="3"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                     />
                     <p class="text-xs text-gray-500 mt-1">Recommended: 150-160 characters</p>
                   </div>
@@ -901,7 +975,7 @@ async function submitProduct() {
                       v-model="seoKeywords" 
                       type="text" 
                       placeholder="keyword1, keyword2, keyword3"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                     />
                     <p class="text-xs text-gray-500 mt-1">Separate keywords with commas</p>
                   </div>
@@ -913,7 +987,7 @@ async function submitProduct() {
                         v-model="seoCanonicalUrl" 
                         type="url" 
                         placeholder="https://example.com/product"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                       />
                     </div>
 

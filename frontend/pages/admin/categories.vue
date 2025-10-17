@@ -136,10 +136,10 @@ const saveCategory = async () => {
 
   <Dialog v-model="isDialogOpen" title="Add Category">
     <div class="space-y-4">
-      <input v-model="newCategory.name" type="text" placeholder="Name" class="w-full border p-2 rounded" />
-      <input v-model="newCategory.slug" type="text" placeholder="Slug" class="w-full border p-2 rounded" />
-      <input v-model="newCategory.meta_title" type="text" placeholder="Meta Title" class="w-full border p-2 rounded" />
-      <textarea v-model="newCategory.meta_description" placeholder="Meta Description" class="w-full border p-2 rounded"></textarea>
+      <input v-model="newCategory.name" type="text" placeholder="Name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
+      <input v-model="newCategory.slug" type="text" placeholder="Slug" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
+      <input v-model="newCategory.meta_title" type="text" placeholder="Meta Title" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
+      <textarea v-model="newCategory.meta_description" placeholder="Meta Description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"></textarea>
     </div>
     <div class="mt-6 flex justify-end space-x-2">
       <button @click="isDialogOpen = false" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">Cancel</button>
