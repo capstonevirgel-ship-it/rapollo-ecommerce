@@ -23,9 +23,12 @@
               <span class="text-gray-600">Order Number:</span>
               <span class="font-medium">#{{ orderNumber }}</span>
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between items-center">
               <span class="text-gray-600">Payment Method:</span>
-              <span class="font-medium">PayMongo</span>
+              <div class="flex flex-col items-end">
+                <span class="font-medium">GCash</span>
+                <PayMongoBranding />
+              </div>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-600">Status:</span>
@@ -63,11 +66,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useCartStore } from '~/stores/cart'
+import PayMongoBranding from '@/components/PayMongoBranding.vue'
+
+// Stores
+const cartStore = useCartStore()
 
 // Generate a random order number for demo purposes
 const orderNumber = ref('')
 
 onMounted(() => {
+  // Clear cart on successful payment
+  cartStore.clearCart()
+  
   // Generate a random order number
   orderNumber.value = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase()
 })

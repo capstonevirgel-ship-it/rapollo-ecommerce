@@ -5,10 +5,22 @@ export interface Purchase {
   user_id: number
   total: number
   status: 'pending' | 'processing' | 'completed' | 'cancelled'
+  type?: 'product' | 'ticket'
+  event_id?: number
   created_at: string
   updated_at: string
   items?: PurchaseItem[]
   payment?: Payment
+  user?: {
+    id: number
+    user_name: string
+    email: string
+    role: string
+  }
+  event?: {
+    id: number
+    title: string
+  }
 }
 
 export interface PurchaseItem {
@@ -45,6 +57,11 @@ export interface PaymentResponse {
 // Removed PayMongo interfaces
 
 export const usePurchaseStore = defineStore('purchase', () => {
+  const purchases = ref<Purchase[]>([])
+  const pagination = ref<any>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
   const createPurchase = async (cartItems: any[]) => {
     // Map cart items to the format expected by the backend
     const items = cartItems.map(item => ({
@@ -75,10 +92,47 @@ export const usePurchaseStore = defineStore('purchase', () => {
     return response as PaymentResponse
   }
 
-  // Removed PayMongo payment methods
+  // Admin methods
+  const fetchAdminPurchases = async (filters: {
+    status?: string
+    type?: string
+    search?: string
+    per_page?: number
+  } = {}) => {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const queryParams = new URLSearchParams()
+      if (filters.status) queryParams.append('status', filters.status)
+      if (filters.type) queryParams.append('type', filters.type)
+      if (filters.search) queryParams.append('search', filters.search)
+      if (filters.per_page) queryParams.append('per_page', filters.per_page.toString())
+      
+      const response = await $fetch(`/api/purchases/admin/all?${queryParams.toString()}`)
+      purchases.value = response.data
+      pagination.value = {
+        current_page: response.current_page,
+        last_page: response.last_page,
+        per_page: response.per_page,
+        total: response.total
+      }
+      return response
+    } catch (err: any) {
+      error.value = err.data?.message || err.message || 'Failed to fetch purchases'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
 
   return {
+    purchases,
+    pagination,
+    loading,
+    error,
     createPurchase,
-    createPayment
+    createPayment,
+    fetchAdminPurchases
   }
 })

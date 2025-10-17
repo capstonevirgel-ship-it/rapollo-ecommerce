@@ -4,8 +4,8 @@ export interface ProductVariantPayload {
   color_id?: number
   color_name?: string
   color_hex?: string
-  size_id?: number
-  size_name?: string
+  available_sizes?: number[]
+  size_stocks?: { [sizeId: number]: number }
   price: number
   stock: number
   sku: string
@@ -13,18 +13,22 @@ export interface ProductVariantPayload {
 }
 
 export interface ProductPayload {
-  subcategory_id?: number
+  subcategory_id: number
   brand_id?: number
   brand_name?: string
   name: string
   description?: string
   meta_title?: string
   meta_description?: string
+  meta_keywords?: string
+  canonical_url?: string
+  robots?: string
   is_active?: boolean
   is_featured?: boolean
   is_hot?: boolean
   is_new?: boolean
   images?: File[]
+  sizes?: number[]
   variants: ProductVariantPayload[]
 }
 
@@ -38,6 +42,9 @@ export interface Product {
   description: string
   meta_title: string
   meta_description: string
+  meta_keywords: string | null
+  canonical_url: string | null
+  robots: string
   is_active: number
   is_featured: number
   is_hot: number

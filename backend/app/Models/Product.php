@@ -12,8 +12,8 @@ class Product extends Model
 
     protected $fillable = [
         'subcategory_id', 'brand_id', 'name', 'slug', 'description',
-        'meta_title', 'meta_description', 'is_active', 'is_featured',
-        'is_hot', 'is_new'
+        'meta_title', 'meta_description', 'meta_keywords', 'canonical_url',
+        'robots', 'is_active', 'is_featured', 'is_hot', 'is_new'
     ];
 
     public function subcategory()
@@ -34,5 +34,10 @@ class Product extends Model
     public function images()
     {
         return $this->hasMany(ProductImage::class);
+    }
+
+    public function sizes()
+    {
+        return $this->belongsToMany(Size::class, 'product_sizes');
     }
 }

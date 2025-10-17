@@ -74,7 +74,7 @@ onMounted(async () => {
       <Transition name="mega-menu">
         <div 
           v-if="activeCategory === 'shop'"
-          class="fixed left-0 w-full bg-white shadow-lg border-t border-gray-200 py-8 top-[119.5px] z-50"
+          class="fixed left-0 w-full bg-white shadow-lg border-t border-gray-200 py-8 top-[175px] z-50"
           @mouseleave="toggleCategory(null)"
         >
           <div class="container mx-auto px-4">
@@ -147,7 +147,7 @@ onMounted(async () => {
                       <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
                         <img 
                           v-if="!brandImageError[brand.id]"
-                          :src="getImageUrl(brand.logo_url, 'brand')"
+                          :src="getImageUrl(brand.logo_url ?? null, 'brand')"
                           :alt="brand.name"
                           class="w-8 h-8 object-contain"
                           @error="brandImageError[brand.id] = true"

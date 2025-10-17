@@ -16,12 +16,16 @@ export const useCustomFetch = async <T>(url: string, opts: any = {}): Promise<T>
   }
   
   try {
+    // Check if body is FormData to handle multipart/form-data correctly
+    const isFormData = opts.body instanceof FormData
+    
     const response = await $fetch<T>(fullUrl, {
       credentials: 'include',
       ...opts,
       headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        // Don't set Content-Type for FormData - let the browser set it with boundary
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token.value ? { 'Authorization': `Bearer ${token.value}` } : {}),
         ...(opts?.headers || {})
       }

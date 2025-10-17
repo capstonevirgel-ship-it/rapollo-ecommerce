@@ -10,8 +10,10 @@ return new class extends Migration
     {
         Schema::create('sizes', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 20)->unique();
+            $table->string('name', 50)->unique();
+            $table->string('slug', 50)->unique();
             $table->string('description', 100)->nullable();
+            $table->integer('sort_order')->default(0);
             $table->timestamps();
         });
     }

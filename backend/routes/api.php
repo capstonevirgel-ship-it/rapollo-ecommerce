@@ -7,6 +7,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\SubcategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\BrandController;
+use App\Http\Controllers\SizeController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\TicketController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
@@ -42,6 +44,14 @@ Route::get('subcategories/{subcategory}', [SubcategoryController::class, 'show']
 
 Route::get('brands', [BrandController::class, 'index']);
 Route::get('brands/{brand}', [BrandController::class, 'show']);
+
+Route::get('sizes', [SizeController::class, 'index']);
+Route::get('sizes/{size}', [SizeController::class, 'show']);
+
+// Settings (public read access)
+Route::get('settings', [SettingsController::class, 'index']);
+Route::get('settings/group/{group}', [SettingsController::class, 'getByGroup']);
+Route::get('settings/{key}', [SettingsController::class, 'show']);
 
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{slug}', [ProductController::class, 'show']);
@@ -76,11 +86,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Products
     Route::post('products', [ProductController::class, 'store']);
+    Route::put('products/{slug}', [ProductController::class, 'update']);
+    Route::delete('products/{slug}', [ProductController::class, 'destroy']);
 
     // Brands
     Route::post('brands', [BrandController::class, 'store']);
     Route::put('brands/{brand}', [BrandController::class, 'update']);
     Route::delete('brands/{brand}', [BrandController::class, 'destroy']);
+
+    // Sizes
+    Route::post('sizes', [SizeController::class, 'store']);
+    Route::put('sizes/{size}', [SizeController::class, 'update']);
+    Route::delete('sizes/{size}', [SizeController::class, 'destroy']);
 
     // Cart
     Route::get('cart', [CartController::class, 'index']);
@@ -109,6 +126,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('purchases', [PurchaseController::class, 'index']);
     Route::post('purchases', [PurchaseController::class, 'store']);
     Route::get('purchases/{id}', [PurchaseController::class, 'show']);
+    Route::get('purchases/admin/all', [PurchaseController::class, 'adminIndex']);
+    Route::get('purchases/admin/{id}', [PurchaseController::class, 'adminShow']);
+    Route::put('purchases/{id}/status', [PurchaseController::class, 'updateStatus']);
 
     // Payments
     Route::post('payments/create', [PaymentController::class, 'createPayment']);
@@ -130,5 +150,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('dashboard/category-chart', [DashboardController::class, 'categoryChart']);
     Route::get('dashboard/top-products', [DashboardController::class, 'topProducts']);
     Route::get('dashboard/recent-orders', [DashboardController::class, 'recentOrders']);
+
+    // Settings (admin only)
+    Route::post('settings', [SettingsController::class, 'update']);
+    Route::put('settings/{key}', [SettingsController::class, 'updateSingle']);
+    Route::post('settings/upload-logo', [SettingsController::class, 'uploadLogo']);
+    Route::delete('settings/delete-logo', [SettingsController::class, 'deleteLogo']);
+    Route::post('settings/upload-team-member-image', [SettingsController::class, 'uploadTeamMemberImage']);
+    Route::delete('settings/delete-team-member-image', [SettingsController::class, 'deleteTeamMemberImage']);
+    Route::post('settings/toggle-maintenance', [SettingsController::class, 'toggleMaintenance']);
 });
 

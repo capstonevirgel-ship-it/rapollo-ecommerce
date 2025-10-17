@@ -43,4 +43,34 @@ class Event extends Model
     {
         return $this->booked_tickets_count >= $this->max_tickets;
     }
+
+    /**
+     * Check if event has enough tickets available
+     */
+    public function hasTicketsAvailable(int $quantity = 1): bool
+    {
+        return $this->remaining_tickets >= $quantity;
+    }
+
+    /**
+     * Reserve tickets (decrement available count)
+     */
+    public function reserveTickets(int $quantity): bool
+    {
+        if (!$this->hasTicketsAvailable($quantity)) {
+            return false;
+        }
+
+        // Note: available_tickets is calculated from booked tickets
+        // Actual reservation happens when tickets are created
+        return true;
+    }
+
+    /**
+     * Check if tickets are low
+     */
+    public function isLowOnTickets(int $threshold = 10): bool
+    {
+        return $this->remaining_tickets > 0 && $this->remaining_tickets <= $threshold;
+    }
 }

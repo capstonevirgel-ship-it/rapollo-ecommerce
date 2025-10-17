@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 
 interface SelectOption {
   value: string | number
@@ -30,6 +30,7 @@ const emit = defineEmits<{
 
 const isOpen = ref(false)
 const selectRef = ref<HTMLDivElement>()
+const dropdownRef = ref<HTMLDivElement>()
 const searchQuery = ref('')
 
 // Computed properties
@@ -72,6 +73,45 @@ const variantClasses = computed(() => {
 const disabledClasses = computed(() => {
   return props.disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'cursor-pointer'
 })
+
+const dropdownStyle = computed(() => {
+  if (!selectRef.value || !isOpen.value) return {}
+  
+  const rect = selectRef.value.getBoundingClientRect()
+  const viewportHeight = window.innerHeight
+  const dropdownHeight = 200 // Estimated max height
+  
+  // Calculate if dropdown should open above or below
+  const spaceBelow = viewportHeight - rect.bottom
+  const spaceAbove = rect.top
+  
+  let top = rect.bottom + 4 // Default: below the select
+  let maxHeight = '200px'
+  
+  // If not enough space below, open above
+  if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+    top = rect.top - dropdownHeight - 4
+  }
+  
+  // If not enough space above either, use available space
+  if (spaceAbove < dropdownHeight && spaceBelow < dropdownHeight) {
+    if (spaceBelow > spaceAbove) {
+      top = rect.bottom + 4
+      maxHeight = `${spaceBelow - 8}px`
+    } else {
+      top = 4
+      maxHeight = `${spaceAbove - 8}px`
+    }
+  }
+  
+  return {
+    top: `${top}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    maxHeight
+  }
+})
+
 
 // Methods
 const toggleDropdown = () => {
@@ -148,6 +188,19 @@ watch(() => props.modelValue, () => {
   // Reset search when value changes externally
   searchQuery.value = ''
 })
+
+// Watch for dropdown open/close to recalculate position
+watch(isOpen, (newValue) => {
+  if (newValue) {
+    // Force recalculation on next tick
+    nextTick(() => {
+      // Trigger reactivity for dropdownStyle
+      if (selectRef.value) {
+        selectRef.value.getBoundingClientRect()
+      }
+    })
+  }
+})
 </script>
 
 <template>
@@ -168,7 +221,9 @@ watch(() => props.modelValue, () => {
       :aria-haspopup="true"
     >
       <span class="block truncate">
-        {{ selectedOption?.label || placeholder }}
+        <slot name="selected" :option="selectedOption" :placeholder="placeholder">
+          {{ selectedOption?.label || placeholder }}
+        </slot>
       </span>
       
       <div class="flex items-center space-x-2">
@@ -206,10 +261,12 @@ watch(() => props.modelValue, () => {
       leave-from-class="transform scale-100 opacity-100"
       leave-to-class="transform scale-95 opacity-0"
     >
-      <div
-        v-if="isOpen"
-        class="absolute z-50 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none"
-      >
+    <div
+      v-if="isOpen"
+      ref="dropdownRef"
+      class="fixed z-[9999] mt-1 w-full bg-white shadow-lg rounded-md py-1 text-base border border-gray-200 focus:outline-none"
+      :style="dropdownStyle"
+    >
         <!-- Search input (if many options) -->
         <div v-if="options.length > 10" class="px-3 py-2 border-b border-gray-100">
           <input
@@ -222,7 +279,7 @@ watch(() => props.modelValue, () => {
         </div>
 
         <!-- Options -->
-        <div class="py-1">
+        <div class="py-1 overflow-y-auto ultra-thin-scrollbar" :style="{ maxHeight: dropdownStyle.maxHeight || '200px' }">
           <div
             v-for="option in filteredOptions"
             :key="option.value"
@@ -236,9 +293,12 @@ watch(() => props.modelValue, () => {
             ]"
             @click="selectOption(option)"
           >
-            <span class="block truncate font-normal">
-              {{ option.label }}
-            </span>
+            <!-- Custom option slot -->
+            <slot name="option" :option="option" :selected="option.value === modelValue">
+              <span class="block truncate font-normal">
+                {{ option.label }}
+              </span>
+            </slot>
             
             <!-- Selected indicator -->
             <span

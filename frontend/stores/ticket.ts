@@ -74,7 +74,7 @@ export const useTicketStore = defineStore('ticket', () => {
   }
 
   // Confirm ticket payment
-  const confirmTicketPayment = async (paymentIntentId: string, paymentMethodId: string, ticketPurchaseId: number) => {
+  const confirmTicketPayment = async (paymentIntentId: string, paymentMethodId: string, purchaseId: number) => {
     loading.value = true
     error.value = null
     try {
@@ -83,7 +83,7 @@ export const useTicketStore = defineStore('ticket', () => {
         body: {
           payment_intent_id: paymentIntentId,
           payment_method_id: paymentMethodId,
-          ticket_purchase_id: ticketPurchaseId
+          purchase_id: purchaseId
         }
       })
       

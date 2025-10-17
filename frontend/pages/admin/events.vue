@@ -222,10 +222,25 @@ const formatTime = (dateString: string) => {
 
             <!-- Ticket Information -->
             <div v-if="event.ticket_price" class="mb-4">
-              <div class="flex items-center justify-between">
+              <div class="flex items-center justify-between mb-2">
                 <span class="text-2xl font-bold text-gray-900">${{ typeof event.ticket_price === 'string' ? parseFloat(event.ticket_price).toFixed(2) : event.ticket_price.toFixed(2) }}</span>
-                <span v-if="event.max_tickets" class="text-sm text-gray-500">
-                  {{ event.remaining_tickets || 0 }} / {{ event.max_tickets }} tickets
+              </div>
+              <!-- Stock Badge -->
+              <div v-if="event.max_tickets" class="flex items-center gap-2">
+                <span class="text-sm text-gray-600">
+                  {{ event.remaining_tickets || 0 }} / {{ event.max_tickets }} available
+                </span>
+                <span 
+                  v-if="(event.remaining_tickets || 0) === 0"
+                  class="text-xs font-medium px-2 py-1 rounded-full bg-red-100 text-red-700"
+                >
+                  Sold Out
+                </span>
+                <span 
+                  v-else-if="(event.remaining_tickets || 0) <= 10"
+                  class="text-xs font-medium px-2 py-1 rounded-full bg-orange-100 text-orange-700"
+                >
+                  Low Stock
                 </span>
               </div>
             </div>
@@ -251,7 +266,7 @@ const formatTime = (dateString: string) => {
     </div>
 
     <!-- Create/Edit Modal -->
-    <div v-if="showCreateModal || showEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div v-if="showCreateModal || showEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 custom-scrollbar">
       <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
         <div class="mt-3">
           <h3 class="text-lg font-medium text-gray-900 mb-4">

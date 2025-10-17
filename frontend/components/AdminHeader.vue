@@ -26,6 +26,15 @@
           </NuxtLink>
         </div>
 
+        <!-- Notifications -->
+        <NotificationDropdown
+          :notifications="adminNotifications"
+          view-all-url="/admin/notifications"
+          @mark-as-read="handleAdminMarkAsRead"
+          @delete="handleAdminDeleteNotification"
+          @mark-all-as-read="handleAdminMarkAllAsRead"
+        />
+
         <!-- Admin Actions -->
         <div class="flex items-center space-x-2">
           <button
@@ -43,10 +52,74 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import NotificationDropdown from '~/components/NotificationDropdown.vue'
 
 const authStore = useAuthStore()
 const route = useRoute()
 
 // Track current view mode
 const isAdminView = computed(() => route.path.startsWith('/admin'))
+
+// Static admin notification data
+const adminNotifications = ref([
+  {
+    id: 1,
+    title: 'New Order Received',
+    message: 'Order #12345 has been placed by John Doe for ₱2,500.00 worth of products.',
+    type: 'order' as const,
+    read: false,
+    created_at: '2025-01-07T10:30:00Z'
+  },
+  {
+    id: 2,
+    title: 'Payment Confirmed',
+    message: 'Payment for Order #12344 has been successfully processed via PayMongo.',
+    type: 'payment' as const,
+    read: false,
+    created_at: '2025-01-07T09:15:00Z'
+  },
+  {
+    id: 3,
+    title: 'Low Stock Alert',
+    message: 'Product "Classic White T-Shirt" is running low on stock (5 items remaining).',
+    type: 'system' as const,
+    read: true,
+    created_at: '2025-01-07T08:45:00Z'
+  },
+  {
+    id: 4,
+    title: 'New Event Registration',
+    message: 'Sarah Johnson has registered for "Fashion Week 2025" event.',
+    type: 'event' as const,
+    read: true,
+    created_at: '2025-01-06T16:20:00Z'
+  },
+  {
+    id: 5,
+    title: 'System Maintenance',
+    message: 'Scheduled maintenance will occur tonight from 2:00 AM to 4:00 AM.',
+    type: 'system' as const,
+    read: false,
+    created_at: '2025-01-06T14:00:00Z'
+  }
+])
+
+// Admin notification handlers
+const handleAdminMarkAsRead = (id: number) => {
+  const notification = adminNotifications.value.find(n => n.id === id)
+  if (notification) {
+    notification.read = true
+  }
+}
+
+const handleAdminDeleteNotification = (id: number) => {
+  const index = adminNotifications.value.findIndex(n => n.id === id)
+  if (index > -1) {
+    adminNotifications.value.splice(index, 1)
+  }
+}
+
+const handleAdminMarkAllAsRead = () => {
+  adminNotifications.value.forEach(n => n.read = true)
+}
 </script>

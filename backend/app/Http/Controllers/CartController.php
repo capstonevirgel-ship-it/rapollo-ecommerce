@@ -28,8 +28,12 @@ class CartController extends Controller
 
         $variant = ProductVariant::findOrFail($data['variant_id']);
 
-        if ($variant->stock < $data['quantity']) {
-            return response()->json(['message' => 'Not enough stock'], 400);
+        // Check if variant is out of stock
+        if ($variant->isOutOfStock()) {
+            return response()->json([
+                'message' => 'This item is out of stock',
+                'stock' => 0
+            ], 400);
         }
 
         // Check if item already exists
@@ -37,10 +41,22 @@ class CartController extends Controller
             ->where('variant_id', $data['variant_id'])
             ->first();
 
+        // Calculate total quantity (existing + new)
+        $totalQuantity = $existingItem ? $existingItem->quantity + $data['quantity'] : $data['quantity'];
+
+        // Validate total quantity against available stock
+        if (!$variant->hasStock($totalQuantity)) {
+            return response()->json([
+                'message' => 'Not enough stock available',
+                'available_stock' => $variant->stock,
+                'requested_quantity' => $totalQuantity
+            ], 400);
+        }
+
         if ($existingItem) {
             // Update existing item by adding quantity
             $existingItem->update([
-                'quantity' => $existingItem->quantity + $data['quantity']
+                'quantity' => $totalQuantity
             ]);
             $cartItem = $existingItem;
         } else {
@@ -69,8 +85,13 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
-        if ($cart->variant->stock < $data['quantity']) {
-            return response()->json(['message' => 'Not enough stock'], 400);
+        // Validate stock availability
+        if (!$cart->variant->hasStock($data['quantity'])) {
+            return response()->json([
+                'message' => 'Not enough stock available',
+                'available_stock' => $cart->variant->stock,
+                'requested_quantity' => $data['quantity']
+            ], 400);
         }
 
         $cart->update($data);

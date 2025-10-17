@@ -13,15 +13,19 @@ const handleSidebarWidthChange = (newWidth: string) => {
 };
 
 const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768;
-  if (isMobile.value) {
-    contentPadding.value = '0';
+  if (process.client) {
+    isMobile.value = window.innerWidth <= 768;
+    if (isMobile.value) {
+      contentPadding.value = '0';
+    }
   }
 };
 
 onMounted(() => {
   checkMobile();
-  window.addEventListener('resize', checkMobile);
+  if (process.client) {
+    window.addEventListener('resize', checkMobile);
+  }
 });
 </script>
 

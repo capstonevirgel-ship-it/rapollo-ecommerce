@@ -113,29 +113,39 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'subcategory_id'    => 'required|exists:subcategories,id',
+            'subcategory_id'    => 'required|integer|exists:subcategories,id',
 
             // Brand
-            'brand_id'          => 'nullable|exists:brands,id',
+            'brand_id'          => 'nullable|integer|exists:brands,id',
             'brand_name'        => 'nullable|string|max:255',
 
             'name'              => 'required|string|max:255',
             'description'       => 'nullable|string',
             'meta_title'        => 'nullable|string|max:255',
             'meta_description'  => 'nullable|string|max:500',
+            'meta_keywords'     => 'nullable|string',
+            'canonical_url'     => 'nullable|url',
+            'robots'            => 'nullable|string|max:50',
             'is_active'         => 'boolean',
             'is_featured'       => 'boolean',
             'is_hot'            => 'boolean',
             'is_new'            => 'boolean',
+            
+            // Sizes
+            'sizes'             => 'nullable|array',
+            'sizes.*'           => 'integer|exists:sizes,id',
 
             // Variants
             'variants'                  => 'required|array',
             'variants.*.color_name'     => 'required|string|max:100',
             'variants.*.color_hex'      => 'required|string|max:7', // "#RRGGBB"
-            'variants.*.size_name'      => 'required|string|max:50',
+            'variants.*.available_sizes' => 'nullable|array',
+            'variants.*.available_sizes.*' => 'integer|exists:sizes,id',
             'variants.*.price'          => 'required|numeric|min:0',
             'variants.*.stock'          => 'required|integer|min:0',
             'variants.*.sku'            => 'required|string|max:100',
+            'variants.*.size_stocks'    => 'nullable|array',
+            'variants.*.size_stocks.*'  => 'integer|min:0',
 
             // Images
             'images'                    => 'nullable|array',
@@ -173,6 +183,9 @@ class ProductController extends Controller
                 'description'      => $validated['description'] ?? null,
                 'meta_title'       => $validated['meta_title'] ?? null,
                 'meta_description' => $validated['meta_description'] ?? null,
+                'meta_keywords'    => $validated['meta_keywords'] ?? null,
+                'canonical_url'    => $validated['canonical_url'] ?? null,
+                'robots'           => $validated['robots'] ?? 'index,follow',
                 'is_active'        => $validated['is_active'] ?? true,
                 'is_featured'      => $validated['is_featured'] ?? false,
                 'is_hot'           => $validated['is_hot'] ?? false,
@@ -191,6 +204,11 @@ class ProductController extends Controller
                 }
             }
 
+            // Attach sizes to product
+            if (!empty($validated['sizes'])) {
+                $product->sizes()->attach($validated['sizes']);
+            }
+
             // Variants
             foreach ($validated['variants'] as $variantData) {
                 // Handle color: check existing by name & hex first
@@ -206,34 +224,32 @@ class ProductController extends Controller
                 }
                 $colorId = $color->id;
 
-                // Handle size: check existing by name
-                $size = Size::where('name', $variantData['size_name'])->first();
-                if (!$size) {
-                    $size = Size::create([
-                        'name' => $variantData['size_name'],
-                    ]);
-                }
-                $sizeId = $size->id;
-
-                // Create variant
-                $variant = $product->variants()->create([
-                    'color_id' => $colorId,
-                    'size_id'  => $sizeId,
-                    'price'    => $variantData['price'],
-                    'stock'    => $variantData['stock'],
-                    'sku'      => $variantData['sku'],
-                ]);
-
-                // Variant images
-                if (!empty($variantData['images'])) {
-                    foreach ($variantData['images'] as $i => $variantImage) {
-                        $path = $variantImage->store('variants', 'public');
-                        $variant->images()->create([
-                            'product_id' => $product->id,
-                            'url'        => $path,
-                            'is_primary' => $i === 0,
-                            'sort_order' => $i,
+                // Create individual variants for each available size only
+                if (!empty($variantData['available_sizes'])) {
+                    foreach ($variantData['available_sizes'] as $sizeId) {
+                        // Use individual stock per size if provided, otherwise use the general stock
+                        $stock = $variantData['size_stocks'][$sizeId] ?? $variantData['stock'];
+                        
+                        $variant = $product->variants()->create([
+                            'color_id' => $colorId,
+                            'size_id'  => $sizeId,
+                            'price'    => $variantData['price'],
+                            'stock'    => $stock,
+                            'sku'      => $variantData['sku'] . '-' . $sizeId, // Unique SKU per size
                         ]);
+
+                        // Variant images for this specific size variant
+                        if (!empty($variantData['images'])) {
+                            foreach ($variantData['images'] as $i => $variantImage) {
+                                $path = $variantImage->store('variants', 'public');
+                                $variant->images()->create([
+                                    'product_id' => $product->id,
+                                    'url'        => $path,
+                                    'is_primary' => $i === 0,
+                                    'sort_order' => $i,
+                                ]);
+                            }
+                        }
                     }
                 }
             }
@@ -250,6 +266,53 @@ class ProductController extends Controller
             return response()->json([
                 'message' => 'Something went wrong',
                 'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function destroy($slug)
+    {
+        try {
+            $product = Product::where('slug', $slug)->firstOrFail();
+            
+            DB::beginTransaction();
+
+            // Delete product images from storage
+            foreach ($product->images as $image) {
+                if ($image->url && \Storage::disk('public')->exists($image->url)) {
+                    \Storage::disk('public')->delete($image->url);
+                }
+                $image->delete();
+            }
+
+            // Delete variant images from storage
+            foreach ($product->variants as $variant) {
+                foreach ($variant->images as $image) {
+                    if ($image->url && \Storage::disk('public')->exists($image->url)) {
+                        \Storage::disk('public')->delete($image->url);
+                    }
+                    $image->delete();
+                }
+                $variant->delete();
+            }
+
+            // Detach sizes
+            $product->sizes()->detach();
+
+            // Delete product
+            $product->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Product deleted successfully'
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to delete product',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

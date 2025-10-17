@@ -19,8 +19,11 @@ return new class extends Migration
             $table->string('currency', 3)->default('PHP');
             $table->enum('status', ['pending', 'processing', 'paid', 'failed', 'cancelled', 'expired'])->default('pending');
             $table->string('payment_method')->nullable(); // card, gcash, paymaya, cod
+            $table->string('payment_intent_id')->nullable(); // PayMongo payment intent ID
             $table->string('transaction_id')->nullable(); // Payment transaction ID
             $table->string('payment_method_id')->nullable(); // Payment method ID
+            $table->string('payment_failure_code')->nullable(); // Payment failure code
+            $table->text('payment_failure_message')->nullable(); // Payment failure message
             $table->timestamp('payment_date')->nullable();
             $table->text('notes')->nullable();
             $table->json('metadata')->nullable(); // Store additional payment data

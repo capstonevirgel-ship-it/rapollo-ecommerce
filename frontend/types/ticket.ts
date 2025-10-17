@@ -2,6 +2,7 @@ export interface Ticket {
   id: number
   event_id: number
   user_id: number
+  purchase_id: number
   ticket_number: string
   price: number
   status: 'pending' | 'confirmed' | 'cancelled' | 'used'
@@ -11,6 +12,7 @@ export interface Ticket {
   updated_at: string
   event?: Event
   user?: User
+  purchase?: Purchase
 }
 
 export interface Event {
@@ -39,6 +41,37 @@ export interface User {
   role: string
   created_at: string
   updated_at: string
+}
+
+export interface Purchase {
+  id: number
+  user_id: number
+  total: number
+  status: 'pending' | 'processing' | 'completed' | 'cancelled'
+  type: 'product' | 'ticket'
+  event_id?: number
+  shipping_address?: any
+  billing_address?: any
+  paid_at?: string
+  created_at: string
+  updated_at: string
+  user?: User
+  event?: Event
+  purchase_items?: PurchaseItem[]
+  tickets?: Ticket[]
+}
+
+export interface PurchaseItem {
+  id: number
+  purchase_id: number
+  variant_id?: number
+  ticket_id?: number
+  quantity: number
+  price: number
+  created_at: string
+  updated_at: string
+  variant?: any
+  ticket?: Ticket
 }
 
 export interface TicketStatistics {

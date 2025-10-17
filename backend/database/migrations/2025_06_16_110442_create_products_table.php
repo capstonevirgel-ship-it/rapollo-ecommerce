@@ -17,6 +17,9 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('meta_title', 150)->nullable();
             $table->string('meta_description', 255)->nullable();
+            $table->text('meta_keywords')->nullable();
+            $table->string('canonical_url')->nullable();
+            $table->string('robots', 50)->default('index,follow');
             $table->boolean('is_active')->default(true);
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_hot')->default(false);

@@ -106,6 +106,13 @@ const isEventFullyBooked = (event: Event) => {
   return getRemainingTickets(event) <= 0
 }
 
+const getTicketAvailabilityStatus = (event: Event) => {
+  const remaining = getRemainingTickets(event)
+  if (remaining === 0) return { status: 'sold-out', label: 'Sold Out', class: 'text-red-600 bg-red-50' }
+  if (remaining <= 10) return { status: 'low', label: `Only ${remaining} left!`, class: 'text-orange-600 bg-orange-50' }
+  return { status: 'available', label: `${remaining} tickets left`, class: 'text-green-600 bg-green-50' }
+}
+
 // Computed property for ticket quantity options
 const ticketQuantityOptions = computed(() => {
   if (!bookingEvent.value) return []
@@ -202,10 +209,16 @@ const canBookTickets = (event: Event) => {
 
             <!-- Ticket Information -->
             <div v-if="event.ticket_price" class="mb-4">
-              <div class="flex items-center justify-between">
+              <div class="flex items-center justify-between mb-2">
                 <span class="text-2xl font-bold text-gray-900">₱{{ typeof event.ticket_price === 'string' ? parseFloat(event.ticket_price).toFixed(2) : event.ticket_price.toFixed(2) }}</span>
-                <span v-if="event.max_tickets" class="text-sm text-gray-500">
-                  {{ getRemainingTickets(event) }} tickets left
+              </div>
+              <!-- Availability Badge -->
+              <div v-if="event.max_tickets" class="inline-block">
+                <span :class="['text-xs font-medium px-3 py-1 rounded-full', getTicketAvailabilityStatus(event).class]">
+                  <Icon v-if="getTicketAvailabilityStatus(event).status === 'sold-out'" name="mdi:close-circle" class="inline-block" />
+                  <Icon v-else-if="getTicketAvailabilityStatus(event).status === 'low'" name="mdi:alert-circle" class="inline-block" />
+                  <Icon v-else name="mdi:check-circle" class="inline-block" />
+                  {{ getTicketAvailabilityStatus(event).label }}
                 </span>
               </div>
             </div>

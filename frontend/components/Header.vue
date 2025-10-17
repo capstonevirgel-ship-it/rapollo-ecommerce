@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import Menu from '@/components/navigation/Menu.vue'
 import Drawer from '@/components/navigation/Drawer.vue'
 import { useAuthStore } from '~/stores/auth'
+import { useCartStore } from '~/stores/cart'
+import NotificationDropdown from '~/components/NotificationDropdown.vue'
 
 const isMenuOpen = ref(false)
 const isShopDrawerOpen = ref(false)
@@ -11,9 +13,54 @@ const activeCategory = ref<string | null>(null)
 const activeMobileCategory = ref<string | null>(null)
 
 const authStore = useAuthStore()
+const cartStore = useCartStore()
 
 const lastScrollY = ref(0)
 const isHeaderVisible = ref(true)
+
+// Static notification data for demo
+const userNotifications = ref([
+  {
+    id: 1,
+    title: 'Order Confirmed',
+    message: 'Your order #12345 has been confirmed and is being prepared for shipment.',
+    type: 'order' as const,
+    read: false,
+    created_at: '2025-01-07T10:30:00Z'
+  },
+  {
+    id: 2,
+    title: 'Payment Successful',
+    message: 'Your payment of ₱2,500.00 has been processed successfully.',
+    type: 'payment' as const,
+    read: false,
+    created_at: '2025-01-07T09:15:00Z'
+  },
+  {
+    id: 3,
+    title: 'Order Shipped',
+    message: 'Your order #12344 has been shipped! Track your package with tracking number: TRK123456789.',
+    type: 'order' as const,
+    read: true,
+    created_at: '2025-01-06T14:20:00Z'
+  },
+  {
+    id: 4,
+    title: 'Special Offer Available',
+    message: 'Get 20% off on all summer collection items! Use code SUMMER20 at checkout.',
+    type: 'promotion' as const,
+    read: false,
+    created_at: '2025-01-06T12:00:00Z'
+  },
+  {
+    id: 5,
+    title: 'Event Registration Confirmed',
+    message: 'You have successfully registered for "Fashion Week 2025" event.',
+    type: 'event' as const,
+    read: true,
+    created_at: '2025-01-06T16:20:00Z'
+  }
+])
 
 const handleScroll = () => {
   const currentScrollY = window.scrollY
@@ -21,8 +68,43 @@ const handleScroll = () => {
   lastScrollY.value = currentScrollY
 }
 
-onMounted(() => window.addEventListener('scroll', handleScroll))
+onMounted(async () => {
+  window.addEventListener('scroll', handleScroll)
+  // Load cart data if user is authenticated
+  if (authStore.isAuthenticated) {
+    await cartStore.index()
+  }
+})
 onBeforeUnmount(() => window.removeEventListener('scroll', handleScroll))
+
+// Watch for authentication changes to sync cart data
+watch(() => authStore.isAuthenticated, async (isAuthenticated) => {
+  if (isAuthenticated) {
+    await cartStore.index()
+  } else {
+    // Clear cart when user logs out
+    cartStore.cart = []
+  }
+})
+
+// Notification handlers
+const handleMarkAsRead = (id: number) => {
+  const notification = userNotifications.value.find(n => n.id === id)
+  if (notification) {
+    notification.read = true
+  }
+}
+
+const handleDeleteNotification = (id: number) => {
+  const index = userNotifications.value.findIndex(n => n.id === id)
+  if (index > -1) {
+    userNotifications.value.splice(index, 1)
+  }
+}
+
+const handleMarkAllAsRead = () => {
+  userNotifications.value.forEach(n => n.read = true)
+}
 
 const toggleCategory = (category: string | null) => {
   activeCategory.value = category
@@ -115,9 +197,25 @@ const navLinks: NavLink[] = [
 
         <!-- Cart + Auth + Theme -->
         <div class="flex justify-end items-center space-x-4">
-          <NuxtLink to="/cart" aria-label="Cart">
+          <NuxtLink to="/cart" aria-label="Cart" class="relative">
             <Icon name="mdi:cart-outline" class="text-2xl hover:text-primary-600" />
+            <span 
+              v-if="cartStore.cartCount > 0" 
+              class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center"
+            >
+              {{ cartStore.cartCount > 99 ? '99+' : cartStore.cartCount }}
+            </span>
           </NuxtLink>
+          
+          <!-- Notifications -->
+          <NotificationDropdown
+            v-if="authStore.isAuthenticated && !authStore.isAdmin"
+            :notifications="userNotifications"
+            view-all-url="/notifications"
+            @mark-as-read="handleMarkAsRead"
+            @delete="handleDeleteNotification"
+            @mark-all-as-read="handleMarkAllAsRead"
+          />
           
           <!-- Theme Toggle -->
           
@@ -161,15 +259,22 @@ const navLinks: NavLink[] = [
       </div>
 
       <!-- Mobile Menu -->
-      <Transition name="mega-menu">
-        <div v-if="isMenuOpen" class="md:hidden mt-4 pb-4 space-y-3">
+      <Transition 
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0 transform -translate-y-2"
+        enter-to-class="opacity-100 transform translate-y-0"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100 transform translate-y-0"
+        leave-to-class="opacity-0 transform -translate-y-2"
+      >
+        <div v-if="isMenuOpen" class="md:hidden mt-4 pb-4 space-y-3 bg-gray-800 rounded-lg mx-4">
           <NuxtLink
             v-for="link in navLinks"
             :key="`mobile-${link.path}`"
             :to="link.path"
             @click="isMenuOpen = false"
-            class="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-50 rounded-lg transition-colors flex items-center space-x-2"
-            active-class="text-zinc-900 font-medium bg-gray-50"
+            class="px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-2 mx-2"
+            active-class="text-white font-medium bg-gray-700"
           >
             <Icon :name="link.icon" class="text-lg" />
             <span>{{ link.label }}</span>

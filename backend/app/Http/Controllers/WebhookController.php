@@ -5,9 +5,17 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use App\Services\PayMongoService;
 use App\Models\Payment;
 use App\Models\Purchase;
+use App\Models\Ticket;
+use App\Models\ProductVariant;
+use App\Models\PurchaseItem;
+use App\Models\Cart;
+use App\Mail\ProductPurchaseConfirmation;
+use App\Mail\TicketPurchaseConfirmation;
+use Illuminate\Support\Facades\Mail;
 
 class WebhookController extends Controller
 {
@@ -23,15 +31,6 @@ class WebhookController extends Controller
      */
     public function handle(Request $request): JsonResponse
     {
-        // Log the webhook data for debugging
-        Log::info('Webhook received', [
-            'headers' => $request->headers->all(),
-            'body' => $request->all(),
-            'method' => $request->method(),
-            'url' => $request->fullUrl(),
-            'ip' => $request->ip(),
-        ]);
-
         // Check if this is a PayMongo webhook
         if ($request->hasHeader('paymongo-signature') || $request->hasHeader('PayMongo-Signature')) {
             $data = $request->all();
@@ -45,78 +44,20 @@ class WebhookController extends Controller
         switch ($webhookType) {
             case 'payment':
                 return $this->handlePaymentWebhook($request);
-            case 'email':
-                return $this->handleEmailWebhook($request);
-            case 'order':
-                return $this->handleOrderWebhook($request);
+            case 'subscription':
+                return $this->handleSubscriptionWebhook($request);
             default:
-                return $this->handleGenericWebhook($request);
+                return $this->handleGenericWebhook($request, $webhookType);
         }
-    }
-
-    /**
-     * Handle payment webhooks
-     */
-    private function handlePaymentWebhook(Request $request): JsonResponse
-    {
-        // Process payment webhook
-        $data = $request->all();
-        
-        // Example: Update payment status
-        // Payment::where('transaction_id', $data['transaction_id'])
-        //     ->update(['status' => $data['status']]);
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Payment webhook processed',
-            'data' => $data
-        ]);
-    }
-
-    /**
-     * Handle email webhooks
-     */
-    private function handleEmailWebhook(Request $request): JsonResponse
-    {
-        $data = $request->all();
-        
-        // Process email delivery status
-        // Update email logs, handle bounces, etc.
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Email webhook processed',
-            'data' => $data
-        ]);
-    }
-
-    /**
-     * Handle order webhooks
-     */
-    private function handleOrderWebhook(Request $request): JsonResponse
-    {
-        $data = $request->all();
-        
-        // Process order updates
-        // Update order status, inventory, etc.
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Order webhook processed',
-            'data' => $data
-        ]);
     }
 
     /**
      * Handle generic webhooks
      */
-    private function handleGenericWebhook(Request $request): JsonResponse
+    private function handleGenericWebhook(Request $request, string $webhookType): JsonResponse
     {
         $data = $request->all();
         
-        // Process any webhook data
-        Log::info('Generic webhook processed', $data);
-
         return response()->json([
             'status' => 'success',
             'message' => 'Webhook received and logged',
@@ -135,289 +76,309 @@ class WebhookController extends Controller
         
         // Verify webhook signature
         if (!$this->payMongoService->verifyWebhookSignature($payload, $signature)) {
-            Log::warning('PayMongo webhook signature verification failed', [
-                'event_type' => $eventType,
-                'signature' => $signature
-            ]);
-            
             return response()->json([
-                'status' => 'error',
-                'message' => 'Invalid webhook signature'
+                'error' => 'Invalid webhook signature'
             ], 401);
         }
 
         $data = $request->all();
-        Log::info('PayMongo webhook processed', [
-            'event_type' => $eventType,
-            'data' => $data
-        ]);
 
         try {
             switch ($eventType) {
-                case 'source.chargeable':
-                    return $this->handleSourceChargeable($data);
                 case 'payment.paid':
                     return $this->handlePaymentPaid($data);
                 case 'payment.failed':
                     return $this->handlePaymentFailed($data);
                 default:
-                    Log::info('Unhandled PayMongo webhook event', [
-                        'event_type' => $eventType,
-                        'data' => $data
-                    ]);
-                    
                     return response()->json([
-                        'status' => 'success',
-                        'message' => 'Webhook received but not processed',
+                        'message' => 'Unhandled webhook event type',
                         'event_type' => $eventType
                     ]);
             }
         } catch (\Exception $e) {
             Log::error('PayMongo webhook processing error', [
                 'event_type' => $eventType,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error' => $e->getMessage()
             ]);
 
             return response()->json([
-                'status' => 'error',
-                'message' => 'Webhook processing failed'
-            ], 500);
-        }
-    }
-
-    /**
-     * Handle source.chargeable event
-     */
-    private function handleSourceChargeable(array $data): JsonResponse
-    {
-        $source = $data['data']['attributes']['source'] ?? null;
-        $paymentIntentId = $data['data']['attributes']['payment_intent_id'] ?? null;
-
-        if ($paymentIntentId) {
-            // Update payment record
-            $payment = Payment::where('transaction_id', $paymentIntentId)->first();
-            if ($payment) {
-                $payment->update([
-                    'status' => 'processing',
-                    'notes' => 'Payment source is chargeable',
-                    'metadata' => json_encode($data)
-                ]);
-            }
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Source chargeable event processed',
-            'payment_intent_id' => $paymentIntentId
-        ]);
-    }
-
-    /**
-     * Handle payment.paid event
-     */
-    private function handlePaymentPaid(array $data): JsonResponse
-    {
-        // PayMongo webhook structure: data.attributes.data contains the payment data
-        $paymentData = $data['data']['attributes']['data'] ?? null;
-        $paymentIntentId = $paymentData['attributes']['payment_intent_id'] ?? null;
-        $metadata = $paymentData['attributes']['metadata'] ?? [];
-
-        Log::info('Processing payment.paid webhook', [
-            'payment_intent_id' => $paymentIntentId,
-            'metadata' => $metadata,
-            'full_data' => $data
-        ]);
-
-        if ($paymentIntentId) {
-            // Try to find payment record by transaction_id first (for payment intents)
-            $paymentRecord = Payment::where('transaction_id', $paymentIntentId)->first();
-            
-            // If not found, try to find by purchase_id from metadata (for checkout sessions)
-            if (!$paymentRecord && isset($metadata['purchase_id'])) {
-                $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])->first();
-                Log::info('Found payment record by purchase_id', [
-                    'purchase_id' => $metadata['purchase_id'],
-                    'payment_id' => $paymentRecord ? $paymentRecord->id : null
-                ]);
-            }
-            
-            if ($paymentRecord) {
-                $paymentRecord->update([
-                    'status' => 'paid',
-                    'payment_date' => now(),
-                    'notes' => 'Payment completed via PayMongo webhook',
-                    'metadata' => json_encode($data)
-                ]);
-
-                // Update purchase status
-                $purchase = Purchase::find($paymentRecord->purchase_id);
-                if ($purchase) {
-                    $purchase->update(['status' => 'processing']);
-                    Log::info('Purchase status updated to processing', [
-                        'purchase_id' => $purchase->id,
-                        'payment_id' => $paymentRecord->id
-                    ]);
-                }
-            } else {
-                Log::warning('Payment record not found', [
-                    'payment_intent_id' => $paymentIntentId,
-                    'purchase_id' => $metadata['purchase_id'] ?? 'not provided'
-                ]);
-            }
-        } else {
-            // For checkout sessions, try to find by checkout session ID
-            $checkoutSessionId = $data['data']['id'] ?? null;
-            if ($checkoutSessionId) {
-                $paymentRecord = Payment::where('transaction_id', $checkoutSessionId)->first();
-                
-                if ($paymentRecord) {
-                    $paymentRecord->update([
-                        'status' => 'paid',
-                        'payment_date' => now(),
-                        'notes' => 'Payment completed via PayMongo webhook (checkout session)',
-                        'metadata' => json_encode($data)
-                    ]);
-
-                    // Update purchase status
-                    $purchase = Purchase::find($paymentRecord->purchase_id);
-                    if ($purchase) {
-                        $purchase->update(['status' => 'processing']);
-                        Log::info('Purchase status updated to processing (checkout session)', [
-                            'purchase_id' => $purchase->id,
-                            'payment_id' => $paymentRecord->id
-                        ]);
-                    }
-                } else {
-                    Log::warning('Payment record not found for checkout session', [
-                        'checkout_session_id' => $checkoutSessionId
-                    ]);
-                }
-            }
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Payment paid event processed',
-            'payment_intent_id' => $paymentIntentId
-        ]);
-    }
-
-    /**
-     * Handle payment.failed event
-     */
-    private function handlePaymentFailed(array $data): JsonResponse
-    {
-        $paymentData = $data['data']['attributes']['data'] ?? null;
-        $paymentIntentId = $paymentData['attributes']['payment_intent_id'] ?? null;
-        $metadata = $paymentData['attributes']['metadata'] ?? [];
-
-        Log::info('Processing payment.failed webhook', [
-            'payment_intent_id' => $paymentIntentId,
-            'metadata' => $metadata
-        ]);
-
-        if ($paymentIntentId) {
-            // Try to find payment record by transaction_id first (for payment intents)
-            $paymentRecord = Payment::where('transaction_id', $paymentIntentId)->first();
-            
-            // If not found, try to find by purchase_id from metadata (for checkout sessions)
-            if (!$paymentRecord && isset($metadata['purchase_id'])) {
-                $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])->first();
-                Log::info('Found payment record by purchase_id for failed payment', [
-                    'purchase_id' => $metadata['purchase_id'],
-                    'payment_id' => $paymentRecord ? $paymentRecord->id : null
-                ]);
-            }
-            
-            if ($paymentRecord) {
-                $paymentRecord->update([
-                    'status' => 'failed',
-                    'notes' => 'Payment failed via PayMongo webhook',
-                    'metadata' => json_encode($data)
-                ]);
-
-                // Update purchase status
-                $purchase = Purchase::find($paymentRecord->purchase_id);
-                if ($purchase) {
-                    $purchase->update(['status' => 'cancelled']);
-                    Log::info('Purchase status updated to cancelled', [
-                        'purchase_id' => $purchase->id,
-                        'payment_id' => $paymentRecord->id
-                    ]);
-                }
-            } else {
-                Log::warning('Payment record not found for failed payment', [
-                    'payment_intent_id' => $paymentIntentId,
-                    'purchase_id' => $metadata['purchase_id'] ?? 'not provided'
-                ]);
-            }
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Payment failed event processed',
-            'payment_intent_id' => $paymentIntentId
-        ]);
-    }
-
-
-    /**
-     * Test webhook endpoint
-     */
-    public function test(Request $request): JsonResponse
-    {
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Webhook endpoint is working!',
-            'method' => $request->method(),
-            'headers' => $request->headers->all(),
-            'body' => $request->all(),
-            'timestamp' => now()->toISOString(),
-            'server' => [
-                'php_version' => PHP_VERSION,
-                'laravel_version' => app()->version(),
-                'environment' => app()->environment(),
-            ]
-        ]);
-    }
-
-    /**
-     * Manual payment status update for testing
-     */
-    public function updatePaymentStatus(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'payment_id' => 'required|integer|exists:payments,id',
-            'status' => 'required|string|in:pending,paid,failed,processing'
-        ]);
-
-        try {
-            $payment = Payment::find($validated['payment_id']);
-            $payment->update([
-                'status' => $validated['status'],
-                'payment_date' => $validated['status'] === 'paid' ? now() : $payment->payment_date,
-                'notes' => 'Status updated manually for testing'
-            ]);
-
-            // Update purchase status if payment is paid
-            if ($validated['status'] === 'paid') {
-                $purchase = Purchase::find($payment->purchase_id);
-                if ($purchase) {
-                    $purchase->update(['status' => 'processing']);
-                }
-            }
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Payment status updated successfully',
-                'payment' => $payment->fresh()
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
+                'error' => 'Webhook processing failed',
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Handle payment.paid webhook
+     */
+    private function handlePaymentPaid(array $data): JsonResponse
+    {
+        $paymentData = $data['data']['attributes'];
+        $paymentIntentId = $paymentData['payment_intent_id'];
+        $metadata = $paymentData['metadata'] ?? [];
+
+        try {
+            // Find the payment record
+            $paymentRecord = Payment::where('payment_intent_id', $paymentIntentId)->first();
+            
+            if (!$paymentRecord && isset($metadata['purchase_id'])) {
+                $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])->first();
+            }
+
+            if ($paymentRecord) {
+                // Update payment status
+                $paymentRecord->update([
+                    'status' => 'paid',
+                    'payment_date' => now(),
+                    'transaction_id' => $data['data']['id'] ?? null,
+                    'metadata' => json_encode($data)
+                ]);
+
+                // Update purchase status and handle business logic
+                $purchase = $paymentRecord->purchase;
+                if ($purchase) {
+                    try {
+                        DB::beginTransaction();
+                        
+                        $purchase->update(['status' => 'processing']);
+                        
+                        // Handle product purchases
+                        if ($purchase->type === 'product') {
+                            $this->decrementProductStock($purchase);
+                            $this->sendProductConfirmationEmail($purchase);
+                        }
+                        
+                        // Handle ticket purchases
+                        if ($purchase->type === 'ticket') {
+                            $this->createTicketsForPurchase($purchase);
+                            $this->sendTicketConfirmationEmail($purchase);
+                        }
+                        
+                        // Clear user's cart
+                        Cart::where('user_id', $purchase->user_id)->delete();
+                        
+                        DB::commit();
+                        
+                    } catch (\Exception $e) {
+                        DB::rollback();
+                        throw $e;
+                    }
+                }
+            }
+
+            return response()->json([
+                'message' => 'Payment processed successfully',
+                'payment_intent_id' => $paymentIntentId
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Payment processing error', [
+                'payment_intent_id' => $paymentIntentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Payment processing failed',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Handle payment.failed webhook
+     */
+    private function handlePaymentFailed(array $data): JsonResponse
+    {
+        $paymentData = $data['data']['attributes'];
+        $paymentIntentId = $paymentData['payment_intent_id'];
+        $metadata = $paymentData['metadata'] ?? [];
+
+        try {
+            // Find the payment record
+            $paymentRecord = Payment::where('payment_intent_id', $paymentIntentId)->first();
+            
+            if (!$paymentRecord && isset($metadata['purchase_id'])) {
+                $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])->first();
+            }
+
+            if ($paymentRecord) {
+                // Update payment status
+                $paymentRecord->update([
+                    'status' => 'failed',
+                    'payment_failure_code' => $paymentData['failure_code'] ?? null,
+                    'payment_failure_message' => $paymentData['failure_message'] ?? null,
+                    'metadata' => json_encode($data)
+                ]);
+
+                // Update purchase status to cancelled
+                $purchase = $paymentRecord->purchase;
+                if ($purchase) {
+                    $purchase->update(['status' => 'cancelled']);
+                }
+            }
+
+            return response()->json([
+                'message' => 'Payment failure processed',
+                'payment_intent_id' => $paymentIntentId
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Payment failure processing error', [
+                'payment_intent_id' => $paymentIntentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Payment failure processing failed',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Create tickets for a purchase
+     */
+    private function createTicketsForPurchase(Purchase $purchase): void
+    {
+        try {
+            // Check if tickets already exist to prevent duplicates
+            $existingTicketsCount = Ticket::where('purchase_id', $purchase->id)->count();
+            if ($existingTicketsCount > 0) {
+                return; // Tickets already exist, skip creation
+            }
+
+            $purchaseItem = $purchase->purchaseItems()->first();
+            if (!$purchaseItem) {
+                return;
+            }
+
+            $quantity = $purchaseItem->quantity;
+            $event = $purchase->event;
+            
+            if (!$event) {
+                return;
+            }
+
+            // Verify ticket availability
+            if (!$event->hasTicketsAvailable($quantity)) {
+                throw new \Exception('Not enough tickets available');
+            }
+
+            // Create tickets
+            for ($i = 0; $i < $quantity; $i++) {
+                Ticket::create([
+                    'purchase_id' => $purchase->id,
+                    'event_id' => $event->id,
+                    'user_id' => $purchase->user_id,
+                    'status' => 'active',
+                    'ticket_code' => 'TKT-' . strtoupper(uniqid()),
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create tickets for purchase', [
+                'purchase_id' => $purchase->id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Decrement product stock for a purchase
+     */
+    private function decrementProductStock(Purchase $purchase): void
+    {
+        try {
+            $purchaseItems = $purchase->purchaseItems;
+            
+            if ($purchaseItems->isEmpty()) {
+                return;
+            }
+
+            foreach ($purchaseItems as $item) {
+                if (!$item->variant) {
+                    continue;
+                }
+
+                $variant = $item->variant;
+                $success = $variant->decrementStock($item->quantity);
+
+                if (!$success) {
+                    throw new \Exception("Insufficient stock for variant {$variant->id}");
+                }
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Failed to decrement product stock', [
+                'purchase_id' => $purchase->id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send product purchase confirmation email
+     */
+    private function sendProductConfirmationEmail(Purchase $purchase): void
+    {
+        try {
+            $user = $purchase->user;
+            if ($user && $user->email) {
+                Mail::to($user->email)->send(new ProductPurchaseConfirmation($purchase, $user));
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send product purchase confirmation email', [
+                'purchase_id' => $purchase->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send ticket purchase confirmation email
+     */
+    private function sendTicketConfirmationEmail(Purchase $purchase): void
+    {
+        try {
+            $user = $purchase->user;
+            if ($user && $user->email) {
+                Mail::to($user->email)->send(new TicketPurchaseConfirmation($purchase, $user));
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send ticket purchase confirmation email', [
+                'purchase_id' => $purchase->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Handle payment webhooks
+     */
+    private function handlePaymentWebhook(Request $request): JsonResponse
+    {
+        $data = $request->all();
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Payment webhook processed',
+            'data' => $data
+        ]);
+    }
+
+    /**
+     * Handle subscription webhooks
+     */
+    private function handleSubscriptionWebhook(Request $request): JsonResponse
+    {
+        $data = $request->all();
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Subscription webhook processed',
+            'data' => $data
+        ]);
     }
 }

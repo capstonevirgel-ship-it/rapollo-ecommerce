@@ -6,7 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\Ticket;
 use App\Models\Event;
 use App\Models\User;
-use App\Models\TicketPurchase;
+use App\Models\Purchase;
+use App\Models\PurchaseItem;
+use App\Models\Payment;
 use App\Services\PayMongoService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -86,22 +88,26 @@ class TicketController extends Controller
 
         DB::beginTransaction();
         try {
-            $tickets = [];
             $totalPrice = $event->ticket_price * $quantity;
 
-            for ($i = 0; $i < $quantity; $i++) {
-                $ticket = new Ticket();
-                $ticket->event_id = $event->id;
-                $ticket->user_id = $user->id;
-                $ticket->ticket_number = $ticket->generateTicketNumber();
-                $ticket->price = $event->ticket_price;
-                $ticket->status = 'confirmed';
-                $ticket->qr_code = $ticket->generateQRCode();
-                $ticket->booked_at = now();
-                $ticket->save();
+            // Create purchase record for tickets
+            $purchase = new Purchase();
+            $purchase->user_id = $user->id;
+            $purchase->total = $totalPrice;
+            $purchase->status = 'pending';
+            $purchase->type = 'ticket';
+            $purchase->event_id = $event->id;
+            $purchase->save();
 
-                $tickets[] = $ticket->load('event');
-            }
+            // Create purchase item
+            $purchaseItem = new PurchaseItem();
+            $purchaseItem->purchase_id = $purchase->id;
+            $purchaseItem->quantity = $quantity;
+            $purchaseItem->price = $event->ticket_price;
+            $purchaseItem->save();
+
+            // NOTE: Tickets will be created after successful payment via webhook
+            // This prevents duplicate ticket creation and ensures payment is confirmed first
 
             DB::commit();
 
@@ -110,15 +116,16 @@ class TicketController extends Controller
             $event->append(['booked_tickets_count', 'remaining_tickets']);
 
             return response()->json([
-                'message' => 'Tickets booked successfully',
-                'tickets' => $tickets,
+                'message' => 'Purchase created successfully. Complete payment to confirm tickets.',
+                'purchase' => $purchase,
                 'total_price' => $totalPrice,
-                'event' => $event
+                'event' => $event,
+                'quantity' => $quantity
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollback();
-            return response()->json(['error' => 'Failed to book tickets'], 500);
+            return response()->json(['error' => 'Failed to create purchase'], 500);
         }
     }
 
@@ -200,7 +207,7 @@ class TicketController extends Controller
     }
 
     /**
-     * Create payment intent for ticket purchase
+     * Create checkout session for ticket purchase
      */
     public function createPaymentIntent(Request $request)
     {
@@ -233,51 +240,78 @@ class TicketController extends Controller
         try {
             $totalPrice = $event->ticket_price * $quantity;
 
-            // Create ticket purchase record
-            $ticketPurchase = new TicketPurchase();
-            $ticketPurchase->user_id = $user->id;
-            $ticketPurchase->event_id = $event->id;
-            $ticketPurchase->quantity = $quantity;
-            $ticketPurchase->total_amount = $totalPrice;
-            $ticketPurchase->status = 'pending';
-            $ticketPurchase->save();
+            // Create purchase record for tickets
+            $purchase = new Purchase();
+            $purchase->user_id = $user->id;
+            $purchase->total = $totalPrice;
+            $purchase->status = 'pending';
+            $purchase->type = 'ticket';
+            $purchase->event_id = $event->id;
+            $purchase->save();
 
-            // Create PayMongo payment intent
+            // Create purchase item
+            $purchaseItem = new PurchaseItem();
+            $purchaseItem->purchase_id = $purchase->id;
+            $purchaseItem->quantity = $quantity;
+            $purchaseItem->price = $event->ticket_price;
+            $purchaseItem->save();
+
+            // Create PayMongo checkout session
             $payMongoService = new PayMongoService();
-            $paymentResponse = $payMongoService->createPaymentIntent(
+            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+            $successUrl = $frontendUrl . '/payment/success';
+            $cancelUrl = $frontendUrl . '/events';
+            
+            $paymentResponse = $payMongoService->createCheckoutSession(
                 $totalPrice,
                 'PHP',
                 [
-                    'ticket_purchase_id' => $ticketPurchase->id,
+                    'purchase_id' => $purchase->id,
                     'event_id' => $event->id,
                     'user_id' => $user->id,
                     'quantity' => $quantity
-                ]
+                ],
+                $successUrl,
+                $cancelUrl
             );
 
-            // Update ticket purchase with payment details
-            $ticketPurchase->payment_intent_id = $paymentResponse['data']['id'];
-            $ticketPurchase->save();
+            if (!$paymentResponse || !isset($paymentResponse['data']['attributes']['checkout_url'])) {
+                throw new \Exception('Failed to create checkout session');
+            }
+
+            // Create payment record
+            $payment = new Payment();
+            $payment->user_id = $user->id;
+            $payment->purchase_id = $purchase->id;
+            $payment->amount = $totalPrice;
+            $payment->currency = 'PHP';
+            $payment->status = 'pending';
+            $payment->payment_method = 'paymongo';
+            $payment->transaction_id = $paymentResponse['data']['id'];
+            $payment->payment_date = null;
+            $payment->notes = 'PayMongo checkout session created for ticket purchase';
+            $payment->metadata = json_encode($paymentResponse);
+            $payment->save();
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Payment intent created successfully',
+                'message' => 'Checkout session created successfully',
                 'checkout_url' => $paymentResponse['data']['attributes']['checkout_url'],
-                'payment_intent_id' => $paymentResponse['data']['id'],
-                'ticket_purchase_id' => $ticketPurchase->id,
+                'checkout_session_id' => $paymentResponse['data']['id'],
+                'purchase_id' => $purchase->id,
                 'total_amount' => $totalPrice
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Failed to create ticket payment intent', [
+            Log::error('Failed to create ticket checkout session', [
                 'error' => $e->getMessage(),
                 'event_id' => $event->id,
                 'user_id' => $user->id,
                 'quantity' => $quantity
             ]);
-            return response()->json(['error' => 'Failed to create payment intent'], 500);
+            return response()->json(['error' => 'Failed to create checkout session'], 500);
         }
     }
 
@@ -289,13 +323,13 @@ class TicketController extends Controller
         $request->validate([
             'payment_intent_id' => 'required|string',
             'payment_method_id' => 'required|string',
-            'ticket_purchase_id' => 'required|integer|exists:ticket_purchases,id'
+            'purchase_id' => 'required|integer|exists:purchases,id'
         ]);
 
-        $ticketPurchase = TicketPurchase::findOrFail($request->ticket_purchase_id);
+        $purchase = Purchase::findOrFail($request->purchase_id);
         
         // Check if user owns this purchase
-        if ($ticketPurchase->user_id !== Auth::id()) {
+        if ($purchase->user_id !== Auth::id()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -309,30 +343,42 @@ class TicketController extends Controller
             );
 
             if ($paymentResponse['data']['attributes']['status'] === 'succeeded') {
-                // Create tickets
-                $tickets = [];
-                for ($i = 0; $i < $ticketPurchase->quantity; $i++) {
-                    $ticket = new Ticket();
-                    $ticket->event_id = $ticketPurchase->event_id;
-                    $ticket->user_id = $ticketPurchase->user_id;
-                    $ticket->ticket_purchase_id = $ticketPurchase->id;
-                    $ticket->ticket_number = $ticket->generateTicketNumber();
-                    $ticket->price = $ticketPurchase->event->ticket_price;
-                    $ticket->status = 'confirmed';
-                    $ticket->qr_code = $ticket->generateQRCode();
-                    $ticket->booked_at = now();
-                    $ticket->save();
+                // Check if tickets already exist to avoid duplicates
+                $existingTicketsCount = Ticket::where('purchase_id', $purchase->id)->count();
+                
+                if ($existingTicketsCount === 0) {
+                    // Get purchase item to get quantity
+                    $purchaseItem = $purchase->purchaseItems()->first();
+                    $quantity = $purchaseItem ? $purchaseItem->quantity : 1;
 
-                    $tickets[] = $ticket->load('event');
+                    // Create tickets
+                    $tickets = [];
+                    for ($i = 0; $i < $quantity; $i++) {
+                        $ticket = new Ticket();
+                        $ticket->event_id = $purchase->event_id;
+                        $ticket->user_id = $purchase->user_id;
+                        $ticket->purchase_id = $purchase->id;
+                        $ticket->ticket_number = $ticket->generateTicketNumber();
+                        $ticket->price = $purchase->event->ticket_price;
+                        $ticket->status = 'confirmed';
+                        $ticket->qr_code = $ticket->generateQRCode();
+                        $ticket->booked_at = now();
+                        $ticket->save();
+
+                        $tickets[] = $ticket->load('event');
+                    }
+                } else {
+                    // Tickets already exist, just load them
+                    $tickets = Ticket::where('purchase_id', $purchase->id)->with('event')->get();
                 }
 
-                // Update ticket purchase status
-                $ticketPurchase->status = 'completed';
-                $ticketPurchase->payment_date = now();
-                $ticketPurchase->save();
+                // Update purchase status
+                $purchase->status = 'completed';
+                $purchase->paid_at = now();
+                $purchase->save();
 
                 // Refresh event to get updated ticket counts
-                $event = $ticketPurchase->event;
+                $event = $purchase->event;
                 $event->refresh();
                 $event->append(['booked_tickets_count', 'remaining_tickets']);
 
@@ -341,7 +387,7 @@ class TicketController extends Controller
                 return response()->json([
                     'message' => 'Payment confirmed and tickets created successfully',
                     'tickets' => $tickets,
-                    'ticket_purchase' => $ticketPurchase,
+                    'purchase' => $purchase,
                     'event' => $event
                 ]);
             } else {
@@ -353,7 +399,7 @@ class TicketController extends Controller
             DB::rollback();
             Log::error('Failed to confirm ticket payment', [
                 'error' => $e->getMessage(),
-                'ticket_purchase_id' => $ticketPurchase->id,
+                'purchase_id' => $purchase->id,
                 'payment_intent_id' => $request->payment_intent_id
             ]);
             return response()->json(['error' => 'Failed to confirm payment'], 500);

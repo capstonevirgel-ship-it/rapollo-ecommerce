@@ -9,7 +9,7 @@ class PurchaseItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['purchase_id', 'variant_id', 'quantity', 'price'];
+    protected $fillable = ['purchase_id', 'variant_id', 'ticket_id', 'quantity', 'price'];
 
     public function purchase()
     {
@@ -19,5 +19,16 @@ class PurchaseItem extends Model
     public function variant()
     {
         return $this->belongsTo(ProductVariant::class);
+    }
+
+    public function ticket()
+    {
+        return $this->belongsTo(Ticket::class);
+    }
+
+    // Helper method to get the item (either variant or ticket)
+    public function getItem()
+    {
+        return $this->variant_id ? $this->variant : $this->ticket;
     }
 }

@@ -200,7 +200,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="bg-white shadow grid grid-cols-1 overflow-hidden sm:rounded-md">
+  <div class="bg-white shadow grid grid-cols-1 sm:rounded-md">
     <div class="px-4 py-5 sm:p-6">
       <!-- Search and Filters -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 mb-6">
@@ -230,8 +230,8 @@ onMounted(() => {
       </div>
 
       <!-- Table Container -->
-      <div class="overflow-hidden">
-        <div class="overflow-x-auto">
+      <div>
+        <div class="overflow-x-auto custom-scrollbar">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>

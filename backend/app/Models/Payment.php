@@ -16,8 +16,11 @@ class Payment extends Model
         'currency',
         'status',
         'payment_method',
+        'payment_intent_id',
         'transaction_id',
         'payment_method_id',
+        'payment_failure_code',
+        'payment_failure_message',
         'payment_date',
         'notes',
         'metadata'

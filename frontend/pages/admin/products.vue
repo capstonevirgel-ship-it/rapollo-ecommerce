@@ -60,7 +60,6 @@ const products = computed(() =>
 onMounted(async () => {
   try {
     await productStore.fetchProducts({ per_page: 20 })
-    info('Products Loaded', 'Product list has been loaded successfully')
   } catch (err) {
     console.error('Failed to fetch products', err)
     error('Failed to Load Products', 'Unable to fetch products. Please try again.')
@@ -71,18 +70,17 @@ const selectedIds = ref<number[]>([])
 
 // Methods
 const editProduct = (slug: string) => {
-  info('Edit Product', `Opening edit form for product: ${slug}`)
-  // TODO: Navigate to edit page or open modal
-  console.log('Edit product:', slug)
+  // Navigate to edit page
+  navigateTo(`/admin/edit-product/${slug}`)
 }
 
 const deleteProduct = async (slug: string, name: string) => {
-  if (confirm(`Are you sure you want to delete "${name}"?`)) {
+  if (confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
     try {
-      // TODO: Implement delete functionality
+      await productStore.deleteProduct(slug)
       success('Product Deleted', `"${name}" has been deleted successfully`)
-      console.log('Delete product:', slug)
     } catch (err) {
+      console.error('Failed to delete product:', err)
       error('Delete Failed', 'Failed to delete product. Please try again.')
     }
   }

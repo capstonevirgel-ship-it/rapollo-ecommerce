@@ -11,6 +11,7 @@ const isMobile = ref(false);
 const mobileMenuOpen = ref(false);
 const openDropdowns = ref<Record<string, boolean>>({});
 
+
 // Menu items
 const menuItems = ref([
   { link: '/admin/dashboard', label: 'Dashboard', icon: 'view-dashboard' },
@@ -27,7 +28,7 @@ const menuItems = ref([
   },
   { link: '/admin/events', label: 'Events', icon: 'calendar' },
   { link: '/admin/tickets', label: 'Tickets', icon: 'ticket' },
-  { link: '/admin/users', label: 'Users', icon: 'account-group' },
+  { link: '/admin/notifications', label: 'Notifications', icon: 'bell' },
   { link: '/admin/settings', label: 'Settings', icon: 'cog' }
 ]);
 
@@ -58,6 +59,7 @@ const handleResize = () => {
 const handleLogout = () => {
   authStore.logout();
 };
+
 
 // Initialize sidebar state from localStorage
 onMounted(() => {
@@ -108,7 +110,6 @@ defineExpose({
           >
             <h2 v-if="!isCollapsed" class="text-lg font-semibold">Menu</h2>
             <div class="flex items-center gap-2">
-              <ThemeToggle />
               <button 
                 @click="toggleSidebar"
                 class="cursor-pointer py-2 px-2 rounded hover:bg-gray-700 flex items-center transition-colors duration-200"
@@ -120,7 +121,7 @@ defineExpose({
         </div>
 
         <!-- Navigation Section -->
-        <nav class="flex-1 overflow-y-auto">
+        <nav class="flex-1 overflow-y-auto sidebar-scrollbar">
           <ul class="space-y-2">
             <li v-for="item in menuItems" :key="item.label" class="text-white">
               <div v-if="item.children">
@@ -165,7 +166,7 @@ defineExpose({
         <div class="flex-shrink-0 py-6">
           <hr class="bg-gray-600 mb-4" />
           <div :class="isCollapsed ? 'flex justify-center' : 'flex items-center gap-3'">
-            <span v-if="!isCollapsed" class="text-white text-sm">Hello, Admin!</span>
+
           </div>
           <button 
             class="bg-gray-200 text-gray-900 w-full py-3 rounded text-base items-center flex cursor-pointer hover:bg-gray-300 transition-colors duration-200 mt-3"
@@ -186,7 +187,6 @@ defineExpose({
     >
       <h2 class="text-lg font-semibold">Admin Panel</h2>
       <div class="flex items-center gap-2">
-        <ThemeToggle />
         <button 
           @click="mobileMenuOpen = !mobileMenuOpen"
           class="p-1 rounded-md hover:bg-gray-700 transition-colors duration-200"
@@ -199,7 +199,7 @@ defineExpose({
     <!-- Mobile Dropdown Menu -->
     <div 
       v-if="isMobile && mobileMenuOpen" 
-      class="bg-gray-800 text-white shadow px-4 py-2 fixed top-16 left-0 right-0 z-40 max-h-[calc(100vh-50px)] overflow-y-auto border-t border-gray-700"
+      class="bg-gray-800 text-white shadow px-4 py-2 fixed top-16 left-0 right-0 z-40 max-h-[calc(100vh-50px)] overflow-y-auto sidebar-scrollbar border-t border-gray-700"
     >
       <nav>
         <ul class="flex flex-col gap-3 pb-2">
@@ -242,7 +242,6 @@ defineExpose({
           <li>
             <hr class="my-2 border-gray-700" />
             <div class="px-3 py-2">
-              <span class="block text-gray-300">Hello, Admin!</span>
               <button 
                 class="bg-gray-200 text-gray-900 w-full py-3 rounded flex items-center justify-center mt-2 hover:bg-gray-300 transition-colors duration-200"
                 @click="() => { mobileMenuOpen = false; handleLogout() }"

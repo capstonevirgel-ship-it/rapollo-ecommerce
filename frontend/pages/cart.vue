@@ -6,6 +6,7 @@ import { useAuthStore } from '~/stores/auth'
 import { usePurchaseStore } from '~/stores/purchase'
 import { usePayMongoStore } from '~/stores/paymongo'
 import { getImageUrl } from '~/utils/imageHelper'
+import PayMongoBranding from '@/components/PayMongoBranding.vue'
 
 // PayMongo global types
 declare global {
@@ -113,8 +114,32 @@ const proceedToCheckout = async () => {
 }
 
 
+// Check if cart has stock issues
+const hasStockIssues = computed(() => {
+  return cartItems.value.some(item => {
+    const availableStock = item.variant.stock || 0
+    return item.quantity > availableStock
+  })
+})
+
+// Get stock status for an item
+const getItemStockStatus = (item: any) => {
+  const stock = item.variant.stock || 0
+  if (stock === 0) return { hasIssue: true, message: 'Out of stock', class: 'text-red-600' }
+  if (item.quantity > stock) return { hasIssue: true, message: `Only ${stock} available`, class: 'text-red-600' }
+  if (stock <= 5) return { hasIssue: false, message: `Only ${stock} left`, class: 'text-orange-600' }
+  return { hasIssue: false, message: '', class: '' }
+}
+
 // Handlers
 const increaseQty = (item: any) => {
+  // Check stock before increasing
+  const stock = item.variant.stock || 0
+  if (item.quantity >= stock) {
+    alert(`Cannot add more. Only ${stock} items available in stock.`)
+    return
+  }
+
   if (authStore.isAuthenticated) {
     cartStore.updateCart(item.id, item.quantity + 1, true)
   } else {
@@ -139,23 +164,18 @@ const decreaseQty = (item: any) => {
     <!-- Empty Cart State -->
     <div v-if="cartItems.length === 0" class="text-center py-16">
       <div class="max-w-md mx-auto">
-        <!-- Shopping Cart Icon with Sad Face -->
+        <!-- Shopping Cart Icon -->
         <div class="mb-8">
           <svg class="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9m-9 0a2 2 0 100 4 2 2 0 000-4zm9 0a2 2 0 100 4 2 2 0 000-4z" />
-            <!-- Sad face emoji overlay -->
-            <circle cx="8" cy="8" r="1" fill="currentColor" class="text-gray-400" />
-            <circle cx="16" cy="8" r="1" fill="currentColor" class="text-gray-400" />
-            <path d="M10 12c0 1-1 2-2 2s-2-1-2-2" stroke="currentColor" stroke-width="1" fill="none" class="text-gray-400" />
           </svg>
         </div>
         
-        <!-- Witty Message -->
-        <h2 class="text-2xl font-bold text-gray-900 mb-4">Your cart is feeling lonely! 😢</h2>
-        <p class="text-lg text-gray-600 mb-2">It's like a shopping basket that forgot to go shopping.</p>
-        <p class="text-gray-500 mb-8">Don't worry, even the best carts start empty. Time to fill it with some amazing finds!</p>
+        <!-- Simple Message -->
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
+        <p class="text-lg text-gray-600 mb-8">Add some items to get started with your order.</p>
         
-        <!-- Action Buttons -->
+        <!-- Action Button -->
         <div class="space-y-4">
           <NuxtLink 
             to="/shop" 
@@ -164,12 +184,8 @@ const decreaseQty = (item: any) => {
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
             </svg>
-            Start Shopping Spree
+            Start Shopping
           </NuxtLink>
-          
-          <div class="text-sm text-gray-500">
-            <p>💡 <strong>Pro tip:</strong> The best deals are waiting for you!</p>
-          </div>
         </div>
       </div>
     </div>
@@ -200,6 +216,12 @@ const decreaseQty = (item: any) => {
                  />
                  <div class="min-w-0 flex-1">
                    <h3 class="text-lg font-medium text-gray-900 truncate">{{ item.product.name }}</h3>
+                   <!-- Stock Warning -->
+                   <p v-if="getItemStockStatus(item).message" :class="['text-xs font-medium mt-1', getItemStockStatus(item).class]">
+                     <Icon v-if="getItemStockStatus(item).hasIssue" name="mdi:alert-circle" class="inline-block" />
+                     <Icon v-else name="mdi:information" class="inline-block" />
+                     {{ getItemStockStatus(item).message }}
+                   </p>
                  </div>
                </div>
 
@@ -288,9 +310,17 @@ const decreaseQty = (item: any) => {
              <p class="text-sm text-red-600">{{ paymentError }}</p>
            </div>
 
+           <!-- Stock Issues Warning -->
+           <div v-if="hasStockIssues" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+             <p class="text-sm text-red-600 font-medium flex items-center">
+               <Icon name="mdi:alert-circle" class="mr-2" />
+               Some items exceed available stock. Please adjust quantities.
+             </p>
+           </div>
+
            <button
              class="mt-6 w-full bg-zinc-900 text-white py-3 px-4 rounded-md font-medium hover:bg-zinc-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-             :disabled="!authStore.isAuthenticated || isProcessingPayment"
+             :disabled="!authStore.isAuthenticated || isProcessingPayment || hasStockIssues"
              @click="proceedToCheckout"
            >
              <span v-if="isProcessingPayment" class="flex items-center justify-center">
@@ -306,6 +336,11 @@ const decreaseQty = (item: any) => {
           <p class="mt-4 text-center text-sm text-gray-500">
             or <NuxtLink to="/shop" class="text-black underline">Continue Shopping</NuxtLink>
           </p>
+          
+          <!-- PayMongo Branding -->
+          <div class="mt-4 flex justify-center">
+            <PayMongoBranding />
+          </div>
         </div>
       </div>
     </div>

@@ -13,12 +13,8 @@ class Purchase extends Model
         'user_id', 
         'total', 
         'status', 
-        'payment_status', 
-        'payment_intent_id',
-        'payment_amount',
-        'payment_currency',
-        'payment_failure_code',
-        'payment_failure_message',
+        'type',
+        'event_id',
         'shipping_address',
         'billing_address',
         'paid_at'
@@ -53,5 +49,26 @@ class Purchase extends Model
     public function payment()
     {
         return $this->hasOne(Payment::class);
+    }
+
+    public function event()
+    {
+        return $this->belongsTo(Event::class);
+    }
+
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
+    // Helper methods
+    public function isProductPurchase()
+    {
+        return $this->type === 'product';
+    }
+
+    public function isTicketPurchase()
+    {
+        return $this->type === 'ticket';
     }
 }

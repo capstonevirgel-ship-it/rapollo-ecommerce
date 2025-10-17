@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('purchase_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('purchase_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('variant_id')->constrained('product_variants');
+            $table->foreignId('variant_id')->nullable()->constrained('product_variants')->onDelete('cascade'); // For product purchases
+            $table->foreignId('ticket_id')->nullable()->constrained()->onDelete('cascade'); // For ticket purchases
             $table->integer('quantity');
             $table->decimal('price', 10, 2);
             $table->timestamps();

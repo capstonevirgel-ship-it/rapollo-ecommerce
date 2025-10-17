@@ -46,11 +46,29 @@ onMounted(async () => {
   }
 })
 
+// Computed stock indicators
+const selectedVariant = ref(0)
+const currentVariant = computed(() => product.value?.variants?.[selectedVariant.value])
+const stockStatus = computed(() => {
+  const stock = currentVariant.value?.stock || 0
+  if (stock === 0) return { status: 'out', label: 'Out of Stock', class: 'text-red-600' }
+  if (stock <= 5) return { status: 'low', label: `Only ${stock} left!`, class: 'text-orange-600' }
+  return { status: 'in', label: `${stock} in stock`, class: 'text-green-600' }
+})
+
+const isOutOfStock = computed(() => (currentVariant.value?.stock || 0) === 0)
+
 const addToCart = async () => {
   if (!product.value) return
 
-  const variant = product.value.variants?.[0]
+  const variant = product.value.variants?.[selectedVariant.value]
   if (!variant) return
+
+  // Check stock before adding
+  if (variant.stock === 0) {
+    console.error('Product is out of stock')
+    return
+  }
 
   try {
     if (authStore.isAuthenticated) {
@@ -83,8 +101,11 @@ const addToCart = async () => {
       }
       await cartStore.addToCart({ variant_id: variant.id, quantity: 1 }, false, guestItem as any)
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to add to cart:', error)
+    if (error.data?.message) {
+      alert(error.data.message)
+    }
   }
 }
 </script>
@@ -115,16 +136,33 @@ const addToCart = async () => {
 
         <div class="md:w-1/2">
           <h1 class="text-3xl font-bold mb-2">{{ product.name }}</h1>
-          <p class="text-primary-600 font-semibold">
+          <p class="text-primary-600 font-semibold mb-3">
             ₱{{ product.price?.toFixed(2) ?? product.variants?.[0]?.price?.toFixed(2) }}
           </p>
+
+          <!-- Stock Indicator -->
+          <div class="mb-4">
+            <p :class="['text-sm font-medium', stockStatus.class]">
+              <Icon v-if="stockStatus.status === 'out'" name="mdi:close-circle" class="inline-block" />
+              <Icon v-else-if="stockStatus.status === 'low'" name="mdi:alert-circle" class="inline-block" />
+              <Icon v-else name="mdi:check-circle" class="inline-block" />
+              {{ stockStatus.label }}
+            </p>
+          </div>
+
           <p class="text-gray-700 leading-relaxed mb-6">{{ product.description }}</p>
 
           <button
-            class="px-6 py-2 bg-zinc-800 text-white font-medium rounded hover:bg-primary-700 transition cursor-pointer"
+            :disabled="isOutOfStock"
+            :class="[
+              'px-6 py-2 font-medium rounded transition cursor-pointer',
+              isOutOfStock 
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                : 'bg-zinc-800 text-white hover:bg-zinc-700'
+            ]"
             @click="addToCart"
           >
-            Add to Cart
+            {{ isOutOfStock ? 'Out of Stock' : 'Add to Cart' }}
           </button>
         </div>
       </div>
