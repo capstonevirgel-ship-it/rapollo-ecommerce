@@ -7,6 +7,14 @@ definePageMeta({
   layout: false
 })
 
+// Set page title
+useHead({
+  title: 'Login - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Sign in to your Rapollo E-commerce account to access exclusive features and manage your orders.' }
+  ]
+})
+
 const authStore = useAuthStore()
 const router = useRouter()
 const { success, error } = useAlert()

@@ -7,6 +7,14 @@ definePageMeta({
   layout: 'default'
 })
 
+// Set page title
+useHead({
+  title: 'Order Successful - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Your order has been successfully placed at Rapollo E-commerce.' }
+  ]
+})
+
 // Stores
 const cartStore = useCartStore()
 

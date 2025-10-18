@@ -12,6 +12,14 @@ definePageMeta({
   layout: "admin",
 });
 
+// Set page title
+useHead({
+  title: 'Brands Management - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Manage product brands in your Rapollo E-commerce store.' }
+  ]
+})
+
 const brandStore = useBrandStore();
 
 const columns = [

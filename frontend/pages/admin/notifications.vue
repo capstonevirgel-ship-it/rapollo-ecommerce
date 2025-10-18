@@ -6,6 +6,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Notifications - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Manage admin notifications and alerts in your Rapollo E-commerce store.' }
+  ]
+})
+
 const { success, error } = useAlert()
 
 // Static notification data for admin

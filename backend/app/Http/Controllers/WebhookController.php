@@ -34,6 +34,13 @@ class WebhookController extends Controller
         // Check if this is a PayMongo webhook
         if ($request->hasHeader('paymongo-signature') || $request->hasHeader('PayMongo-Signature')) {
             $data = $request->all();
+            
+            // Log webhook data for debugging
+            Log::info('PayMongo webhook received', [
+                'headers' => $request->headers->all(),
+                'data_structure' => $data
+            ]);
+            
             $eventType = $data['data']['attributes']['type'] ?? 'unknown';
             return $this->handlePayMongoWebhook($request, $eventType);
         }
@@ -109,20 +116,81 @@ class WebhookController extends Controller
     }
 
     /**
-     * Handle payment.paid webhook
+* Handle payment.paid webhook
      */
     private function handlePaymentPaid(array $data): JsonResponse
     {
         $paymentData = $data['data']['attributes'];
-        $paymentIntentId = $paymentData['payment_intent_id'];
-        $metadata = $paymentData['metadata'] ?? [];
+        
+        // Log the webhook payload for debugging
+        Log::info('PayMongo webhook payload', [
+            'event_type' => 'payment.paid',
+            'data_structure' => $data,
+            'payment_data' => $paymentData
+        ]);
+        
+        // Extract payment intent ID from different possible locations
+        // PayMongo webhook structure can vary, so we check multiple locations
+        $paymentIntentId = $paymentData['payment_intent_id'] ?? 
+                          $paymentData['payment_intent']['id'] ?? 
+                          $paymentData['data']['attributes']['payment_intent_id'] ?? 
+                          $data['data']['id'] ?? 
+                          $data['data']['attributes']['payment_intent_id'] ?? 
+                          null;
+                          
+        $metadata = $paymentData['data']['attributes']['metadata'] ?? $paymentData['metadata'] ?? [];
+
+        // Log extracted values for debugging
+        Log::info('PayMongo webhook extracted values', [
+            'event_type' => 'payment.paid',
+            'payment_intent_id' => $paymentIntentId,
+            'metadata' => $metadata
+        ]);
 
         try {
+            // Check if we have a payment intent ID
+            if (!$paymentIntentId) {
+                Log::warning('PayMongo webhook missing payment intent ID', [
+                    'event_type' => 'payment.paid',
+                    'data' => $data,
+                    'payment_data' => $paymentData
+                ]);
+                
+                return response()->json([
+                    'error' => 'Payment intent ID not found in webhook payload',
+                    'message' => 'Unable to process webhook without payment intent ID'
+                ], 400);
+            }
+            
             // Find the payment record
             $paymentRecord = Payment::where('payment_intent_id', $paymentIntentId)->first();
             
+            // Fallback: try to find by purchase_id in metadata
             if (!$paymentRecord && isset($metadata['purchase_id'])) {
                 $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])->first();
+            }
+            
+            // Additional fallback: try to find by transaction_id or payment ID
+            if (!$paymentRecord) {
+                $paymentId = $data['data']['id'] ?? null;
+                if ($paymentId) {
+                    $paymentRecord = Payment::where('transaction_id', $paymentId)->first();
+                }
+            }
+
+            // Log if no payment record found
+            if (!$paymentRecord) {
+                Log::warning('PayMongo webhook: Payment record not found', [
+                    'event_type' => 'payment.paid',
+                    'payment_intent_id' => $paymentIntentId,
+                    'payment_id' => $data['data']['id'] ?? null,
+                    'metadata' => $metadata
+                ]);
+                
+                return response()->json([
+                    'message' => 'Payment record not found',
+                    'payment_intent_id' => $paymentIntentId
+                ], 404);
             }
 
             if ($paymentRecord) {
@@ -190,15 +258,54 @@ class WebhookController extends Controller
     private function handlePaymentFailed(array $data): JsonResponse
     {
         $paymentData = $data['data']['attributes'];
-        $paymentIntentId = $paymentData['payment_intent_id'];
-        $metadata = $paymentData['metadata'] ?? [];
+        
+        // Log the webhook payload for debugging
+        Log::info('PayMongo webhook payload', [
+            'event_type' => 'payment.failed',
+            'data_structure' => $data,
+            'payment_data' => $paymentData
+        ]);
+        
+        // Extract payment intent ID from different possible locations
+        // PayMongo webhook structure can vary, so we check multiple locations
+        $paymentIntentId = $paymentData['payment_intent_id'] ?? 
+                          $paymentData['payment_intent']['id'] ?? 
+                          $paymentData['data']['attributes']['payment_intent_id'] ?? 
+                          $data['data']['id'] ?? 
+                          $data['data']['attributes']['payment_intent_id'] ?? 
+                          null;
+                          
+        $metadata = $paymentData['data']['attributes']['metadata'] ?? $paymentData['metadata'] ?? [];
 
         try {
+            // Check if we have a payment intent ID
+            if (!$paymentIntentId) {
+                Log::warning('PayMongo webhook missing payment intent ID', [
+                    'event_type' => 'payment.failed',
+                    'data' => $data,
+                    'payment_data' => $paymentData
+                ]);
+                
+                return response()->json([
+                    'error' => 'Payment intent ID not found in webhook payload',
+                    'message' => 'Unable to process webhook without payment intent ID'
+                ], 400);
+            }
+            
             // Find the payment record
             $paymentRecord = Payment::where('payment_intent_id', $paymentIntentId)->first();
             
+            // Fallback: try to find by purchase_id in metadata
             if (!$paymentRecord && isset($metadata['purchase_id'])) {
                 $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])->first();
+            }
+            
+            // Additional fallback: try to find by transaction_id or payment ID
+            if (!$paymentRecord) {
+                $paymentId = $data['data']['id'] ?? null;
+                if ($paymentId) {
+                    $paymentRecord = Payment::where('transaction_id', $paymentId)->first();
+                }
             }
 
             if ($paymentRecord) {

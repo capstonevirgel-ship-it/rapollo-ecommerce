@@ -3,6 +3,14 @@ definePageMeta({
   layout: false
 })
 
+// Set page title
+useHead({
+  title: 'Admin Login - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Admin login page for Rapollo E-commerce store management.' }
+  ]
+})
+
 const username = ref('')
 const password = ref('')
 const rememberMe = ref(false)

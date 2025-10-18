@@ -10,6 +10,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Add Product - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Add new products to your Rapollo E-commerce store.' }
+  ]
+})
+
 const productStore = useProductStore();
 const brandStore = useBrandStore();
 const subcategoryStore = useSubcategoryStore();

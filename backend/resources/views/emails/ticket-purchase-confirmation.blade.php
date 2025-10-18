@@ -29,7 +29,7 @@
         }
         
         .header {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
             color: white;
             padding: 40px 30px;
             text-align: center;
@@ -44,7 +44,7 @@
         
         .header-subtitle {
             font-size: 16px;
-            color: #fecaca;
+            color: #a1a1aa;
             font-weight: 400;
         }
         
@@ -67,8 +67,8 @@
         }
         
         .ticket-summary {
-            background-color: #fef2f2;
-            border: 1px solid #fecaca;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
             padding: 24px;
             margin-bottom: 32px;
@@ -150,7 +150,7 @@
         
         .ticket-item {
             background-color: #ffffff;
-            border: 2px solid #dc2626;
+            border: 1px solid #e2e8f0;
             border-radius: 12px;
             padding: 24px;
             margin-bottom: 16px;
@@ -165,7 +165,7 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+            background: linear-gradient(90deg, #18181b 0%, #27272a 100%);
         }
         
         .ticket-header {
@@ -185,7 +185,7 @@
         .ticket-price {
             font-size: 20px;
             font-weight: 700;
-            color: #dc2626;
+            color: #18181b;
         }
         
         .ticket-details {
@@ -319,8 +319,8 @@
     <div class="email-container">
         <!-- Header -->
         <div class="header">
-            <div class="logo">Rapollo Events</div>
-            <div class="header-subtitle">Ticket Confirmation</div>
+            <div class="logo">Rapollo</div>
+            <div class="header-subtitle">Event Ticket Confirmation</div>
         </div>
 
         <!-- Content -->
@@ -407,7 +407,7 @@
 
         <!-- Footer -->
         <div class="footer">
-            <p><strong>Rapollo Events</strong></p>
+            <p><strong>Rapollo</strong></p>
             <p>Thank you for choosing us for your entertainment needs!</p>
             <div class="contact-info">
                 <p>Need help? Contact our events team at events@rapollo.com</p>

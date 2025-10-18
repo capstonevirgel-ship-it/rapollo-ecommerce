@@ -146,6 +146,25 @@ const pageTitle = computed(() => {
   return "Shop"
 })
 
+// Set page title
+useHead(() => {
+  if (currentBrand.value) {
+    const title = currentBrand.value.meta_title || `${currentBrand.value.name} Products`
+    return {
+      title: `${title} - Rapollo E-commerce`,
+      meta: [
+        { name: 'description', content: currentBrand.value.meta_description || `Shop ${currentBrand.value.name} products at Rapollo E-commerce` }
+      ]
+    }
+  }
+  return {
+    title: 'Shop - Rapollo E-commerce',
+    meta: [
+      { name: 'description', content: 'Shop premium products at Rapollo E-commerce. Find the best merchandise and event tickets.' }
+    ]
+  }
+})
+
 const hasActiveFilters = computed(() => {
   return filters.value.search ||
          filters.value.is_featured ||

@@ -8,6 +8,7 @@ import { useProductStore } from '~/stores/product'
 import { useSubcategoryStore } from '~/stores/subcategory'
 import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from "~/stores/auth"
+import { useAlert } from '~/composables/useAlert'
 import { onMounted, ref } from 'vue'
 
 import { getImageUrl } from '~/utils/imageHelper'
@@ -20,6 +21,7 @@ const productStore = useProductStore()
 const subcategoryStore = useSubcategoryStore()
 const cartStore = useCartStore()
 const authStore = useAuthStore()
+const { warning } = useAlert()
 
 const { product, loading, error } = storeToRefs(productStore)
 
@@ -46,60 +48,227 @@ onMounted(async () => {
   }
 })
 
-// Computed stock indicators
-const selectedVariant = ref(0)
-const currentVariant = computed(() => product.value?.variants?.[selectedVariant.value])
+// Set page title with meta_title from backend
+useHead(() => {
+  if (product.value) {
+    const title = product.value.meta_title || product.value.name
+    return {
+      title: `${title} - Rapollo E-commerce`,
+      meta: [
+        { name: 'description', content: product.value.meta_description || product.value.description || '' },
+        { name: 'keywords', content: product.value.meta_keywords || '' }
+      ]
+    }
+  }
+  return {
+    title: 'Product - Rapollo E-commerce'
+  }
+})
+
+// Product selection state
+const selectedColor = ref<string | null>(null)
+const selectedSize = ref<number | null>(null)
+const selectedQuantity = ref(1)
+const isClient = ref(false)
+
+// Set client flag on mount and load guest cart
+onMounted(() => {
+  isClient.value = true
+  
+  // Load guest cart into store for display if not authenticated
+  if (!authStore.isAuthenticated) {
+    cartStore.loadGuestCartIntoStore()
+  }
+})
+
+// Computed properties for variant management
+const availableColors = computed(() => {
+  if (!product.value?.variants) return []
+  
+  const colors = new Map()
+  product.value.variants.forEach(variant => {
+    if (variant.color) {
+      colors.set(variant.color.id, {
+        id: variant.color.id,
+        name: variant.color.name,
+        hex: variant.color.hex_code,
+        variant: variant
+      })
+    }
+  })
+  return Array.from(colors.values())
+})
+
+const availableSizes = computed(() => {
+  if (!product.value?.variants) return []
+  
+  // If no color is selected, show all sizes
+  if (!selectedColor.value) {
+    const sizes = new Map()
+    product.value.variants.forEach(variant => {
+      if (variant.size) {
+        sizes.set(variant.size.id, {
+          id: variant.size.id,
+          name: variant.size.name,
+          stock: variant.stock,
+          variant: variant
+        })
+      }
+    })
+    return Array.from(sizes.values())
+  }
+  
+  // Filter sizes by selected color
+  const sizes = new Map()
+  product.value.variants
+    .filter(variant => variant.color?.id.toString() === selectedColor.value)
+    .forEach(variant => {
+      if (variant.size) {
+        sizes.set(variant.size.id, {
+          id: variant.size.id,
+          name: variant.size.name,
+          stock: variant.stock,
+          variant: variant
+        })
+      }
+    })
+  return Array.from(sizes.values())
+})
+
+const currentVariant = computed(() => {
+  if (!product.value?.variants) return null
+  
+  if (selectedColor.value && selectedSize.value) {
+    return product.value.variants.find(variant => 
+      variant.color?.id.toString() === selectedColor.value &&
+      variant.size?.id === selectedSize.value
+    )
+  } else if (selectedColor.value) {
+    return product.value.variants.find(variant => 
+      variant.color?.id.toString() === selectedColor.value && !variant.size
+    )
+  }
+  
+  return product.value.variants[0] || null
+})
+
+const currentImages = computed(() => {
+  if (currentVariant.value?.images?.length) {
+    return currentVariant.value.images
+  }
+  return product.value?.images || []
+})
+
 const stockStatus = computed(() => {
-  const stock = currentVariant.value?.stock || 0
+  if (!currentVariant.value) return { status: 'out', label: 'Select options', class: 'text-gray-600' }
+  
+  const stock = currentVariant.value.stock || 0
   if (stock === 0) return { status: 'out', label: 'Out of Stock', class: 'text-red-600' }
   if (stock <= 5) return { status: 'low', label: `Only ${stock} left!`, class: 'text-orange-600' }
   return { status: 'in', label: `${stock} in stock`, class: 'text-green-600' }
 })
 
-const isOutOfStock = computed(() => (currentVariant.value?.stock || 0) === 0)
+const isOutOfStock = computed(() => !currentVariant.value || (currentVariant.value.stock || 0) === 0)
+const currentPrice = computed(() => currentVariant.value?.price || product.value?.variants?.[0]?.price || 0)
+
+// Computed property for maximum available quantity considering cart
+const maxAvailableQuantity = computed(() => {
+  if (!currentVariant.value) return 0
+  
+  const availableStock = currentVariant.value.stock
+  
+  // Only check cart on client side to avoid hydration mismatch
+  if (isClient.value) {
+    const existingCartItem = cartStore.cart.find((item: any) => item.variant_id === currentVariant.value?.id)
+    const currentCartQuantity = existingCartItem ? existingCartItem.quantity : 0
+    return availableStock - currentCartQuantity
+  }
+  
+  return availableStock
+})
+
+// Helper functions for selection
+const selectColor = (colorId: string) => {
+  selectedColor.value = colorId
+  selectedSize.value = null // Reset size when color changes
+}
+
+const selectSize = (sizeId: number) => {
+  selectedSize.value = sizeId
+}
+
+const validateQuantity = () => {
+  if (selectedQuantity.value > maxAvailableQuantity.value) {
+    selectedQuantity.value = maxAvailableQuantity.value
+    warning(
+      "Quantity Adjusted", 
+      `Quantity adjusted to maximum available (${maxAvailableQuantity.value}) considering items already in your cart.`
+    )
+  } else if (selectedQuantity.value < 1) {
+    selectedQuantity.value = 1
+  }
+}
 
 const addToCart = async () => {
-  if (!product.value) return
-
-  const variant = product.value.variants?.[selectedVariant.value]
-  if (!variant) return
+  if (!product.value || !currentVariant.value) return
 
   // Check stock before adding
-  if (variant.stock === 0) {
+  if (currentVariant.value.stock === 0) {
     console.error('Product is out of stock')
+    return
+  }
+
+  // Check if adding this quantity would exceed available stock
+  const availableStock = currentVariant.value.stock
+  const requestedQuantity = selectedQuantity.value
+  
+  // Get current cart quantity for this variant (client-side only)
+  let currentCartQuantity = 0
+  if (isClient.value) {
+    const existingCartItem = cartStore.cart.find((item: any) => item.variant_id === currentVariant.value?.id)
+    currentCartQuantity = existingCartItem ? existingCartItem.quantity : 0
+  }
+  const totalQuantity = currentCartQuantity + requestedQuantity
+
+  // Check if total quantity would exceed stock
+  if (totalQuantity > availableStock) {
+    warning(
+      "Stock Exceeded", 
+      `You already have ${currentCartQuantity} of this item in your cart. Adding ${requestedQuantity} more would exceed the available stock of ${availableStock}. Please adjust your quantity.`
+    )
     return
   }
 
   try {
     if (authStore.isAuthenticated) {
       // Logged in: use store method directly
-      await cartStore.store({ variant_id: variant.id, quantity: 1 })
+      await cartStore.store({ variant_id: currentVariant.value.id, quantity: selectedQuantity.value })
     } else {
       // Guest: create proper guest item and use addToCart
       const guestItem = {
         id: 0,
         user_id: 0,
-        variant_id: variant.id,
-        quantity: 1,
+        variant_id: currentVariant.value.id,
+        quantity: selectedQuantity.value,
         created_at: '',
         updated_at: '',
         variant: {
-          id: variant.id,
+          id: currentVariant.value.id,
           product_id: product.value.id,
-          color_id: variant.color_id,
-          size_id: variant.size_id,
-          price: variant.price,
-          stock: variant.stock,
-          sku: variant.sku,
+          color_id: currentVariant.value.color_id,
+          size_id: currentVariant.value.size_id,
+          price: currentVariant.value.price,
+          stock: currentVariant.value.stock,
+          sku: currentVariant.value.sku,
           created_at: '',
           updated_at: '',
           product: product.value,
-          color: variant.color,
-          size: variant.size,
-          images: variant.images || []
+          color: currentVariant.value.color,
+          size: currentVariant.value.size,
+          images: currentVariant.value.images || []
         }
       }
-      await cartStore.addToCart({ variant_id: variant.id, quantity: 1 }, false, guestItem as any)
+      await cartStore.addToCart({ variant_id: currentVariant.value.id, quantity: selectedQuantity.value }, false, guestItem as any)
     }
   } catch (error: any) {
     console.error('Failed to add to cart:', error)
@@ -128,41 +297,139 @@ const addToCart = async () => {
     <!-- Product detail -->
     <div v-else-if="product && isDataLoaded" class="space-y-8">
       <div class="flex flex-col md:flex-row gap-6">
-        <img
-          :src="getImageUrl(product.images?.[0]?.url)"
-          alt=""
-          class="w-full md:w-1/2 h-auto object-cover rounded"
-        />
+        <!-- Product Images -->
+        <div class="w-full md:w-1/2">
+          <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4">
+            <img
+              :src="getImageUrl(currentImages[0]?.url)"
+              :alt="product.name"
+              class="w-full h-full object-cover"
+            />
+          </div>
+          
+          <!-- Image Thumbnails -->
+          <div v-if="currentImages.length > 1" class="flex gap-2 overflow-x-auto">
+            <img
+              v-for="(image, index) in currentImages"
+              :key="index"
+              :src="getImageUrl(image.url)"
+              :alt="product.name"
+              class="w-16 h-16 object-cover rounded cursor-pointer border-2 border-transparent hover:border-gray-300"
+              @click="currentImages[0] = currentImages[index]"
+            />
+          </div>
+        </div>
 
+        <!-- Product Details -->
         <div class="md:w-1/2">
           <h1 class="text-3xl font-bold mb-2">{{ product.name }}</h1>
           <p class="text-primary-600 font-semibold mb-3">
-            ₱{{ product.price?.toFixed(2) ?? product.variants?.[0]?.price?.toFixed(2) }}
+            ₱{{ currentPrice.toFixed(2) }}
           </p>
 
           <!-- Stock Indicator -->
           <div class="mb-4">
             <p :class="['text-sm font-medium', stockStatus.class]">
-              <Icon v-if="stockStatus.status === 'out'" name="mdi:close-circle" class="inline-block" />
-              <Icon v-else-if="stockStatus.status === 'low'" name="mdi:alert-circle" class="inline-block" />
-              <Icon v-else name="mdi:check-circle" class="inline-block" />
+              <span v-if="stockStatus.status === 'out'" class="inline-block mr-1">❌</span>
+              <span v-else-if="stockStatus.status === 'low'" class="inline-block mr-1">⚠️</span>
+              <span v-else class="inline-block mr-1">✅</span>
               {{ stockStatus.label }}
             </p>
           </div>
 
           <p class="text-gray-700 leading-relaxed mb-6">{{ product.description }}</p>
 
+          <!-- Color Selection -->
+          <div v-if="availableColors.length > 0" class="mb-4">
+            <h3 class="text-sm font-medium text-gray-700 mb-2">Color</h3>
+            <div class="flex gap-2">
+              <button
+                v-for="color in availableColors"
+                :key="color.id"
+                @click="selectColor(color.id.toString())"
+                :class="[
+                  'w-10 h-10 rounded-full border-2 transition-all duration-200',
+                  selectedColor === color.id.toString()
+                    ? 'border-gray-800 scale-110'
+                    : 'border-gray-300 hover:border-gray-500'
+                ]"
+                :style="{ backgroundColor: color.hex }"
+                :title="color.name"
+              />
+            </div>
+          </div>
+
+          <!-- Size Selection -->
+          <div v-if="availableSizes.length > 0" class="mb-4">
+            <h3 class="text-sm font-medium text-gray-700 mb-2">Size</h3>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="size in availableSizes"
+                :key="size.id"
+                @click="selectSize(size.id)"
+                :class="[
+                  'px-3 py-2 border rounded-lg text-sm font-medium transition-all duration-200',
+                  selectedSize === size.id
+                    ? 'border-zinc-800 bg-zinc-800 text-white'
+                    : size.stock === 0
+                    ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-500'
+                ]"
+                :disabled="size.stock === 0"
+              >
+                {{ size.name }}
+                <span v-if="size.stock > 0" class="text-xs ml-1">({{ size.stock }})</span>
+                <span v-else class="text-xs ml-1">(0)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quantity Selection -->
+          <div class="mb-6">
+            <h3 class="text-sm font-medium text-gray-700 mb-2">Quantity</h3>
+            <div class="flex items-center gap-2">
+              <button
+                @click="selectedQuantity = Math.max(1, selectedQuantity - 1)"
+                :disabled="selectedQuantity <= 1"
+                class="w-8 h-8 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span class="text-lg font-bold">−</span>
+              </button>
+              <input
+                v-model.number="selectedQuantity"
+                type="number"
+                min="1"
+                :max="isClient ? maxAvailableQuantity : currentVariant?.stock || 1"
+                class="w-16 text-center border border-gray-300 rounded px-2 py-1"
+                @input="validateQuantity"
+              />
+              <button
+                @click="selectedQuantity = Math.min(isClient ? maxAvailableQuantity : currentVariant?.stock || 1, selectedQuantity + 1)"
+                :disabled="isClient ? selectedQuantity >= maxAvailableQuantity : selectedQuantity >= (currentVariant?.stock || 1)"
+                class="w-8 h-8 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span class="text-lg font-bold">+</span>
+              </button>
+            </div>
+            <ClientOnly>
+              <p v-if="maxAvailableQuantity < (currentVariant?.stock || 0)" class="text-xs text-orange-600 mt-1">
+                {{ cartStore.cart.find((item: any) => item.variant_id === currentVariant?.id)?.quantity || 0 }} already in cart
+              </p>
+            </ClientOnly>
+          </div>
+
+          <!-- Add to Cart Button -->
           <button
-            :disabled="isOutOfStock"
+            :disabled="isOutOfStock || (isClient && maxAvailableQuantity === 0)"
             :class="[
-              'px-6 py-2 font-medium rounded transition cursor-pointer',
-              isOutOfStock 
+              'w-full px-6 py-3 font-medium rounded transition cursor-pointer',
+              (isOutOfStock || (isClient && maxAvailableQuantity === 0))
                 ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
                 : 'bg-zinc-800 text-white hover:bg-zinc-700'
             ]"
             @click="addToCart"
           >
-            {{ isOutOfStock ? 'Out of Stock' : 'Add to Cart' }}
+            {{ isOutOfStock ? 'Out of Stock' : (isClient && maxAvailableQuantity === 0) ? 'Already in Cart' : 'Add to Cart' }}
           </button>
         </div>
       </div>

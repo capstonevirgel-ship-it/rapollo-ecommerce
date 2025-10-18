@@ -35,7 +35,18 @@ const paymentError = ref('')
 onMounted(async () => {
   if (authStore.isAuthenticated) {
     await cartStore.index()
+  } else {
+    // Load guest cart into store for display
+    cartStore.loadGuestCartIntoStore()
   }
+})
+
+// Set page title
+useHead({
+  title: 'Shopping Cart - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Review your selected items and proceed to checkout at Rapollo E-commerce.' }
+  ]
 })
 
 // Computed cart items for template
@@ -56,7 +67,11 @@ const cartItems = computed(() => {
     const guestCart = cartStore.loadGuestCart()
     return guestCart.map(item => ({
       id: item.id, // Include the cart item ID (will be 0 for guest items)
-      variant: { id: item.variant_id, price: item.variant?.price || 0 },
+      variant: { 
+        id: item.variant_id, 
+        price: item.variant?.price || 0,
+        stock: item.variant?.stock || 0
+      },
       product: item.variant?.product || {},
       quantity: item.quantity,
       image: getImageUrl(item.variant?.images?.[0]?.url || item.variant?.product?.images?.[0]?.url || '')

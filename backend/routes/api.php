@@ -17,6 +17,7 @@ use App\Http\Controllers\RatingController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\ShippingPriceController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
@@ -58,6 +59,9 @@ Route::get('products/{slug}', [ProductController::class, 'show']);
 
 Route::get('events', [EventController::class, 'index']);
 Route::get('events/{id}', [EventController::class, 'show']);
+
+// Public Shipping Prices (for checkout)
+Route::get('shipping-prices/active', [ShippingPriceController::class, 'getActivePrices']);
 
 // Public Ratings (view only)
 Route::get('ratings', [RatingController::class, 'index']);
@@ -127,6 +131,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('purchases', [PurchaseController::class, 'store']);
     Route::get('purchases/{id}', [PurchaseController::class, 'show']);
     Route::get('purchases/admin/all', [PurchaseController::class, 'adminIndex']);
+
+    // Shipping Prices
+    Route::get('shipping-prices', [ShippingPriceController::class, 'index']);
+    Route::post('shipping-prices', [ShippingPriceController::class, 'store']);
+    Route::get('shipping-prices/{id}', [ShippingPriceController::class, 'show']);
+    Route::put('shipping-prices/{id}', [ShippingPriceController::class, 'update']);
+    Route::delete('shipping-prices/{id}', [ShippingPriceController::class, 'destroy']);
+    Route::put('shipping-prices/bulk-update', [ShippingPriceController::class, 'bulkUpdate']);
     Route::get('purchases/admin/{id}', [PurchaseController::class, 'adminShow']);
     Route::put('purchases/{id}/status', [PurchaseController::class, 'updateStatus']);
 

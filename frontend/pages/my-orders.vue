@@ -1,3 +1,115 @@
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useAuthStore } from '~/stores/auth'
+import { usePurchaseStore } from '~/stores/purchase'
+import { useRatingStore } from '~/stores/rating'
+import { getImageUrl } from '~/utils/imageHelper'
+
+// Define page meta
+definePageMeta({
+  layout: 'default',
+  middleware: 'auth'
+})
+
+// Set page title
+useHead({
+  title: 'My Orders - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Track and manage your orders at Rapollo E-commerce. View order history and status updates.' }
+  ]
+})
+
+const authStore = useAuthStore()
+const purchaseStore = usePurchaseStore()
+const ratingStore = useRatingStore()
+const orders = ref<any[]>([])
+const isLoading = ref(false)
+const reviewedVariants = ref<Set<number>>(new Set())
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const formatPrice = (price: any) => {
+  if (price === null || price === undefined) return '0.00'
+  const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price)
+  return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
+}
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'bg-green-100 text-green-800'
+    case 'processing':
+      return 'bg-yellow-100 text-yellow-800'
+    case 'pending':
+      return 'bg-blue-100 text-blue-800'
+    case 'cancelled':
+      return 'bg-red-100 text-red-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const getPaymentStatusColor = (status: string) => {
+  switch (status) {
+    case 'paid':
+      return 'bg-green-100 text-green-800'
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800'
+    case 'failed':
+      return 'bg-red-100 text-red-800'
+    case 'refunded':
+      return 'bg-purple-100 text-purple-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const isVariantReviewed = (variantId: number) => {
+  return reviewedVariants.value.has(variantId)
+}
+
+const navigateToProduct = (item: any) => {
+  const product = item.variant?.product
+  if (product?.subcategory?.category?.slug && product?.subcategory?.slug) {
+    navigateTo(`/shop/${product.subcategory.category.slug}/${product.subcategory.slug}/${product.slug}`)
+  } else {
+    // Fallback to just product slug if category/subcategory info is not available
+    navigateTo(`/shop/${product?.slug}`)
+  }
+}
+
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    // Fetch real orders from the API
+    const response = await $fetch('/api/purchases')
+    orders.value = response.data || []
+    
+    // Fetch reviewed products to check which variants have been reviewed
+    try {
+      const reviewedProducts = await ratingStore.fetchReviewedProducts()
+      reviewedVariants.value = new Set(reviewedProducts.map(p => p.variant_id))
+    } catch (error) {
+      console.error('Failed to fetch reviewed products:', error)
+    }
+  } catch (error) {
+    console.error('Failed to fetch orders:', error)
+    // Fallback to empty array if API fails
+    orders.value = []
+  } finally {
+    isLoading.value = false
+  }
+})
+</script>
+
 <template>
   <div class="min-h-screen bg-gray-50 py-8">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -151,107 +263,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useAuthStore } from '~/stores/auth'
-import { usePurchaseStore } from '~/stores/purchase'
-import { useRatingStore } from '~/stores/rating'
-import { getImageUrl } from '~/utils/imageHelper'
-
-// Define page meta
-definePageMeta({
-  layout: 'default',
-  middleware: 'auth'
-})
-
-const authStore = useAuthStore()
-const purchaseStore = usePurchaseStore()
-const ratingStore = useRatingStore()
-const orders = ref<any[]>([])
-const isLoading = ref(false)
-const reviewedVariants = ref<Set<number>>(new Set())
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-const formatPrice = (price: any) => {
-  if (price === null || price === undefined) return '0.00'
-  const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price)
-  return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
-}
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return 'bg-green-100 text-green-800'
-    case 'processing':
-      return 'bg-yellow-100 text-yellow-800'
-    case 'pending':
-      return 'bg-blue-100 text-blue-800'
-    case 'cancelled':
-      return 'bg-red-100 text-red-800'
-    default:
-      return 'bg-gray-100 text-gray-800'
-  }
-}
-
-const getPaymentStatusColor = (status: string) => {
-  switch (status) {
-    case 'paid':
-      return 'bg-green-100 text-green-800'
-    case 'pending':
-      return 'bg-yellow-100 text-yellow-800'
-    case 'failed':
-      return 'bg-red-100 text-red-800'
-    case 'refunded':
-      return 'bg-purple-100 text-purple-800'
-    default:
-      return 'bg-gray-100 text-gray-800'
-  }
-}
-
-const isVariantReviewed = (variantId: number) => {
-  return reviewedVariants.value.has(variantId)
-}
-
-const navigateToProduct = (item: any) => {
-  const product = item.variant?.product
-  if (product?.subcategory?.category?.slug && product?.subcategory?.slug) {
-    navigateTo(`/shop/${product.subcategory.category.slug}/${product.subcategory.slug}/${product.slug}`)
-  } else {
-    // Fallback to just product slug if category/subcategory info is not available
-    navigateTo(`/shop/${product?.slug}`)
-  }
-}
-
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    // Fetch real orders from the API
-    const response = await $fetch('/api/purchases')
-    orders.value = response.data || []
-    
-    // Fetch reviewed products to check which variants have been reviewed
-    try {
-      const reviewedProducts = await ratingStore.fetchReviewedProducts()
-      reviewedVariants.value = new Set(reviewedProducts.map(p => p.variant_id))
-    } catch (error) {
-      console.error('Failed to fetch reviewed products:', error)
-    }
-  } catch (error) {
-    console.error('Failed to fetch orders:', error)
-    // Fallback to empty array if API fails
-    orders.value = []
-  } finally {
-    isLoading.value = false
-  }
-})
-</script>

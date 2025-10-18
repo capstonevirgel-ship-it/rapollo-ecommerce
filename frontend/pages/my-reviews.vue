@@ -7,6 +7,14 @@ import type { ReviewableProduct } from '~/types'
 
 definePageMeta({ layout: 'default' })
 
+// Set page title
+useHead({
+  title: 'My Reviews - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'View and manage your product reviews at Rapollo E-commerce.' }
+  ]
+})
+
 const ratingStore = useRatingStore()
 const { success, error } = useAlert()
 

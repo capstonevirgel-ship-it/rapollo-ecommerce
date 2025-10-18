@@ -25,6 +25,22 @@ onMounted(async () => {
     console.error('Failed to fetch category:', error)
   }
 })
+
+// Set page title with meta_title from backend
+useHead(() => {
+  if (category.value) {
+    const title = category.value.meta_title || category.value.name
+    return {
+      title: `${title} - Rapollo E-commerce`,
+      meta: [
+        { name: 'description', content: category.value.meta_description || `Shop ${category.value.name} products at Rapollo E-commerce` }
+      ]
+    }
+  }
+  return {
+    title: 'Category - Rapollo E-commerce'
+  }
+})
 </script>
 
 <template>

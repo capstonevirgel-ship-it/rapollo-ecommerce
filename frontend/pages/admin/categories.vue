@@ -3,6 +3,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Categories Management - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Manage product categories in your Rapollo E-commerce store.' }
+  ]
+})
+
 import { ref, onMounted } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import Dialog from '@/components/Dialog.vue'

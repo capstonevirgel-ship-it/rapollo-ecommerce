@@ -10,6 +10,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Admin Dashboard - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Manage your Rapollo E-commerce store from the admin dashboard.' }
+  ]
+})
+
 const dashboardStore = useDashboardStore()
 
 

@@ -1,20 +1,33 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
+import { useShippingStore, type ShippingPrice, type ShippingPriceForm } from '~/stores/shipping'
 import { useAlert } from '~/composables/useAlert'
 import { getImageUrl } from '~/helpers/imageHelper'
 import Dialog from '~/components/Dialog.vue'
+import DataTable from '@/components/DataTable.vue'
+import AdminActionButton from '@/components/AdminActionButton.vue'
+import AdminAddButton from '@/components/AdminAddButton.vue'
 import type { TeamMember } from '~/types/settings'
 
 definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Settings - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Manage store settings and configuration in your Rapollo E-commerce store.' }
+  ]
+})
+
 const settingsStore = useSettingsStore()
+const shippingStore = useShippingStore()
 const { success: showSuccess, error: showError } = useAlert()
 
 // Active tab
-const activeTab = ref<'site' | 'contact' | 'team' | 'maintenance'>('site')
+const activeTab = ref<'site' | 'contact' | 'team' | 'maintenance' | 'shipping'>('site')
 
 // Site Identity
 const siteName = ref('')
@@ -49,6 +62,32 @@ const memberImagePreview = ref<string | null>(null)
 const maintenanceMode = ref(false)
 const maintenanceMessage = ref('')
 
+// Shipping Management
+const showCreateShippingDialog = ref(false)
+const showEditShippingDialog = ref(false)
+const showBulkEditShippingDialog = ref(false)
+const selectedShippingPrice = ref<ShippingPrice | null>(null)
+const isShippingSubmitting = ref(false)
+
+const createShippingForm = ref<ShippingPriceForm>({
+  region: '',
+  price: 0,
+  description: '',
+  is_active: true
+})
+
+const editShippingForm = ref<Partial<ShippingPriceForm>>({})
+const bulkEditShippingData = ref<Array<{ id: number; price: number; is_active: boolean }>>([])
+
+// DataTable columns for shipping
+const shippingColumns = [
+  { label: "Region", key: "region" },
+  { label: "Price", key: "price" },
+  { label: "Description", key: "description" },
+  { label: "Status", key: "status" },
+  { label: "Actions", key: "actions" }
+]
+
 // Loading states
 const saving = ref(false)
 const isEditingMode = ref(false)
@@ -58,6 +97,26 @@ const logoUrl = computed(() => {
   if (logoPreview.value) return logoPreview.value
   if (siteLogo.value) return getImageUrl(siteLogo.value)
   return null
+})
+
+// Shipping computed properties
+const shippingData = computed(() => {
+  console.log('Shipping store data:', {
+    shippingPrices: shippingStore.shippingPrices,
+    availableRegions: shippingStore.availableRegions
+  })
+  
+  return shippingStore.shippingPrices.map((shipping) => ({
+    id: shipping.id,
+    region: shippingStore.availableRegions[shipping.region] || shipping.region,
+    price: new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP'
+    }).format(shipping.price),
+    description: shipping.description || '-',
+    status: shipping.is_active ? 'Active' : 'Inactive',
+    rawData: shipping
+  }))
 })
 
 // Load settings and populate fields
@@ -102,6 +161,7 @@ const loadSettings = async () => {
 // Load settings on mount
 onMounted(() => {
   loadSettings()
+  loadShippingData()
 })
 
 // Handle logo file selection
@@ -342,6 +402,110 @@ const saveMaintenanceMessage = async () => {
     saving.value = false
   }
 }
+
+// Shipping Management Functions
+const loadShippingData = async () => {
+  try {
+    console.log('Loading shipping data...')
+    await shippingStore.fetchShippingPrices()
+    console.log('Shipping data loaded:', shippingStore.shippingPrices)
+  } catch (err) {
+    console.error('Failed to load shipping data:', err)
+    showError('Failed to Load', 'Could not load shipping prices')
+  }
+}
+
+const openCreateShippingDialog = () => {
+  createShippingForm.value = {
+    region: '',
+    price: 0,
+    description: '',
+    is_active: true
+  }
+  showCreateShippingDialog.value = true
+}
+
+const handleCreateShipping = async () => {
+  if (!createShippingForm.value.region || createShippingForm.value.price < 0) {
+    showError('Validation Error', 'Please fill in all required fields')
+    return
+  }
+
+  isShippingSubmitting.value = true
+  try {
+    await shippingStore.createShippingPrice(createShippingForm.value)
+    showSuccess('Success', 'Shipping price created successfully')
+    showCreateShippingDialog.value = false
+  } catch (err) {
+    showError('Failed to Create', 'Could not create shipping price')
+  } finally {
+    isShippingSubmitting.value = false
+  }
+}
+
+const openEditShippingDialog = (shippingPrice: ShippingPrice) => {
+  selectedShippingPrice.value = shippingPrice
+  editShippingForm.value = {
+    region: shippingPrice.region,
+    price: shippingPrice.price,
+    description: shippingPrice.description || '',
+    is_active: shippingPrice.is_active
+  }
+  showEditShippingDialog.value = true
+}
+
+const handleEditShipping = async () => {
+  if (!selectedShippingPrice.value || !editShippingForm.value.price || editShippingForm.value.price < 0) {
+    showError('Validation Error', 'Please fill in all required fields')
+    return
+  }
+
+  isShippingSubmitting.value = true
+  try {
+    await shippingStore.updateShippingPrice(selectedShippingPrice.value.id, editShippingForm.value)
+    showSuccess('Success', 'Shipping price updated successfully')
+    showEditShippingDialog.value = false
+  } catch (err) {
+    showError('Failed to Update', 'Could not update shipping price')
+  } finally {
+    isShippingSubmitting.value = false
+  }
+}
+
+const handleDeleteShipping = async (shippingPrice: ShippingPrice) => {
+  if (!confirm(`Are you sure you want to delete shipping price for ${shippingStore.availableRegions[shippingPrice.region]}?`)) {
+    return
+  }
+
+  try {
+    await shippingStore.deleteShippingPrice(shippingPrice.id)
+    showSuccess('Success', 'Shipping price deleted successfully')
+  } catch (err) {
+    showError('Failed to Delete', 'Could not delete shipping price')
+  }
+}
+
+const openBulkEditShippingDialog = () => {
+  bulkEditShippingData.value = shippingStore.shippingPrices.map(price => ({
+    id: price.id,
+    price: price.price,
+    is_active: price.is_active
+  }))
+  showBulkEditShippingDialog.value = true
+}
+
+const handleBulkEditShipping = async () => {
+  isShippingSubmitting.value = true
+  try {
+    await shippingStore.bulkUpdateShippingPrices(bulkEditShippingData.value)
+    showSuccess('Success', 'Shipping prices updated successfully')
+    showBulkEditShippingDialog.value = false
+  } catch (err) {
+    showError('Failed to Update', 'Could not update shipping prices')
+  } finally {
+    isShippingSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -423,6 +587,18 @@ const saveMaintenanceMessage = async () => {
           >
             <Icon name="mdi:wrench" class="inline-block mr-2" />
             Maintenance Mode
+          </button>
+          <button
+            @click="activeTab = 'shipping'; isEditingMode = false"
+            :class="[
+              'px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+              activeTab === 'shipping'
+                ? 'border-zinc-900 text-zinc-900'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+          >
+            <Icon name="mdi:truck" class="inline-block mr-2" />
+            Shipping Prices
           </button>
         </nav>
             </div>
@@ -756,6 +932,91 @@ const saveMaintenanceMessage = async () => {
           </div>
     </div>
 
+    <!-- Shipping Prices Tab -->
+    <div v-if="activeTab === 'shipping'" class="p-8">
+      <div class="space-y-6">
+        <!-- Header -->
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900">Shipping Price Management</h2>
+            <p class="text-gray-600 mt-1">Manage shipping prices for different regions</p>
+          </div>
+          <div class="flex gap-3">
+            <button
+              @click="openBulkEditShippingDialog"
+              class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+            >
+              Bulk Edit
+            </button>
+            <AdminAddButton text="Add Shipping Price" @click="openCreateShippingDialog" />
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="shippingStore.loading" class="flex justify-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-800"></div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="shippingData.length === 0" class="text-center py-8">
+          <div class="text-gray-500">No shipping prices found</div>
+          <AdminAddButton text="Add First Shipping Price" @click="openCreateShippingDialog" class="mt-4" />
+        </div>
+
+        <!-- Shipping Prices DataTable -->
+        <DataTable
+          v-else
+          :columns="shippingColumns"
+          :rows="shippingData"
+        >
+          <template #region="{ row }">
+            <div>
+              <div class="font-medium text-gray-900">{{ row.region }}</div>
+              <div class="text-sm text-gray-500">{{ row.rawData.region }}</div>
+            </div>
+          </template>
+
+          <template #price="{ row }">
+            <div class="font-medium text-gray-900">{{ row.price }}</div>
+          </template>
+
+          <template #description="{ row }">
+            <div class="text-gray-900 max-w-xs truncate">{{ row.description }}</div>
+          </template>
+
+          <template #status="{ row }">
+            <span
+              :class="[
+                'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                row.rawData.is_active
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'
+              ]"
+            >
+              {{ row.status }}
+            </span>
+          </template>
+
+          <template #actions="{ row }">
+            <div class="flex gap-2 justify-center">
+              <AdminActionButton
+                icon="mdi:pencil"
+                text="Edit"
+                variant="primary"
+                @click="openEditShippingDialog(row.rawData)"
+              />
+              <AdminActionButton
+                icon="mdi:delete"
+                text="Delete"
+                variant="danger"
+                @click="handleDeleteShipping(row.rawData)"
+              />
+            </div>
+          </template>
+        </DataTable>
+      </div>
+    </div>
+
     <!-- Add/Edit Member Dialog -->
     <Dialog
       v-model="showAddMemberModal"
@@ -844,6 +1105,202 @@ const saveMaintenanceMessage = async () => {
           {{ saving ? 'Saving...' : (editingMemberIndex !== null ? 'Update Member' : 'Add Member') }}
                 </button>
               </div>
+    </Dialog>
+
+    <!-- Create Shipping Price Dialog -->
+    <Dialog v-model="showCreateShippingDialog" title="Add Shipping Price" width="500px">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Region *</label>
+          <select
+            v-model="createShippingForm.region"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            required
+          >
+            <option value="">Select a region</option>
+            <option
+              v-for="(name, region) in shippingStore.availableRegions"
+              :key="region"
+              :value="region"
+            >
+              {{ name }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Price (₱) *</label>
+          <input
+            v-model.number="createShippingForm.price"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0.00"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <textarea
+            v-model="createShippingForm.description"
+            rows="3"
+            placeholder="Optional description"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+          ></textarea>
+        </div>
+
+        <div class="flex items-center">
+          <input
+            v-model="createShippingForm.is_active"
+            type="checkbox"
+            class="h-4 w-4 text-zinc-900 focus:ring-zinc-900 border-gray-300 rounded"
+          />
+          <label class="ml-2 text-sm text-gray-700">Active</label>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4">
+          <button
+            @click="showCreateShippingDialog = false"
+            class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="handleCreateShipping"
+            :disabled="isShippingSubmitting"
+            class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          >
+            {{ isShippingSubmitting ? 'Creating...' : 'Create' }}
+          </button>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Edit Shipping Price Dialog -->
+    <Dialog v-model="showEditShippingDialog" title="Edit Shipping Price" width="500px">
+      <div v-if="selectedShippingPrice" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Region *</label>
+          <select
+            v-model="editShippingForm.region"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            required
+          >
+            <option
+              v-for="(name, region) in shippingStore.availableRegions"
+              :key="region"
+              :value="region"
+            >
+              {{ name }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Price (₱) *</label>
+          <input
+            v-model.number="editShippingForm.price"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0.00"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <textarea
+            v-model="editShippingForm.description"
+            rows="3"
+            placeholder="Optional description"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+          ></textarea>
+        </div>
+
+        <div class="flex items-center">
+          <input
+            v-model="editShippingForm.is_active"
+            type="checkbox"
+            class="h-4 w-4 text-zinc-900 focus:ring-zinc-900 border-gray-300 rounded"
+          />
+          <label class="ml-2 text-sm text-gray-700">Active</label>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4">
+          <button
+            @click="showEditShippingDialog = false"
+            class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="handleEditShipping"
+            :disabled="isShippingSubmitting"
+            class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          >
+            {{ isShippingSubmitting ? 'Updating...' : 'Update' }}
+          </button>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Bulk Edit Shipping Prices Dialog -->
+    <Dialog v-model="showBulkEditShippingDialog" title="Bulk Edit Shipping Prices" width="600px">
+      <div class="space-y-4">
+        <div class="text-sm text-gray-600 mb-4">
+          Update prices and status for multiple regions at once.
+        </div>
+
+        <div class="space-y-3">
+          <div
+            v-for="item in bulkEditShippingData"
+            :key="item.id"
+            class="flex items-center gap-4 p-3 border border-gray-200 rounded-lg"
+          >
+            <div class="flex-1">
+              <div class="font-medium text-gray-900">
+                {{ shippingStore.availableRegions[shippingStore.shippingPrices.find(p => p.id === item.id)?.region || ''] }}
+              </div>
+            </div>
+            <div class="w-24">
+              <input
+                v-model.number="item.price"
+                type="number"
+                step="0.01"
+                min="0"
+                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+              />
+            </div>
+            <div class="flex items-center">
+              <input
+                v-model="item.is_active"
+                type="checkbox"
+                class="h-4 w-4 text-zinc-900 focus:ring-zinc-900 border-gray-300 rounded"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4">
+          <button
+            @click="showBulkEditShippingDialog = false"
+            class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="handleBulkEditShipping"
+            :disabled="isShippingSubmitting"
+            class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          >
+            {{ isShippingSubmitting ? 'Updating...' : 'Update All' }}
+          </button>
+        </div>
+      </div>
     </Dialog>
   </div>
 </template>

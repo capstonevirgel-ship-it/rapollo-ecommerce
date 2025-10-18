@@ -3,6 +3,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Products Management - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Manage products in your Rapollo E-commerce store.' }
+  ]
+})
+
 import { onMounted, computed } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import AdminActionButton from '@/components/AdminActionButton.vue'

@@ -75,6 +75,15 @@ onMounted(async () => {
 const featuredProducts = computed(() => {
   return productStore.products.filter(product => product.is_featured === 1).slice(0, 3);
 });
+
+// Set page title
+useHead({
+  title: 'Rapollo E-commerce - Rap Battle Merchandise & Event Tickets',
+  meta: [
+    { name: 'description', content: 'Experience the ultimate rap battle culture with exclusive merchandise and event tickets. Shop premium products and book tickets for exciting rap battle events in the Philippines.' },
+    { name: 'keywords', content: 'rap battle, merchandise, event tickets, Philippines, rap culture, clothing, apparel' }
+  ]
+})
 </script>
 
 <template>

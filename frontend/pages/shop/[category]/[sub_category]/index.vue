@@ -27,6 +27,22 @@ onMounted(async () => {
   }
 })
 
+// Set page title with meta_title from backend
+useHead(() => {
+  if (subcategory.value) {
+    const title = subcategory.value.meta_title || subcategory.value.name
+    return {
+      title: `${title} - Rapollo E-commerce`,
+      meta: [
+        { name: 'description', content: subcategory.value.meta_description || `Shop ${subcategory.value.name} products at Rapollo E-commerce` }
+      ]
+    }
+  }
+  return {
+    title: 'Subcategory - Rapollo E-commerce'
+  }
+})
+
 // Helper function to format price safely
 const formatPrice = (price: number | undefined | null): string => {
   if (price === null || price === undefined || isNaN(Number(price))) {

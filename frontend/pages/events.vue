@@ -17,6 +17,14 @@ onMounted(async () => {
   console.log('Events after fetch:', eventStore.events)
 })
 
+// Set page title
+useHead({
+  title: 'Events - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Discover exciting rap battle events and competitions. Book your tickets for upcoming events at Rapollo E-commerce.' }
+  ]
+})
+
 const selectedQuantity = ref(1)
 const bookingEvent = ref<Event | null>(null)
 const showBookingModal = ref(false)

@@ -4,6 +4,14 @@ definePageMeta({
   layout: 'default'
 })
 
+// Set page title
+useHead({
+  title: 'Order Failed - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Your order could not be processed. Please try again at Rapollo E-commerce.' }
+  ]
+})
+
 const goToCheckout = () => {
   navigateTo('/checkout')
 }

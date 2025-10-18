@@ -4,6 +4,14 @@ import { useAlert } from '~/composables/useAlert'
 
 const { success, error } = useAlert()
 
+// Set page title
+useHead({
+  title: 'Notifications - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Stay updated with your order notifications and important updates from Rapollo E-commerce.' }
+  ]
+})
+
 // Static notification data for user
 const notifications = ref([
   {

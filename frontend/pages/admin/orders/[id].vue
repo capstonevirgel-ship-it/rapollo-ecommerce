@@ -7,6 +7,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Order Details - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'View and manage order details in your Rapollo E-commerce store.' }
+  ]
+})
+
 const route = useRoute()
 const order = ref<any>(null)
 const loading = ref(false)

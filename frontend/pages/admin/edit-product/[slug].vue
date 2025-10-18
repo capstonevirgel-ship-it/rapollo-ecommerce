@@ -11,6 +11,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Edit Product - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Edit product details in your Rapollo E-commerce store.' }
+  ]
+})
+
 const route = useRoute()
 const router = useRouter()
 const productSlug = route.params.slug as string

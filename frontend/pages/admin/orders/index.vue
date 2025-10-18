@@ -11,6 +11,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Orders Management - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Manage customer orders in your Rapollo E-commerce store.' }
+  ]
+})
+
 // Stores
 const purchaseStore = usePurchaseStore()
 const { success, error } = useAlert()

@@ -9,6 +9,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Tickets Management - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Manage event tickets and bookings in your Rapollo E-commerce store.' }
+  ]
+})
+
 const ticketStore = useTicketStore()
 const authStore = useAuthStore()
 

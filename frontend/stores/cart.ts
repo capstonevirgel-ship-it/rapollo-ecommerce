@@ -21,7 +21,7 @@ export const useCartStore = defineStore("cart", {
 
   actions: {
     // Helper: build a minimal Cart object for guest storage
-    buildGuestCartItem(variant_id: number, quantity: number): Cart {
+    buildGuestCartItem(variant_id: number, quantity: number, variantData?: any): Cart {
       const placeholderProduct = {
         price: 0,
         id: 0,
@@ -73,6 +73,23 @@ export const useCartStore = defineStore("cart", {
         images: []
       }
 
+      // Use provided variant data if available, otherwise use placeholders
+      const variant = variantData || {
+        id: variant_id,
+        product_id: 0,
+        color_id: 0,
+        size_id: 0,
+        price: 0,
+        stock: 0,
+        sku: '',
+        created_at: '',
+        updated_at: '',
+        product: placeholderProduct,
+        color: { id: 0, name: '', hex_code: '' },
+        size: { id: 0, name: '', description: null },
+        images: []
+      }
+
       const cartItem: Cart = {
         id: 0,
         user_id: 0,
@@ -80,21 +97,7 @@ export const useCartStore = defineStore("cart", {
         quantity,
         created_at: '',
         updated_at: '',
-        variant: {
-          id: variant_id,
-          product_id: 0,
-          color_id: 0,
-          size_id: 0,
-          price: 0,
-          stock: 0,
-          sku: '',
-          created_at: '',
-          updated_at: '',
-          product: placeholderProduct,
-          color: { id: 0, name: '', hex_code: '' },
-          size: { id: 0, name: '', description: null },
-          images: []
-        }
+        variant
       }
 
       return cartItem
@@ -140,11 +143,21 @@ export const useCartStore = defineStore("cart", {
               guestCart.splice(index, 1)
             }
           } else if (payload.quantity > 0) {
-            guestCart.push(guestItem ?? this.buildGuestCartItem(payload.variant_id, payload.quantity))
+            // Use the provided guestItem if available, otherwise build one
+            const itemToAdd = guestItem || this.buildGuestCartItem(payload.variant_id, payload.quantity)
+            guestCart.push(itemToAdd)
           }
 
           localStorage.setItem(GUEST_CART_KEY, JSON.stringify(guestCart))
           this.guestVersion++
+          
+          // Update the store's cart array with the latest guest cart
+          this.cart = guestCart
+          
+          // Show success message for guest
+          const { success } = useAlert()
+          success('Added to Cart', 'Item has been added to your cart!')
+          
           return payload
         }
       } catch (error: any) {
@@ -204,6 +217,9 @@ export const useCartStore = defineStore("cart", {
           }
           localStorage.setItem(GUEST_CART_KEY, JSON.stringify(guestCart))
           this.guestVersion++
+          
+          // Update the store's cart array with the latest guest cart
+          this.cart = guestCart
         }
         return
       }
@@ -241,6 +257,9 @@ export const useCartStore = defineStore("cart", {
         const after = guestCart.filter((item) => item.variant_id !== idOrVariantId)
         localStorage.setItem(GUEST_CART_KEY, JSON.stringify(after))
         this.guestVersion++
+        
+        // Update the store's cart array with the latest guest cart
+        this.cart = after
         
         // Show success message for guest
         success('Removed from Cart', 'Item has been removed from your cart!')
@@ -283,6 +302,13 @@ export const useCartStore = defineStore("cart", {
       } catch {
         return []
       }
+    },
+
+    // ✅ Load guest cart into main cart array for display
+    loadGuestCartIntoStore() {
+      if (!import.meta.client) return
+      const guestCart = this.loadGuestCart()
+      this.cart = guestCart
     },
 
     // ✅ Sync guest cart to DB after login

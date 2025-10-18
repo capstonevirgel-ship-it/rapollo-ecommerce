@@ -7,6 +7,14 @@ definePageMeta({
   layout: 'admin'
 })
 
+// Set page title
+useHead({
+  title: 'Events Management - Admin - Rapollo E-commerce',
+  meta: [
+    { name: 'description', content: 'Manage events and tickets in your Rapollo E-commerce store.' }
+  ]
+})
+
 const eventStore = useEventStore()
 const authStore = useAuthStore()
 
@@ -380,17 +388,17 @@ const formatTime = (dateString: string) => {
               ></textarea>
             </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-          <input
-            v-model="formData.location"
-            type="text"
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <input
+                  v-model="formData.location"
+                  type="text"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-            placeholder="Enter event location"
-          >
-        </div>
-
-        <div>
+                  placeholder="Enter event location"
+                >
+              </div>
+              
+              <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Event Poster</label>
           
           <div class="flex gap-4">
@@ -425,7 +433,7 @@ const formatTime = (dateString: string) => {
             
             <!-- File Input - 1/3 width -->
             <div class="flex-1 max-w-[33.333%] flex flex-col justify-center">
-              <input
+                <input
                 type="file"
                 @change="handlePosterChange"
                 accept="image/*"
@@ -433,8 +441,8 @@ const formatTime = (dateString: string) => {
               />
               <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF up to 2MB. Recommended: 16:9 aspect ratio.</p>
             </div>
-          </div>
-        </div>
+              </div>
+            </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -587,39 +595,39 @@ const formatTime = (dateString: string) => {
               step="0.01"
               min="0"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-              placeholder="0.00"
-            >
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Max Tickets</label>
-            <input
-              v-model="formData.max_tickets"
-              type="number"
-              min="1"
+                  placeholder="0.00"
+                >
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max Tickets</label>
+                <input
+                  v-model="formData.max_tickets"
+                  type="number"
+                  min="1"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-              placeholder="100"
-            >
-      </div>
-  </div>
+                  placeholder="100"
+                >
+              </div>
+            </div>
 
-        <div class="flex space-x-3 pt-4">
-          <button
-            type="button"
-            @click="closeModals"
+            <div class="flex space-x-3 pt-4">
+              <button
+                type="button"
+                @click="closeModals"
             class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            :disabled="eventStore.loading"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                :disabled="eventStore.loading"
             class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-lg hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50"
-          >
+              >
             {{ (eventStore.loading || isUploadingImage) ? 'Saving...' : 'Update Event' }}
-          </button>
+              </button>
+            </div>
+          </form>
         </div>
-        </form>
-      </div>
     </Dialog>
 </template>

@@ -58,8 +58,8 @@ class PaymentController extends Controller
 
             // Create checkout session with PayMongo
             $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-            $successUrl = $frontendUrl . '/payment/success';
-            $cancelUrl = $frontendUrl . '/cart';
+            $successUrl = $frontendUrl . '/checkout/success';
+            $cancelUrl = $frontendUrl . '/checkout/failed';
             
             $checkoutSession = $this->payMongoService->createCheckoutSession(
                 $validated['amount'],
