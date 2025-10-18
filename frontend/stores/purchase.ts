@@ -92,6 +92,22 @@ export const usePurchaseStore = defineStore('purchase', () => {
     return response as PaymentResponse
   }
 
+  // Fetch single purchase by ID
+  const fetchPurchaseById = async (id: number): Promise<Purchase> => {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await $fetch(`/api/purchases/${id}`)
+      return response.data
+    } catch (err: any) {
+      error.value = err.data?.message || err.message || 'Failed to fetch purchase'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Admin methods
   const fetchAdminPurchases = async (filters: {
     status?: string
@@ -133,6 +149,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     error,
     createPurchase,
     createPayment,
+    fetchPurchaseById,
     fetchAdminPurchases
   }
 })

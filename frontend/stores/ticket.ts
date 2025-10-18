@@ -63,6 +63,13 @@ export const useTicketStore = defineStore('ticket', () => {
         }
       })
       
+      // Store purchase ID for success page
+      if (response.purchase_id) {
+        if (import.meta.client) {
+          sessionStorage.setItem('last_purchase_id', response.purchase_id.toString())
+        }
+      }
+      
       return response
     } catch (err: any) {
       error.value = err.data?.message || 'Failed to create payment intent'

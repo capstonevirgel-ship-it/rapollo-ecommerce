@@ -294,6 +294,13 @@ export const useCartStore = defineStore("cart", {
       }
     },
 
+    // ✅ Store purchase ID for success page
+    setLastPurchaseId(purchaseId: number) {
+      if (import.meta.client) {
+        sessionStorage.setItem('last_purchase_id', purchaseId.toString())
+      }
+    },
+
     // ✅ Load guest cart from localStorage
     loadGuestCart(): Cart[] {
       if (!import.meta.client) return []

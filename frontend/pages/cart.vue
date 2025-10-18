@@ -104,6 +104,9 @@ const proceedToCheckout = async () => {
     // Create purchase first
     const purchase = await purchaseStore.createPurchase(cart.value)
     
+    // Store purchase ID for success page
+    cartStore.setLastPurchaseId(purchase.id)
+    
     // Create PayMongo payment intent
     const paymentIntent = await payMongoStore.createPaymentIntent(
       total.value,

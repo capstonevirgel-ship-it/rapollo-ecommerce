@@ -259,8 +259,8 @@ class TicketController extends Controller
             // Create PayMongo checkout session
             $payMongoService = new PayMongoService();
             $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-            $successUrl = $frontendUrl . '/payment/success';
-            $cancelUrl = $frontendUrl . '/events';
+            $successUrl = $frontendUrl . '/checkout/success';
+            $cancelUrl = $frontendUrl . '/checkout/failed';
             
             $paymentResponse = $payMongoService->createCheckoutSession(
                 $totalPrice,

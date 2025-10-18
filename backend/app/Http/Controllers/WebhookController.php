@@ -373,13 +373,16 @@ class WebhookController extends Controller
 
             // Create tickets
             for ($i = 0; $i < $quantity; $i++) {
-                Ticket::create([
-                    'purchase_id' => $purchase->id,
-                    'event_id' => $event->id,
-                    'user_id' => $purchase->user_id,
-                    'status' => 'active',
-                    'ticket_code' => 'TKT-' . strtoupper(uniqid()),
-                ]);
+                $ticket = new Ticket();
+                $ticket->purchase_id = $purchase->id;
+                $ticket->event_id = $event->id;
+                $ticket->user_id = $purchase->user_id;
+                $ticket->status = 'confirmed';
+                $ticket->ticket_number = $ticket->generateTicketNumber();
+                $ticket->price = $event->ticket_price;
+                $ticket->qr_code = $ticket->generateQRCode();
+                $ticket->booked_at = now();
+                $ticket->save();
             }
 
         } catch (\Exception $e) {
