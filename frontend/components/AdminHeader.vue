@@ -28,7 +28,7 @@
 
         <!-- Notifications -->
         <NotificationDropdown
-          :notifications="adminNotifications"
+          :notifications="[...notificationStore.notifications]"
           view-all-url="/admin/notifications"
           @mark-as-read="handleAdminMarkAsRead"
           @delete="handleAdminDeleteNotification"
@@ -52,74 +52,52 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import { useNotificationStore } from '~/stores/notification'
 import NotificationDropdown from '~/components/NotificationDropdown.vue'
 
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 const route = useRoute()
 
 // Track current view mode
 const isAdminView = computed(() => route.path.startsWith('/admin'))
 
-// Static admin notification data
-const adminNotifications = ref([
-  {
-    id: 1,
-    title: 'New Order Received',
-    message: 'Order #12345 has been placed by John Doe for ₱2,500.00 worth of products.',
-    type: 'order' as const,
-    read: false,
-    created_at: '2025-01-07T10:30:00Z'
-  },
-  {
-    id: 2,
-    title: 'Payment Confirmed',
-    message: 'Payment for Order #12344 has been successfully processed via PayMongo.',
-    type: 'payment' as const,
-    read: false,
-    created_at: '2025-01-07T09:15:00Z'
-  },
-  {
-    id: 3,
-    title: 'Low Stock Alert',
-    message: 'Product "Classic White T-Shirt" is running low on stock (5 items remaining).',
-    type: 'system' as const,
-    read: true,
-    created_at: '2025-01-07T08:45:00Z'
-  },
-  {
-    id: 4,
-    title: 'New Event Registration',
-    message: 'Sarah Johnson has registered for "Fashion Week 2025" event.',
-    type: 'event' as const,
-    read: true,
-    created_at: '2025-01-06T16:20:00Z'
-  },
-  {
-    id: 5,
-    title: 'System Maintenance',
-    message: 'Scheduled maintenance will occur tonight from 2:00 AM to 4:00 AM.',
-    type: 'system' as const,
-    read: false,
-    created_at: '2025-01-06T14:00:00Z'
+// Load notifications when component mounts
+onMounted(async () => {
+  if (authStore.isAuthenticated) {
+    try {
+      await notificationStore.fetchNotifications()
+      await notificationStore.fetchUnreadCount()
+    } catch (error) {
+      console.error('Failed to load notifications:', error)
+    }
   }
-])
+})
+
+// No static data needed - using real notification store
 
 // Admin notification handlers
-const handleAdminMarkAsRead = (id: number) => {
-  const notification = adminNotifications.value.find(n => n.id === id)
-  if (notification) {
-    notification.read = true
+const handleAdminMarkAsRead = async (id: number) => {
+  try {
+    await notificationStore.markAsRead(id)
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error)
   }
 }
 
-const handleAdminDeleteNotification = (id: number) => {
-  const index = adminNotifications.value.findIndex(n => n.id === id)
-  if (index > -1) {
-    adminNotifications.value.splice(index, 1)
+const handleAdminDeleteNotification = async (id: number) => {
+  try {
+    await notificationStore.deleteNotification(id)
+  } catch (error) {
+    console.error('Failed to delete notification:', error)
   }
 }
 
-const handleAdminMarkAllAsRead = () => {
-  adminNotifications.value.forEach(n => n.read = true)
+const handleAdminMarkAllAsRead = async () => {
+  try {
+    await notificationStore.markAllAsRead()
+  } catch (error) {
+    console.error('Failed to mark all notifications as read:', error)
+  }
 }
 </script>

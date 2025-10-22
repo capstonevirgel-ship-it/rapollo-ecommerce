@@ -4,6 +4,7 @@ import Menu from '@/components/navigation/Menu.vue'
 import Drawer from '@/components/navigation/Drawer.vue'
 import { useAuthStore } from '~/stores/auth'
 import { useCartStore } from '~/stores/cart'
+import { useNotificationStore } from '~/stores/notification'
 import NotificationDropdown from '~/components/NotificationDropdown.vue'
 
 const isMenuOpen = ref(false)
@@ -14,53 +15,22 @@ const activeMobileCategory = ref<string | null>(null)
 
 const authStore = useAuthStore()
 const cartStore = useCartStore()
+const notificationStore = useNotificationStore()
 
 const lastScrollY = ref(0)
 const isHeaderVisible = ref(true)
 
-// Static notification data for demo
-const userNotifications = ref([
-  {
-    id: 1,
-    title: 'Order Confirmed',
-    message: 'Your order #12345 has been confirmed and is being prepared for shipment.',
-    type: 'order' as const,
-    read: false,
-    created_at: '2025-01-07T10:30:00Z'
-  },
-  {
-    id: 2,
-    title: 'Payment Successful',
-    message: 'Your payment of ₱2,500.00 has been processed successfully.',
-    type: 'payment' as const,
-    read: false,
-    created_at: '2025-01-07T09:15:00Z'
-  },
-  {
-    id: 3,
-    title: 'Order Shipped',
-    message: 'Your order #12344 has been shipped! Track your package with tracking number: TRK123456789.',
-    type: 'order' as const,
-    read: true,
-    created_at: '2025-01-06T14:20:00Z'
-  },
-  {
-    id: 4,
-    title: 'Special Offer Available',
-    message: 'Get 20% off on all summer collection items! Use code SUMMER20 at checkout.',
-    type: 'promotion' as const,
-    read: false,
-    created_at: '2025-01-06T12:00:00Z'
-  },
-  {
-    id: 5,
-    title: 'Event Registration Confirmed',
-    message: 'You have successfully registered for "Fashion Week 2025" event.',
-    type: 'event' as const,
-    read: true,
-    created_at: '2025-01-06T16:20:00Z'
+// Load notifications when user is authenticated
+watch(() => authStore.user, async (user) => {
+  if (user) {
+    try {
+      await notificationStore.fetchNotifications()
+      await notificationStore.fetchUnreadCount()
+    } catch (error) {
+      console.error('Failed to load notifications:', error)
+    }
   }
-])
+}, { immediate: true })
 
 const handleScroll = () => {
   const currentScrollY = window.scrollY
@@ -88,22 +58,28 @@ watch(() => authStore.isAuthenticated, async (isAuthenticated) => {
 })
 
 // Notification handlers
-const handleMarkAsRead = (id: number) => {
-  const notification = userNotifications.value.find(n => n.id === id)
-  if (notification) {
-    notification.read = true
+const handleMarkAsRead = async (id: number) => {
+  try {
+    await notificationStore.markAsRead(id)
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error)
   }
 }
 
-const handleDeleteNotification = (id: number) => {
-  const index = userNotifications.value.findIndex(n => n.id === id)
-  if (index > -1) {
-    userNotifications.value.splice(index, 1)
+const handleDeleteNotification = async (id: number) => {
+  try {
+    await notificationStore.deleteNotification(id)
+  } catch (error) {
+    console.error('Failed to delete notification:', error)
   }
 }
 
-const handleMarkAllAsRead = () => {
-  userNotifications.value.forEach(n => n.read = true)
+const handleMarkAllAsRead = async () => {
+  try {
+    await notificationStore.markAllAsRead()
+  } catch (error) {
+    console.error('Failed to mark all notifications as read:', error)
+  }
 }
 
 const toggleCategory = (category: string | null) => {
@@ -209,9 +185,9 @@ const navLinks: NavLink[] = [
           
           <!-- Notifications -->
           <NotificationDropdown
-            v-if="authStore.isAuthenticated && !authStore.isAdmin"
-            :notifications="userNotifications"
-            view-all-url="/notifications"
+            v-if="authStore.isAuthenticated"
+            :notifications="notificationStore.notifications"
+            :view-all-url="authStore.isAdmin ? '/admin/notifications' : '/notifications'"
             @mark-as-read="handleMarkAsRead"
             @delete="handleDeleteNotification"
             @mark-all-as-read="handleMarkAllAsRead"

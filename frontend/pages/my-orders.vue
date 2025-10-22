@@ -120,8 +120,13 @@ onMounted(async () => {
       </div>
 
       <!-- Loading State -->
-      <div v-if="isLoading" class="flex justify-center py-12">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900"></div>
+      <div v-if="isLoading">
+        <LoadingSpinner 
+          size="md" 
+          color="primary" 
+          text="Loading orders..." 
+          :show-text="true"
+        />
       </div>
 
       <!-- Orders List -->

@@ -36,9 +36,30 @@ class TicketController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $tickets = Ticket::with(['event', 'user'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+        $query = Ticket::with(['event', 'user']);
+
+        // Filter by status
+        if ($request->has('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        // Search functionality
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('ticket_number', 'like', "%{$search}%")
+                  ->orWhereHas('user', function ($userQuery) use ($search) {
+                      $userQuery->where('user_name', 'like', "%{$search}%")
+                               ->orWhere('email', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('event', function ($eventQuery) use ($search) {
+                      $eventQuery->where('title', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $perPage = $request->get('per_page', 20);
+        $tickets = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         return response()->json($tickets);
     }

@@ -17,23 +17,29 @@ const close = () => {
 <template>
   <div
     v-if="modelValue"
-    class="dialog-overlay flex items-center justify-center bg-black/50"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
   >
     <div
-      class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 relative"
+      class="bg-white rounded-xl shadow-2xl w-full max-w-lg relative max-h-[90vh] overflow-y-auto"
       :style="{ width }"
     >
+      <!-- Header -->
+      <div v-if="title" class="px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-bold text-gray-900">{{ title }}</h2>
+          <button
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+            @click="close"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
 
-      <button
-        class="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
-        @click="close"
-      >
-        <Icon name="mdi:close" />
-      </button>
-
-      <h2 v-if="title" class="text-lg font-semibold mb-4">{{ title }}</h2>
-
-      <div>
+      <!-- Content -->
+      <div class="p-6">
         <slot></slot>
       </div>
     </div>

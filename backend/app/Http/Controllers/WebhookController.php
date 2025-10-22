@@ -13,8 +13,10 @@ use App\Models\Ticket;
 use App\Models\ProductVariant;
 use App\Models\PurchaseItem;
 use App\Models\Cart;
+use App\Models\User;
 use App\Mail\ProductPurchaseConfirmation;
 use App\Mail\TicketPurchaseConfirmation;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Mail;
 
 class WebhookController extends Controller
@@ -214,12 +216,14 @@ class WebhookController extends Controller
                         if ($purchase->type === 'product') {
                             $this->decrementProductStock($purchase);
                             $this->sendProductConfirmationEmail($purchase);
+                            $this->createProductOrderNotifications($purchase);
                         }
                         
                         // Handle ticket purchases
                         if ($purchase->type === 'ticket') {
                             $this->createTicketsForPurchase($purchase);
                             $this->sendTicketConfirmationEmail($purchase);
+                            $this->createEventOrderNotifications($purchase);
                         }
                         
                         // Clear user's cart
@@ -458,6 +462,113 @@ class WebhookController extends Controller
             }
         } catch (\Exception $e) {
             Log::error('Failed to send ticket purchase confirmation email', [
+                'purchase_id' => $purchase->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Create notifications for product orders
+     */
+    private function createProductOrderNotifications(Purchase $purchase): void
+    {
+        try {
+            $user = $purchase->user;
+            if (!$user) return;
+
+            // Customer notifications
+            NotificationService::createPaymentNotification(
+                $user,
+                'Payment Successful',
+                'Your payment of ₱' . number_format($purchase->total - $purchase->shipping_cost, 2) . ' has been processed successfully.',
+                [
+                    'action_url' => '/my-orders',
+                    'action_text' => 'View Orders'
+                ]
+            );
+
+            NotificationService::createOrderNotification(
+                $user,
+                'Order Confirmed',
+                'Your order #' . $purchase->id . ' has been confirmed and is being prepared for shipment.',
+                [
+                    'action_url' => '/my-orders/' . $purchase->id,
+                    'action_text' => 'Track Order'
+                ]
+            );
+
+            // Admin notifications - notify all admin users
+            $adminUsers = User::where('role', 'admin')->get();
+            foreach ($adminUsers as $admin) {
+                NotificationService::createOrderNotification(
+                    $admin,
+                    'New Order Received',
+                    'A new order #' . $purchase->id . ' has been placed by ' . $user->user_name . ' for ₱' . number_format($purchase->total, 2) . ' worth of products.',
+                    [
+                        'action_url' => '/admin/orders/' . $purchase->id,
+                        'action_text' => 'View Order'
+                    ]
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to create product order notifications', [
+                'purchase_id' => $purchase->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Create notifications for event orders
+     */
+    private function createEventOrderNotifications(Purchase $purchase): void
+    {
+        try {
+            $user = $purchase->user;
+            if (!$user) return;
+
+            $event = $purchase->event;
+
+            // Customer notifications
+            NotificationService::createPaymentNotification(
+                $user,
+                'Payment Successful',
+                'Your payment of ₱' . number_format($purchase->total, 2) . ' has been processed successfully.',
+                [
+                    'action_url' => '/my-tickets',
+                    'action_text' => 'View Tickets'
+                ]
+            );
+
+            // Event registration confirmed notification
+            if ($event) {
+                NotificationService::createEventNotification(
+                    $user,
+                    'Event Registration Confirmed',
+                    'You have successfully registered for "' . $event->title . '" event. Your ticket has been sent to your email.',
+                    [
+                        'action_url' => '/my-tickets',
+                        'action_text' => 'View Tickets'
+                    ]
+                );
+
+                // Admin notifications - notify all admin users
+                $adminUsers = User::where('role', 'admin')->get();
+                foreach ($adminUsers as $admin) {
+                    NotificationService::createEventNotification(
+                        $admin,
+                        'New Event Registration',
+                        $user->user_name . ' has registered for "' . $event->title . '" event. ' . $purchase->purchaseItems->sum('quantity') . ' ticket(s) purchased for ₱' . number_format($purchase->total, 2) . '.',
+                        [
+                            'action_url' => '/admin/events/' . $event->id,
+                            'action_text' => 'View Event'
+                        ]
+                    );
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to create event order notifications', [
                 'purchase_id' => $purchase->id,
                 'error' => $e->getMessage()
             ]);

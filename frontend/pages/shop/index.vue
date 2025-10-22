@@ -243,218 +243,220 @@ watch(brandSlug, () => {
 </script>
 
 <template>
-  <div class="px-4 py-8">
-    <!-- Page Header -->
-    <div class="mb-6">
-      <div class="flex items-center justify-between">
-        <h1 class="text-3xl font-bold">{{ pageTitle }}</h1>
-        
-        <!-- Filter Toggle Button (Mobile) -->
-        <button
-          @click="toggleFilters"
-          class="lg:hidden flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
-          </svg>
-          <span>Filters</span>
-          <span v-if="hasActiveFilters" class="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">!</span>
-        </button>
-      </div>
-      
-      <!-- Brand Filter Info -->
-      <div v-if="currentBrand" class="mt-2 flex items-center space-x-2">
-        <span class="text-sm text-gray-600">Filtering by brand:</span>
-        <div class="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-1">
-          <img 
-            v-if="currentBrand.logo_url"
-            :src="getImageUrl(currentBrand.logo_url, 'brand')"
-            :alt="currentBrand.name"
-            class="w-4 h-4 object-contain"
-          />
-          <span class="text-sm font-medium text-gray-900">{{ currentBrand.name }}</span>
-          <NuxtLink 
-            to="/shop" 
-            class="text-gray-400 hover:text-gray-600 transition-colors"
-            title="Clear brand filter"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </NuxtLink>
-        </div>
-      </div>
-      
-      <!-- Active Filters -->
-      <div v-if="hasActiveFilters && !currentBrand" class="mt-2 flex flex-wrap items-center gap-2">
-        <span class="text-sm text-gray-600">Active filters:</span>
-        <div class="flex flex-wrap gap-2">
-          <span
-            v-if="filters.search"
-            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-          >
-            Search: "{{ filters.search }}"
-            <button @click="filters.search = ''" class="ml-1 text-blue-600 hover:text-blue-800">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </span>
-          <span
-            v-if="filters.is_featured"
-            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
-          >
-            Featured
-            <button @click="filters.is_featured = false" class="ml-1 text-green-600 hover:text-green-800">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </span>
-          <span
-            v-if="filters.is_hot"
-            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
-          >
-            Hot
-            <button @click="filters.is_hot = false" class="ml-1 text-red-600 hover:text-red-800">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </span>
-          <span
-            v-if="filters.is_new"
-            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
-          >
-            New
-            <button @click="filters.is_new = false" class="ml-1 text-purple-600 hover:text-purple-800">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </span>
-          <span
-            v-if="filters.min_price || filters.max_price"
-            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
-          >
-            Price: ₱{{ filters.min_price || 0 }} - ₱{{ filters.max_price || '∞' }}
-            <button @click="filters.min_price = null; filters.max_price = null" class="ml-1 text-yellow-600 hover:text-yellow-800">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </span>
+  <div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Page Header -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between">
+          <h1 class="text-3xl font-bold">{{ pageTitle }}</h1>
+          
+          <!-- Filter Toggle Button (Mobile) -->
           <button
-            v-if="hasActiveFilters"
-            @click="clearFilters"
-            class="text-xs text-gray-500 hover:text-gray-700 underline"
+            @click="toggleFilters"
+            class="lg:hidden flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            Clear all
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+            </svg>
+            <span>Filters</span>
+            <span v-if="hasActiveFilters" class="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">!</span>
           </button>
         </div>
-      </div>
-      
-      <!-- Results Count -->
-      <p v-if="!isLoading" class="text-sm text-gray-500 mt-1">
-        {{ pagination.total }} product{{ pagination.total !== 1 ? 's' : '' }} found
-      </p>
-    </div>
-
-    <!-- Main Content -->
-    <div class="flex flex-col lg:flex-row gap-6">
-      <!-- Filters Sidebar -->
-      <div class="lg:w-80 flex-shrink-0">
-        <!-- Desktop Filters -->
-        <div class="hidden lg:block">
-          <ProductFilters v-model="filters" @update:modelValue="updateFilters" />
+        
+        <!-- Brand Filter Info -->
+        <div v-if="currentBrand" class="mt-2 flex items-center space-x-2">
+          <span class="text-sm text-gray-600">Filtering by brand:</span>
+          <div class="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-1">
+            <img 
+              v-if="currentBrand.logo_url"
+              :src="getImageUrl(currentBrand.logo_url, 'brand')"
+              :alt="currentBrand.name"
+              class="w-4 h-4 object-contain"
+            />
+            <span class="text-sm font-medium text-gray-900">{{ currentBrand.name }}</span>
+            <NuxtLink 
+              to="/shop" 
+              class="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Clear brand filter"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </NuxtLink>
+          </div>
         </div>
         
-        <!-- Mobile Filters (Collapsible) -->
-        <div v-if="showFilters" class="lg:hidden mb-4">
-          <ProductFilters v-model="filters" @update:modelValue="updateFilters" />
+        <!-- Active Filters -->
+        <div v-if="hasActiveFilters && !currentBrand" class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="text-sm text-gray-600">Active filters:</span>
+          <div class="flex flex-wrap gap-2">
+            <span
+              v-if="filters.search"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+            >
+              Search: "{{ filters.search }}"
+              <button @click="filters.search = ''" class="ml-1 text-blue-600 hover:text-blue-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+            <span
+              v-if="filters.is_featured"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+            >
+              Featured
+              <button @click="filters.is_featured = false" class="ml-1 text-green-600 hover:text-green-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+            <span
+              v-if="filters.is_hot"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
+            >
+              Hot
+              <button @click="filters.is_hot = false" class="ml-1 text-red-600 hover:text-red-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+            <span
+              v-if="filters.is_new"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+            >
+              New
+              <button @click="filters.is_new = false" class="ml-1 text-purple-600 hover:text-purple-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+            <span
+              v-if="filters.min_price || filters.max_price"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
+            >
+              Price: ₱{{ filters.min_price || 0 }} - ₱{{ filters.max_price || '∞' }}
+              <button @click="filters.min_price = null; filters.max_price = null" class="ml-1 text-yellow-600 hover:text-yellow-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+            <button
+              v-if="hasActiveFilters"
+              @click="clearFilters"
+              class="text-xs text-gray-500 hover:text-gray-700 underline"
+            >
+              Clear all
+            </button>
+          </div>
         </div>
+        
+        <!-- Results Count -->
+        <p v-if="!isLoading" class="text-sm text-gray-500 mt-1">
+          {{ pagination.total }} product{{ pagination.total !== 1 ? 's' : '' }} found
+        </p>
       </div>
 
-      <!-- Products Grid -->
-      <div class="flex-1">
-        <!-- Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <!-- Skeleton Loader -->
-      <div
-        v-if="isLoading"
-        v-for="n in perPage"
-        :key="n"
-        class="bg-white rounded-lg shadow-sm animate-pulse overflow-hidden"
-      >
-        <div class="w-full h-48 bg-gray-200"></div>
-        <div class="p-4 space-y-2">
-          <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-          <div class="h-5 bg-gray-200 rounded w-1/2"></div>
-        </div>
-      </div>
-
-      <!-- Products -->
-      <NuxtLink
-        v-else
-        v-for="product in products"
-        :key="product.id"
-        :to="`/shop/${product.subcategory?.category?.slug}/${product.subcategory?.slug}/${product.slug}`"
-        class="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 block group overflow-hidden"
-      >
-        <!-- Product image -->
-        <div class="relative overflow-hidden">
-          <img
-            :src="getImageUrl(product.images?.find(img => img.is_primary)?.url || null, 'product')"
-            :alt="product.name"
-            class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
-          />
-          <!-- Overlay on hover -->
-          <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200"></div>
-        </div>
-
-        <!-- Product info -->
-        <div class="p-4">
-          <h2 class="text-sm font-medium text-gray-900 truncate mb-2">
-            {{ product.name }}
-          </h2>
-          <p class="text-primary-600 font-semibold text-lg">
-            ₱{{ product.variants?.[0]?.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-          </p>
-        </div>
-      </NuxtLink>
-    </div>
-
-        <!-- Empty state (only when not loading) -->
-        <div v-if="!isLoading && products.length === 0" class="text-center py-12">
-          <div class="max-w-md mx-auto">
-            <svg class="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-            <h3 class="mt-4 text-lg font-medium text-gray-900">
-              {{ currentBrand ? `No ${currentBrand.name} products found` : 'No products available' }}
-            </h3>
-            <p class="mt-2 text-gray-500">
-              {{ currentBrand ? `We couldn't find any products from ${currentBrand.name}. Try browsing other brands or categories.` : 'Check back later for new products.' }}
-            </p>
-            <div class="mt-6">
-              <NuxtLink 
-                v-if="currentBrand"
-                to="/shop" 
-                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
-              >
-                View All Products
-              </NuxtLink>
-            </div>
+      <!-- Main Content -->
+      <div class="flex flex-col lg:flex-row gap-6">
+        <!-- Filters Sidebar -->
+        <div class="lg:w-80 flex-shrink-0">
+          <!-- Desktop Filters -->
+          <div class="hidden lg:block">
+            <ProductFilters v-model="filters" @update:modelValue="updateFilters" />
+          </div>
+          
+          <!-- Mobile Filters (Collapsible) -->
+          <div v-if="showFilters" class="lg:hidden mb-4">
+            <ProductFilters v-model="filters" @update:modelValue="updateFilters" />
           </div>
         </div>
 
-        <!-- Pagination -->
-        <Pagination
-          v-if="!isLoading && pagination.total_pages > 1"
-          :current-page="pagination.current_page"
-          :total-pages="pagination.total_pages"
-          @page-change="handlePageChange"
-        />
+        <!-- Products Grid -->
+        <div class="flex-1">
+          <!-- Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Skeleton Loader -->
+        <div
+          v-if="isLoading"
+          v-for="n in perPage"
+          :key="n"
+          class="bg-white rounded-lg shadow-sm animate-pulse overflow-hidden"
+        >
+          <div class="w-full h-48 bg-gray-200"></div>
+          <div class="p-4 space-y-2">
+            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div class="h-5 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+
+        <!-- Products -->
+        <NuxtLink
+          v-else
+          v-for="product in products"
+          :key="product.id"
+          :to="`/shop/${product.subcategory?.category?.slug}/${product.subcategory?.slug}/${product.slug}`"
+          class="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 block group overflow-hidden"
+        >
+          <!-- Product image -->
+          <div class="relative overflow-hidden">
+            <img
+              :src="getImageUrl(product.images?.find(img => img.is_primary)?.url || null, 'product')"
+              :alt="product.name"
+              class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+            />
+            <!-- Overlay on hover -->
+            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200"></div>
+          </div>
+
+          <!-- Product info -->
+          <div class="p-4">
+            <h2 class="text-sm font-medium text-gray-900 truncate mb-2">
+              {{ product.name }}
+            </h2>
+            <p class="text-primary-600 font-semibold text-lg">
+              ₱{{ product.variants?.[0]?.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+            </p>
+          </div>
+        </NuxtLink>
+      </div>
+
+          <!-- Empty state (only when not loading) -->
+          <div v-if="!isLoading && products.length === 0" class="text-center py-12">
+            <div class="max-w-md mx-auto">
+              <svg class="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+              <h3 class="mt-4 text-lg font-medium text-gray-900">
+                {{ currentBrand ? `No ${currentBrand.name} products found` : 'No products available' }}
+              </h3>
+              <p class="mt-2 text-gray-500">
+                {{ currentBrand ? `We couldn't find any products from ${currentBrand.name}. Try browsing other brands or categories.` : 'Check back later for new products.' }}
+              </p>
+              <div class="mt-6">
+                <NuxtLink 
+                  v-if="currentBrand"
+                  to="/shop" 
+                  class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
+                >
+                  View All Products
+                </NuxtLink>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <Pagination
+            v-if="!isLoading && pagination.total_pages > 1"
+            :current-page="pagination.current_page"
+            :total-pages="pagination.total_pages"
+            @page-change="handlePageChange"
+          />
+        </div>
       </div>
     </div>
   </div>

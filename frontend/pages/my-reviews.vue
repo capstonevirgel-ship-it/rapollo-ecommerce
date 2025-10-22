@@ -59,7 +59,12 @@ const navigateToProduct = (product: ReviewableProduct) => {
 
     <!-- Loading State -->
     <div v-if="isLoading" class="flex justify-center py-12">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900"></div>
+      <LoadingSpinner 
+        size="md" 
+        color="primary" 
+        text="Loading reviews..." 
+        :show-text="true"
+      />
     </div>
 
     <!-- No Reviewed Products -->

@@ -51,6 +51,7 @@ class EventController extends Controller
             'date' => 'required|date|after:today',
             'location' => 'nullable|string|max:100',
             'poster_url' => 'nullable|string|max:255',
+            'poster_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,svg|max:5120',
             'ticket_price' => 'nullable|numeric|min:0',
             'max_tickets' => 'nullable|integer|min:1'
         ]);
@@ -61,10 +62,18 @@ class EventController extends Controller
         $event->description = $request->description;
         $event->date = $request->date;
         $event->location = $request->location;
-        $event->poster_url = $request->poster_url;
         $event->ticket_price = $request->ticket_price;
         $event->max_tickets = $request->max_tickets;
         $event->available_tickets = $request->max_tickets;
+
+        // Handle poster image upload
+        if ($request->hasFile('poster_image')) {
+            $path = $request->file('poster_image')->store('events', 'public');
+            $event->poster_url = $path;
+        } else {
+            $event->poster_url = $request->poster_url;
+        }
+
         $event->save();
 
         return response()->json([
@@ -86,13 +95,27 @@ class EventController extends Controller
             'date' => 'sometimes|required|date|after:today',
             'location' => 'nullable|string|max:100',
             'poster_url' => 'nullable|string|max:255',
+            'poster_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,svg|max:5120',
             'ticket_price' => 'nullable|numeric|min:0',
             'max_tickets' => 'nullable|integer|min:1'
         ]);
 
+        // Handle poster image upload
+        if ($request->hasFile('poster_image')) {
+            // Delete old poster if exists
+            if ($event->poster_url && \Storage::disk('public')->exists($event->poster_url)) {
+                \Storage::disk('public')->delete($event->poster_url);
+            }
+            
+            $path = $request->file('poster_image')->store('events', 'public');
+            $event->poster_url = $path;
+        } elseif ($request->has('poster_url')) {
+            $event->poster_url = $request->poster_url;
+        }
+
         $event->update($request->only([
             'title', 'description', 'date', 'location', 
-            'poster_url', 'ticket_price', 'max_tickets'
+            'ticket_price', 'max_tickets'
         ]));
 
         return response()->json([

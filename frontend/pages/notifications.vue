@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAlert } from '~/composables/useAlert'
+import { useNotificationStore } from '~/stores/notification'
 
 const { success, error } = useAlert()
+const notificationStore = useNotificationStore()
 
 // Set page title
 useHead({
@@ -12,173 +14,98 @@ useHead({
   ]
 })
 
-// Static notification data for user
-const notifications = ref([
-  {
-    id: 1,
-    title: 'Order Confirmed',
-    message: 'Your order #12345 has been confirmed and is being prepared for shipment.',
-    type: 'order' as const,
-    read: false,
-    created_at: '2025-01-07T10:30:00Z',
-    action_url: '/my-orders/12345',
-    action_text: 'Track Order'
-  },
-  {
-    id: 2,
-    title: 'Payment Successful',
-    message: 'Your payment of ₱2,500.00 has been processed successfully.',
-    type: 'payment' as const,
-    read: false,
-    created_at: '2025-01-07T09:15:00Z',
-    action_url: '/my-orders',
-    action_text: 'View Orders'
-  },
-  {
-    id: 3,
-    title: 'Order Shipped',
-    message: 'Your order #12344 has been shipped! Track your package with tracking number: TRK123456789.',
-    type: 'order' as const,
-    read: true,
-    created_at: '2025-01-06T14:20:00Z',
-    action_url: '/my-orders/12344',
-    action_text: 'Track Package'
-  },
-  {
-    id: 4,
-    title: 'Event Registration Confirmed',
-    message: 'You have successfully registered for "Fashion Week 2025" event. Your ticket has been sent to your email.',
-    type: 'event' as const,
-    read: true,
-    created_at: '2025-01-06T16:20:00Z',
-    action_url: '/my-tickets',
-    action_text: 'View Tickets'
-  },
-  {
-    id: 5,
-    title: 'Special Offer Available',
-    message: 'Get 20% off on all summer collection items! Use code SUMMER20 at checkout. Valid until January 15th.',
-    type: 'promotion' as const,
-    read: false,
-    created_at: '2025-01-06T12:00:00Z',
-    action_url: '/shop?promo=summer20',
-    action_text: 'Shop Now'
-  },
-  {
-    id: 6,
-    title: 'Order Delivered',
-    message: 'Your order #12343 has been delivered successfully. We hope you love your purchase!',
-    type: 'order' as const,
-    read: true,
-    created_at: '2025-01-05T15:45:00Z',
-    action_url: '/my-orders/12343',
-    action_text: 'Leave Review'
-  },
-  {
-    id: 7,
-    title: 'Account Security Alert',
-    message: 'We noticed a new login from a different device. If this wasn\'t you, please secure your account.',
-    type: 'system' as const,
-    read: true,
-    created_at: '2025-01-05T08:30:00Z',
-    action_url: '/profile/security',
-    action_text: 'Review Security'
-  },
-  {
-    id: 8,
-    title: 'Wishlist Item on Sale',
-    message: 'The "Premium Denim Jacket" in your wishlist is now 30% off! Don\'t miss out on this deal.',
-    type: 'promotion' as const,
-    read: true,
-    created_at: '2025-01-04T11:15:00Z',
-    action_url: '/wishlist',
-    action_text: 'View Wishlist'
-  },
-  {
-    id: 9,
-    title: 'Event Reminder',
-    message: 'Fashion Week 2025 starts tomorrow! Don\'t forget to check your ticket details.',
-    type: 'event' as const,
-    read: false,
-    created_at: '2025-01-04T09:00:00Z',
-    action_url: '/my-tickets',
-    action_text: 'View Event'
-  },
-  {
-    id: 10,
-    title: 'Order Return Processed',
-    message: 'Your return request for order #12342 has been approved. Refund will be processed within 3-5 business days.',
-    type: 'order' as const,
-    read: true,
-    created_at: '2025-01-03T16:20:00Z',
-    action_url: '/my-orders/12342',
-    action_text: 'View Details'
+// Load notifications on mount
+onMounted(async () => {
+  try {
+    await notificationStore.fetchNotifications()
+    await notificationStore.fetchUnreadCount()
+  } catch (err) {
+    error('Failed to load notifications')
   }
-])
+})
 
 // Filter states
 const activeFilter = ref('all')
 const searchQuery = ref('')
+const currentPage = ref(1)
 
 // Computed properties
 const filteredNotifications = computed(() => {
-  let filtered = notifications.value
-
-  // Filter by type
-  if (activeFilter.value !== 'all') {
-    filtered = filtered.filter(n => n.type === activeFilter.value)
-  }
-
-  // Filter by search query
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(n => 
-      n.title.toLowerCase().includes(query) || 
-      n.message.toLowerCase().includes(query)
-    )
-  }
-
-  return filtered
+  return notificationStore.getFilteredNotifications(activeFilter.value, searchQuery.value)
 })
 
-const unreadCount = computed(() => 
-  notifications.value.filter(n => !n.read).length
-)
+const unreadCount = computed(() => notificationStore.unreadCount)
 
-const filterOptions = [
-  { value: 'all', label: 'All Notifications', count: notifications.value.length },
-  { value: 'order', label: 'Orders', count: notifications.value.filter(n => n.type === 'order').length },
-  { value: 'payment', label: 'Payments', count: notifications.value.filter(n => n.type === 'payment').length },
-  { value: 'event', label: 'Events', count: notifications.value.filter(n => n.type === 'event').length },
-  { value: 'promotion', label: 'Offers', count: notifications.value.filter(n => n.type === 'promotion').length },
-  { value: 'system', label: 'Account', count: notifications.value.filter(n => n.type === 'system').length }
-]
+const filterOptions = computed(() => [
+  { value: 'all', label: 'All Notifications', count: notificationStore.notifications.length },
+  { value: 'order', label: 'Orders', count: notificationStore.notifications.filter(n => n.type === 'order').length },
+  { value: 'payment', label: 'Payments', count: notificationStore.notifications.filter(n => n.type === 'payment').length },
+  { value: 'event', label: 'Events', count: notificationStore.notifications.filter(n => n.type === 'event').length },
+  { value: 'promotion', label: 'Offers', count: notificationStore.notifications.filter(n => n.type === 'promotion').length },
+  { value: 'system', label: 'Account', count: notificationStore.notifications.filter(n => n.type === 'system').length }
+])
 
 // Methods
-const markAsRead = (id: number) => {
-  const notification = notifications.value.find(n => n.id === id)
-  if (notification) {
-    notification.read = true
+const markAsRead = async (id: number) => {
+  try {
+    await notificationStore.markAsRead(id)
     success('Notification marked as read')
+  } catch (err) {
+    error('Failed to mark notification as read')
   }
 }
 
-const deleteNotification = (id: number) => {
-  const index = notifications.value.findIndex(n => n.id === id)
-  if (index > -1) {
-    notifications.value.splice(index, 1)
+const deleteNotification = async (id: number) => {
+  try {
+    await notificationStore.deleteNotification(id)
     success('Notification deleted')
+  } catch (err) {
+    error('Failed to delete notification')
   }
 }
 
-const markAllAsRead = () => {
-  notifications.value.forEach(n => n.read = true)
+const markAllAsRead = async () => {
+  try {
+    await notificationStore.markAllAsRead()
   success('All notifications marked as read')
+  } catch (err) {
+    error('Failed to mark all notifications as read')
+  }
 }
 
-const clearAll = () => {
-  notifications.value = []
+const clearAll = async () => {
+  try {
+    await notificationStore.clearAll()
   success('All notifications cleared')
+  } catch (err) {
+    error('Failed to clear all notifications')
+  }
+}
+
+const handleFilterChange = async () => {
+  try {
+    currentPage.value = 1
+    await notificationStore.fetchNotifications({
+      type: activeFilter.value,
+      search: searchQuery.value,
+      page: currentPage.value
+    })
+  } catch (err) {
+    error('Failed to load notifications')
+  }
+}
+
+const handleSearch = async () => {
+  try {
+    currentPage.value = 1
+    await notificationStore.fetchNotifications({
+      type: activeFilter.value,
+      search: searchQuery.value,
+      page: currentPage.value
+    })
+  } catch (err) {
+    error('Failed to load notifications')
+  }
 }
 </script>
 
@@ -221,6 +148,7 @@ const clearAll = () => {
                 <Icon name="mdi:magnify" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input 
                   v-model="searchQuery"
+                  @input="handleSearch"
                   type="text" 
                   placeholder="Search notifications..."
                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -233,7 +161,7 @@ const clearAll = () => {
               <button
                 v-for="filter in filterOptions"
                 :key="filter.value"
-                @click="activeFilter = filter.value"
+                @click="activeFilter = filter.value; handleFilterChange()"
                 :class="[
                   'px-4 py-2 text-sm font-medium rounded-lg transition-colors',
                   activeFilter === filter.value

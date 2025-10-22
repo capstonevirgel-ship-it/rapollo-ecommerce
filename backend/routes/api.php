@@ -18,6 +18,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShippingPriceController;
+use App\Http\Controllers\UploadController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
@@ -163,6 +165,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('dashboard/top-products', [DashboardController::class, 'topProducts']);
     Route::get('dashboard/recent-orders', [DashboardController::class, 'recentOrders']);
 
+    // Upload (admin only)
+    Route::post('upload', [UploadController::class, 'uploadImage']);
+    Route::post('upload/multiple', [UploadController::class, 'uploadImages']);
+
     // Settings (admin only)
     Route::post('settings', [SettingsController::class, 'update']);
     Route::put('settings/{key}', [SettingsController::class, 'updateSingle']);
@@ -171,5 +177,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('settings/upload-team-member-image', [SettingsController::class, 'uploadTeamMemberImage']);
     Route::delete('settings/delete-team-member-image', [SettingsController::class, 'deleteTeamMemberImage']);
     Route::post('settings/toggle-maintenance', [SettingsController::class, 'toggleMaintenance']);
+
+    // Notifications
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::put('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::put('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('notifications/{id}', [NotificationController::class, 'delete']);
+    Route::delete('notifications', [NotificationController::class, 'clearAll']);
 });
 

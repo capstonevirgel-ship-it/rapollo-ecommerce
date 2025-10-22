@@ -57,9 +57,32 @@ export const useAuthStore = defineStore('auth', {
                     body: userData
                 }) as any;
                 
-                if (response.success) {
-                    // Registration successful, redirect to login
-                    return navigateTo('/login');
+                if (response.message === 'Registration successful') {
+                    // Store the token for future requests
+                    if (response.token) {
+                        const token = useCookie('auth-token');
+                        token.value = response.token;
+                    }
+                    
+                    // Set user data and authentication state
+                    this.user = response.user;
+                    this.isAuthenticated = true;
+                    
+                    // Sync cart after successful registration
+                    try {
+                        const cartStore = useCartStore();
+                        await cartStore.syncGuestCart();
+                        await cartStore.index();
+                    } catch (error) {
+                        console.error('Cart sync failed after registration:', error);
+                    }
+                    
+                    // Redirect based on user role
+                    if (this.isAdmin) {
+                        return navigateTo('/admin/dashboard');
+                    } else {
+                        return navigateTo('/');
+                    }
                 }
             } catch (error: any) {
                 this.error = error.data?.message || error.message || 'Registration failed';

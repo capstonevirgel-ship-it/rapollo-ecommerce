@@ -3,6 +3,7 @@ import type { Ticket, TicketStatistics } from '~/types'
 import AdminActionButton from '@/components/AdminActionButton.vue'
 import DataTable from '@/components/DataTable.vue'
 import Select from '@/components/Select.vue'
+import { storeToRefs } from 'pinia'
 
 // Use admin layout
 definePageMeta({
@@ -19,19 +20,12 @@ useHead({
 
 const ticketStore = useTicketStore()
 const authStore = useAuthStore()
+const { tickets, loading, error: storeError } = storeToRefs(ticketStore)
 
 // Redirect if not admin
 if (!authStore.isAuthenticated || authStore.user?.role !== 'admin') {
   await navigateTo('/login')
 }
-
-// Fetch all tickets and statistics on client side
-onMounted(async () => {
-  await Promise.all([
-    ticketStore.fetchAllTickets(),
-    ticketStore.fetchTicketStatistics()
-  ])
-})
 
 const statistics = ref<TicketStatistics | null>(null)
 
@@ -58,6 +52,7 @@ const formatPrice = (price: any): string => {
   const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price)
   return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
 }
+// State
 const selectedStatus = ref('all')
 
 // Status options for the select
@@ -78,12 +73,31 @@ const fetchStats = async () => {
   }
 }
 
-await fetchStats()
+// Fetch all tickets (let DataTable handle pagination client-side)
+const fetchTickets = async () => {
+  try {
+    await ticketStore.fetchAllTickets({
+      per_page: 1000 // Fetch a large number to get all tickets for client-side filtering
+    })
+  } catch (err) {
+    console.error('Failed to fetch tickets:', err)
+  }
+}
+
+// No watchers needed since filtering is handled client-side
+
+// Lifecycle
+onMounted(async () => {
+  await Promise.all([
+    fetchTickets(),
+    fetchStats()
+  ])
+})
 
 const filteredTickets = computed(() => {
-  let filtered = ticketStore.tickets
+  let filtered = tickets.value
 
-  // Filter by status
+  // Filter by status client-side
   if (selectedStatus.value !== 'all') {
     filtered = filtered.filter(ticket => ticket.status === selectedStatus.value)
   }
@@ -138,8 +152,11 @@ const formatDate = (dateString: string) => {
 const updateTicketStatus = async (ticketId: number, newStatus: string) => {
   try {
     await ticketStore.updateTicketStatus(ticketId, newStatus)
-    // Refresh statistics
-    await fetchStats()
+    // Refresh data
+    await Promise.all([
+      fetchTickets(),
+      fetchStats()
+    ])
   } catch (error) {
     console.error('Error updating ticket status:', error)
   }

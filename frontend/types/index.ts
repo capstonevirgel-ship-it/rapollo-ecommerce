@@ -8,3 +8,4 @@ export * from "./cart";
 export * from "./ticket";
 export * from "./size";
 export * from "./settings";
+export * from "./notification";

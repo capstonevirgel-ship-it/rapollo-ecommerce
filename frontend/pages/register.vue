@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
 import { useAlert } from '~/composables/useAlert'
+import { useValidation } from '~/composables/useValidation'
 
 // Disable default layout
 definePageMeta({
@@ -17,7 +18,20 @@ useHead({
 
 const authStore = useAuthStore()
 const router = useRouter()
-const { success, error } = useAlert()
+const { success, error: showError } = useAlert()
+const { validateForm, rules } = useValidation()
+
+// Global error handler
+const handleError = (error: any) => {
+  console.error('Unhandled error:', error)
+  showError('An error occurred', 'Please try again later.')
+}
+
+// Vue error handler
+onErrorCaptured((error: any) => {
+  handleError(error)
+  return false // Prevent the error from propagating
+})
 
 // Form data
 const form = reactive({
@@ -28,44 +42,54 @@ const form = reactive({
   terms: false
 })
 
+
 // Form validation
-const errors = ref<Record<string, string>>({})
+const errors = ref<Record<string, string[]>>({})
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 
+// Validation rules with proper field labels
+const validationRules = {
+  user_name: {
+    ...rules.username(8),
+    fieldName: 'Username'
+  },
+  email: {
+    ...rules.email(),
+    fieldName: 'Email'
+  },
+  password: {
+    ...rules.password(),
+    fieldName: 'Password'
+  },
+  password_confirmation: {
+    ...rules.confirmPassword(form.password),
+    fieldName: 'Confirm Password'
+  },
+  terms: {
+    ...rules.required(),
+    fieldName: 'Terms and Conditions'
+  }
+}
+
 // Handle form submission
-const handleSubmit = async () => {
+const handleSubmit = async (event: Event) => {
+  event.preventDefault()
+  
+  try {
   // Clear previous errors
   errors.value = {}
   
-  // Basic validation
-  if (!form.user_name) {
-    errors.value.user_name = 'Username is required'
-  }
-  if (!form.email) {
-    errors.value.email = 'Email is required'
-  } else if (!/\S+@\S+\.\S+/.test(form.email)) {
-    errors.value.email = 'Email is invalid'
-  }
-  if (!form.password) {
-    errors.value.password = 'Password is required'
-  } else if (form.password.length < 8) {
-    errors.value.password = 'Password must be at least 8 characters'
-  }
-  if (!form.password_confirmation) {
-    errors.value.password_confirmation = 'Password confirmation is required'
-  } else if (form.password !== form.password_confirmation) {
-    errors.value.password_confirmation = 'Passwords do not match'
-  }
-  if (!form.terms) {
-    errors.value.terms = 'You must accept the terms and conditions'
-  }
+    // Validate form
+    const validation = validateForm(form, validationRules)
+    
+    
+    if (!validation.isValid) {
+      errors.value = validation.errors
+      showError('Validation Failed', 'Please check the form for errors.')
+      return
+    }
   
-  if (Object.keys(errors.value).length > 0) {
-    return
-  }
-  
-  try {
     await authStore.register({
       user_name: form.user_name,
       email: form.email,
@@ -74,20 +98,52 @@ const handleSubmit = async () => {
     })
     
     // Show success message
-    success('Registration Successful', 'Your account has been created successfully!')
+    success('Registration Successful', 'Your account has been created and you are now logged in!')
     
-    // Redirect will be handled by the store
+    // Redirect will be handled by the store (automatic login)
   } catch (error: any) {
     console.error('Registration error:', error)
     
     // Handle validation errors
-    if (error.data && error.data.errors) {
-      errors.value = error.data.errors
-      error('Registration Failed', 'Please check the form for errors.')
+    if (error?.data?.errors) {
+      // Convert backend errors to our format
+      const backendErrors: Record<string, string[]> = {}
+      for (const [field, messages] of Object.entries(error.data.errors)) {
+        backendErrors[field] = Array.isArray(messages) ? messages : [messages as string]
+      }
+      errors.value = backendErrors
+      showError('Registration Failed', 'Please check the form for errors.')
     } else {
-      errors.value.general = authStore.error || 'Registration failed. Please try again.'
-      error('Registration Failed', authStore.error || 'Registration failed. Please try again.')
+      errors.value.general = [authStore.error || 'Registration failed. Please try again.']
+      showError('Registration Failed', authStore.error || 'Registration failed. Please try again.')
     }
+  }
+}
+
+// Helper function to get first error for a field
+const getFieldError = (fieldName: string): string => {
+  return errors.value[fieldName]?.[0] || ''
+}
+
+// Helper function to check if field has errors
+const hasFieldError = (fieldName: string): boolean => {
+  return errors.value[fieldName] && errors.value[fieldName].length > 0
+}
+
+// Password toggle functions with error handling
+const togglePassword = () => {
+  try {
+    showPassword.value = !showPassword.value
+  } catch (error) {
+    handleError(error)
+  }
+}
+
+const toggleConfirmPassword = () => {
+  try {
+    showConfirmPassword.value = !showConfirmPassword.value
+  } catch (error) {
+    handleError(error)
   }
 }
 </script>
@@ -170,7 +226,7 @@ const handleSubmit = async () => {
         </div>
 
         <!-- Registration Form -->
-        <form @submit.prevent="handleSubmit" class="mt-8 space-y-6">
+        <form @submit="handleSubmit" class="mt-8 space-y-6">
           <div class="space-y-4">
             <!-- Username Field -->
             <div>
@@ -183,12 +239,11 @@ const handleSubmit = async () => {
                   v-model="form.user_name"
                   type="text"
                   autocomplete="username"
-                  required
                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-zinc-500 focus:border-zinc-500 sm:text-sm"
-                  :class="{ 'border-red-500': errors.user_name }"
+                  :class="{ 'border-red-500': hasFieldError('user_name') }"
                   placeholder="Choose a username"
                 />
-                <p v-if="errors.user_name" class="mt-1 text-sm text-red-600">{{ errors.user_name }}</p>
+                <p v-if="hasFieldError('user_name')" class="mt-1 text-sm text-red-600">{{ getFieldError('user_name') }}</p>
               </div>
             </div>
 
@@ -201,14 +256,13 @@ const handleSubmit = async () => {
                 <input
                   id="email"
                   v-model="form.email"
-                  type="email"
+                  type="text"
                   autocomplete="email"
-                  required
                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-zinc-500 focus:border-zinc-500 sm:text-sm"
-                  :class="{ 'border-red-500': errors.email }"
+                  :class="{ 'border-red-500': hasFieldError('email') }"
                   placeholder="Enter your email address"
                 />
-                <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
+                <p v-if="hasFieldError('email')" class="mt-1 text-sm text-red-600">{{ getFieldError('email') }}</p>
               </div>
             </div>
 
@@ -217,21 +271,21 @@ const handleSubmit = async () => {
               <label for="password" class="block text-sm font-medium text-gray-700">
                 Password
               </label>
-              <div class="mt-1 relative">
-                <input
-                  id="password"
-                  v-model="form.password"
-                  :type="showPassword ? 'text' : 'password'"
-                  autocomplete="new-password"
-                  required
-                  class="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-zinc-500 focus:border-zinc-500 sm:text-sm"
-                  :class="{ 'border-red-500': errors.password }"
-                  placeholder="Create a password"
-                />
+              <div class="mt-1">
+                <div class="relative">
+                  <input
+                    id="password"
+                    v-model="form.password"
+                    :type="showPassword ? 'text' : 'password'"
+                    autocomplete="new-password"
+                    class="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-zinc-500 focus:border-zinc-500 sm:text-sm"
+                    :class="{ 'border-red-500': hasFieldError('password') }"
+                    placeholder="Create a password"
+                  />
                 <button
                   type="button"
-                  @click="showPassword = !showPassword"
-                  class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    @click="togglePassword"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
                 >
                   <svg v-if="showPassword" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -241,7 +295,8 @@ const handleSubmit = async () => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
                   </svg>
                 </button>
-                <p v-if="errors.password" class="mt-1 text-sm text-red-600">{{ errors.password }}</p>
+                </div>
+                <p v-if="hasFieldError('password')" class="mt-1 text-sm text-red-600">{{ getFieldError('password') }}</p>
               </div>
             </div>
 
@@ -250,21 +305,21 @@ const handleSubmit = async () => {
               <label for="password_confirmation" class="block text-sm font-medium text-gray-700">
                 Confirm Password
               </label>
-              <div class="mt-1 relative">
-                <input
-                  id="password_confirmation"
-                  v-model="form.password_confirmation"
-                  :type="showConfirmPassword ? 'text' : 'password'"
-                  autocomplete="new-password"
-                  required
-                  class="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-zinc-500 focus:border-zinc-500 sm:text-sm"
-                  :class="{ 'border-red-500': errors.password_confirmation }"
-                  placeholder="Confirm your password"
-                />
+              <div class="mt-1">
+                <div class="relative">
+                  <input
+                    id="password_confirmation"
+                    v-model="form.password_confirmation"
+                    :type="showConfirmPassword ? 'text' : 'password'"
+                    autocomplete="new-password"
+                    class="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-zinc-500 focus:border-zinc-500 sm:text-sm"
+                    :class="{ 'border-red-500': hasFieldError('password_confirmation') }"
+                    placeholder="Confirm your password"
+                  />
                 <button
                   type="button"
-                  @click="showConfirmPassword = !showConfirmPassword"
-                  class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    @click="toggleConfirmPassword"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
                 >
                   <svg v-if="showConfirmPassword" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -274,7 +329,8 @@ const handleSubmit = async () => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
                   </svg>
                 </button>
-                <p v-if="errors.password_confirmation" class="mt-1 text-sm text-red-600">{{ errors.password_confirmation }}</p>
+                </div>
+                <p v-if="hasFieldError('password_confirmation')" class="mt-1 text-sm text-red-600">{{ getFieldError('password_confirmation') }}</p>
               </div>
             </div>
           </div>
@@ -294,10 +350,10 @@ const handleSubmit = async () => {
               <a href="#" class="text-zinc-900 hover:text-zinc-700">Privacy Policy</a>
             </label>
           </div>
-          <p v-if="errors.terms" class="text-sm text-red-600">{{ errors.terms }}</p>
+          <p v-if="hasFieldError('terms')" class="text-sm text-red-600">{{ getFieldError('terms') }}</p>
 
           <!-- Error Messages -->
-          <div v-if="errors.general" class="rounded-md bg-red-50 p-4">
+          <div v-if="hasFieldError('general')" class="rounded-md bg-red-50 p-4">
             <div class="flex">
               <div class="flex-shrink-0">
                 <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -309,7 +365,7 @@ const handleSubmit = async () => {
                   Registration Failed
                 </h3>
                 <div class="mt-2 text-sm text-red-700">
-                  <p>{{ errors.general }}</p>
+                  <p>{{ getFieldError('general') }}</p>
                 </div>
               </div>
             </div>
@@ -317,19 +373,16 @@ const handleSubmit = async () => {
 
           <!-- Submit Button -->
           <div>
-            <button
+            <LoadingButton
               type="submit"
+              :loading="authStore.loading"
               :disabled="authStore.loading"
-              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              <span v-if="authStore.loading" class="absolute left-0 inset-y-0 flex items-center pl-3">
-                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </span>
-              {{ authStore.loading ? 'Creating account...' : 'Create account' }}
-            </button>
+              loading-text="Creating account..."
+              normal-text="Create account"
+              variant="primary"
+              size="md"
+              class="w-full"
+            />
           </div>
 
           <!-- Social Registration -->
@@ -393,5 +446,30 @@ const handleSubmit = async () => {
   50% {
     transform: translateY(-20px);
   }
+}
+
+/* Ensure password toggle buttons stay properly positioned */
+.relative button[type="button"] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  z-index: 10;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 0.75rem;
+}
+
+.relative button[type="button"]:hover {
+  background: transparent;
+}
+
+.relative button[type="button"]:focus {
+  outline: none;
+  background: transparent;
 }
 </style>

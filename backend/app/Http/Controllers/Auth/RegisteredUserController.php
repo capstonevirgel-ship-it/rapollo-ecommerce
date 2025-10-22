@@ -21,9 +21,9 @@ class RegisteredUserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'user_name' => ['required', 'string', 'max:255', 'unique:'.User::class],
+            'user_name' => ['required', 'string', 'min:8', 'max:255', 'unique:'.User::class],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'confirmed', 'max:128', Rules\Password::defaults()],
         ]);
 
         $user = User::create([
@@ -36,6 +36,18 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
 
         Auth::login($user);
+
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->is('api/*')) {
+            // For API requests, create a Sanctum token
+            $token = $user->createToken('api-token')->plainTextToken;
+            
+            return response()->json([
+                'message' => 'Registration successful',
+                'user' => $user,
+                'token' => $token
+            ]);
+        }
 
         return response()->json([
             'message' => 'Registration successful',

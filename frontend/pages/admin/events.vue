@@ -107,7 +107,7 @@ const handlePosterChange = (event: any) => {
   }
 }
 
-// Upload image and get URL
+// Upload image and get URL (fallback method)
 const uploadPosterImage = async (file: File): Promise<string> => {
   const formData = new FormData()
   formData.append('image', file)
@@ -131,21 +131,26 @@ const createEvent = async () => {
   try {
     isUploadingImage.value = true
     
-    let posterUrl = formData.value.poster_url
+    const eventData = new FormData()
+    eventData.append('title', formData.value.title)
+    eventData.append('description', formData.value.description || '')
+    eventData.append('date', formData.value.date)
+    eventData.append('location', formData.value.location || '')
     
-    // Upload image if a file was selected
     if (posterFile.value) {
-      posterUrl = await uploadPosterImage(posterFile.value)
+      eventData.append('poster_image', posterFile.value)
+    } else if (formData.value.poster_url) {
+      eventData.append('poster_url', formData.value.poster_url)
     }
     
-    const eventData = {
-      ...formData.value,
-      poster_url: posterUrl,
-      ticket_price: formData.value.ticket_price ? parseFloat(formData.value.ticket_price) : undefined,
-      max_tickets: formData.value.max_tickets ? parseInt(formData.value.max_tickets) : undefined
+    if (formData.value.ticket_price) {
+      eventData.append('ticket_price', formData.value.ticket_price)
+    }
+    if (formData.value.max_tickets) {
+      eventData.append('max_tickets', formData.value.max_tickets)
     }
     
-    await eventStore.createEvent(eventData)
+    await eventStore.createEvent(eventData as any)
     closeModals()
   } catch (error) {
     console.error('Error creating event:', error)
@@ -160,21 +165,26 @@ const updateEvent = async () => {
   try {
     isUploadingImage.value = true
     
-    let posterUrl = formData.value.poster_url
+    const eventData = new FormData()
+    eventData.append('title', formData.value.title)
+    eventData.append('description', formData.value.description || '')
+    eventData.append('date', formData.value.date)
+    eventData.append('location', formData.value.location || '')
     
-    // Upload image if a file was selected
     if (posterFile.value) {
-      posterUrl = await uploadPosterImage(posterFile.value)
+      eventData.append('poster_image', posterFile.value)
+    } else if (formData.value.poster_url) {
+      eventData.append('poster_url', formData.value.poster_url)
     }
     
-    const eventData = {
-      ...formData.value,
-      poster_url: posterUrl,
-      ticket_price: formData.value.ticket_price ? parseFloat(formData.value.ticket_price) : undefined,
-      max_tickets: formData.value.max_tickets ? parseInt(formData.value.max_tickets) : undefined
+    if (formData.value.ticket_price) {
+      eventData.append('ticket_price', formData.value.ticket_price)
+    }
+    if (formData.value.max_tickets) {
+      eventData.append('max_tickets', formData.value.max_tickets)
     }
     
-    await eventStore.updateEvent(editingEvent.value.id, eventData)
+    await eventStore.updateEvent(editingEvent.value.id, eventData as any)
     closeModals()
   } catch (error) {
     console.error('Error updating event:', error)
@@ -231,8 +241,13 @@ const formatTime = (dateString: string) => {
       </div>
 
       <!-- Loading State -->
-      <div v-if="eventStore.loading" class="flex justify-center items-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div v-if="eventStore.loading">
+        <LoadingSpinner 
+          size="lg" 
+          color="secondary" 
+          text="Loading events..." 
+          :show-text="true"
+        />
       </div>
 
       <!-- Error State -->

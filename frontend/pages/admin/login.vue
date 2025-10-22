@@ -106,14 +106,16 @@ async function handleLogin() {
 
           <!-- Submit -->
           <div class="pt-2">
-            <button
+            <LoadingButton
               type="submit"
+              :loading="authStore.loading"
               :disabled="authStore.loading"
-              class="w-full flex justify-center items-center gap-2 py-2 px-4 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Icon v-if="authStore.loading" name="mdi:loading" class="animate-spin h-4 w-4" />
-              {{ authStore.loading ? 'Signing in...' : 'Sign in' }}
-            </button>
+              loading-text="Signing in..."
+              normal-text="Sign in"
+              variant="primary"
+              size="md"
+              class="w-full"
+            />
           </div>
         </form>
       </div>

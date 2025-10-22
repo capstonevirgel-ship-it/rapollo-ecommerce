@@ -300,8 +300,13 @@ const refreshData = async () => {
 
 
     <!-- Loading State -->
-    <div v-if="dashboardStore.loading && !dashboardStore.isDataLoaded" class="flex justify-center items-center py-12">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900"></div>
+    <div v-if="dashboardStore.loading && !dashboardStore.isDataLoaded">
+      <LoadingSpinner 
+        size="lg" 
+        color="primary" 
+        text="Loading dashboard data..." 
+        :show-text="true"
+      />
     </div>
 
     <!-- Dashboard Content -->

@@ -3,6 +3,7 @@ import type { Ticket, Event, PaginatedResponse } from '~/types'
 
 export const useTicketStore = defineStore('ticket', () => {
   const tickets = ref<Ticket[]>([])
+  const pagination = ref<any>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -149,15 +150,39 @@ export const useTicketStore = defineStore('ticket', () => {
   }
 
   // Admin functions
-  const fetchAllTickets = async () => {
+  const fetchAllTickets = async (params: {
+    status?: string
+    search?: string
+    per_page?: number
+    page?: number
+  } = {}) => {
     loading.value = true
     error.value = null
     try {
-      const response = await useCustomFetch<PaginatedResponse<Ticket>>('/api/tickets/admin/all')
+      const query = new URLSearchParams()
+      if (params.status && params.status !== 'all') query.append('status', params.status)
+      if (params.search) query.append('search', params.search)
+      if (params.per_page) query.append('per_page', params.per_page.toString())
+      if (params.page) query.append('page', params.page.toString())
+
+      const url = query.toString() ? `/api/tickets/admin/all?${query.toString()}` : '/api/tickets/admin/all'
+      const response = await useCustomFetch<any>(url)
+      
       tickets.value = response.data || []
+      pagination.value = {
+        current_page: response.current_page,
+        last_page: response.last_page,
+        per_page: response.per_page,
+        total: response.total,
+        from: response.from,
+        to: response.to
+      }
+      
+      return response
     } catch (err: any) {
       error.value = err.data?.message || 'Failed to fetch all tickets'
       console.error('Error fetching all tickets:', err)
+      throw err
     } finally {
       loading.value = false
     }
@@ -220,6 +245,7 @@ export const useTicketStore = defineStore('ticket', () => {
 
   return {
     tickets,
+    pagination,
     loading,
     error,
     fetchTickets,

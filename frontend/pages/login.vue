@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
 import { useAlert } from '~/composables/useAlert'
+import { useValidation } from '~/composables/useValidation'
 
 // Disable default layout
 definePageMeta({
@@ -18,6 +19,7 @@ useHead({
 const authStore = useAuthStore()
 const router = useRouter()
 const { success, error } = useAlert()
+const { validateForm, rules } = useValidation()
 
 // Form data
 const form = reactive({
@@ -26,24 +28,31 @@ const form = reactive({
   remember: false
 })
 
+
 // Form validation
-const errors = ref<Record<string, string>>({})
+const errors = ref<Record<string, string[]>>({})
 const showPassword = ref(false)
+
+// Validation rules
+const validationRules = {
+  login: rules.required('Email or username is required'),
+  password: {
+    ...rules.required('Password is required'),
+    maxLength: 128
+  }
+}
 
 // Handle form submission
 const handleSubmit = async () => {
   // Clear previous errors
   errors.value = {}
   
-  // Basic validation
-  if (!form.login) {
-    errors.value.login = 'Email or username is required'
-  }
-  if (!form.password) {
-    errors.value.password = 'Password is required'
-  }
+  // Validate form
+  const validation = validateForm(form, validationRules)
   
-  if (Object.keys(errors.value).length > 0) {
+  if (!validation.isValid) {
+    errors.value = validation.errors
+    error('Validation Failed', 'Please check the form for errors.')
     return
   }
   
@@ -64,6 +73,16 @@ const handleSubmit = async () => {
     // Show error message
     error('Login Failed', error?.message || 'Invalid credentials. Please try again.')
   }
+}
+
+// Helper function to get first error for a field
+const getFieldError = (fieldName: string): string => {
+  return errors.value[fieldName]?.[0] || ''
+}
+
+// Helper function to check if field has errors
+const hasFieldError = (fieldName: string): boolean => {
+  return errors.value[fieldName] && errors.value[fieldName].length > 0
 }
 
 // Redirect if already authenticated
@@ -169,12 +188,11 @@ onMounted(() => {
                   v-model="form.login"
                   type="text"
                   autocomplete="username"
-                  required
                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-zinc-500 focus:border-zinc-500 sm:text-sm"
-                  :class="{ 'border-red-500': errors.login }"
+                  :class="{ 'border-red-500': hasFieldError('login') }"
                   placeholder="Enter your email or username"
                 />
-                <p v-if="errors.login" class="mt-1 text-sm text-red-600">{{ errors.login }}</p>
+                <p v-if="hasFieldError('login')" class="mt-1 text-sm text-red-600">{{ getFieldError('login') }}</p>
               </div>
             </div>
 
@@ -189,15 +207,14 @@ onMounted(() => {
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
                   autocomplete="current-password"
-                  required
                   class="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-zinc-500 focus:border-zinc-500 sm:text-sm"
-                  :class="{ 'border-red-500': errors.password }"
+                  :class="{ 'border-red-500': hasFieldError('password') }"
                   placeholder="Enter your password"
                 />
                 <button
                   type="button"
                   @click="showPassword = !showPassword"
-                  class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
                 >
                   <svg v-if="showPassword" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -207,7 +224,7 @@ onMounted(() => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
                   </svg>
                 </button>
-                <p v-if="errors.password" class="mt-1 text-sm text-red-600">{{ errors.password }}</p>
+                <p v-if="hasFieldError('password')" class="mt-1 text-sm text-red-600">{{ getFieldError('password') }}</p>
               </div>
             </div>
           </div>
@@ -253,19 +270,16 @@ onMounted(() => {
 
           <!-- Submit Button -->
           <div>
-            <button
+            <LoadingButton
               type="submit"
+              :loading="authStore.loading"
               :disabled="authStore.loading"
-              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              <span v-if="authStore.loading" class="absolute left-0 inset-y-0 flex items-center pl-3">
-                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </span>
-              {{ authStore.loading ? 'Signing in...' : 'Sign in' }}
-            </button>
+              loading-text="Signing in..."
+              normal-text="Sign in"
+              variant="primary"
+              size="md"
+              class="w-full"
+            />
           </div>
 
           <!-- Social Login -->
@@ -329,5 +343,30 @@ onMounted(() => {
   50% {
     transform: translateY(-20px);
   }
+}
+
+/* Ensure password toggle buttons stay properly positioned */
+.relative button[type="button"] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  z-index: 10;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 0.75rem;
+}
+
+.relative button[type="button"]:hover {
+  background: transparent;
+}
+
+.relative button[type="button"]:focus {
+  outline: none;
+  background: transparent;
 }
 </style>

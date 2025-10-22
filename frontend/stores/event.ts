@@ -43,11 +43,11 @@ export const useEventStore = defineStore('event', () => {
   }
 
   // Create event (admin only)
-  const createEvent = async (eventData: Partial<Event>) => {
+  const createEvent = async (eventData: any) => {
     loading.value = true
     error.value = null
     try {
-      const response = await useCustomFetch<any>('/api/events', {
+      const response = await $fetch<any>('/api/events', {
         method: 'POST',
         body: eventData
       })
@@ -66,11 +66,11 @@ export const useEventStore = defineStore('event', () => {
   }
 
   // Update event (admin only)
-  const updateEvent = async (eventId: number, eventData: Partial<Event>) => {
+  const updateEvent = async (eventId: number, eventData: any) => {
     loading.value = true
     error.value = null
     try {
-      const response = await useCustomFetch<any>(`/api/events/${eventId}`, {
+      const response = await $fetch<any>(`/api/events/${eventId}`, {
         method: 'PUT',
         body: eventData
       })

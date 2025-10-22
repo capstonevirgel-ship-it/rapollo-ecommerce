@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Event } from '~/types'
 import Dialog from '~/components/Dialog.vue'
-import TicketReview from '~/components/TicketReview.vue'
 import Select from '~/components/Select.vue'
 
 const eventStore = useEventStore()
@@ -28,8 +27,6 @@ useHead({
 const selectedQuantity = ref(1)
 const bookingEvent = ref<Event | null>(null)
 const showBookingModal = ref(false)
-const showTicketReview = ref(false)
-const bookingLoading = ref(false)
 const paymentLoading = ref(false)
 const paymentError = ref('')
 
@@ -61,17 +58,6 @@ const openBookingModal = (event: Event) => {
 
 const closeBookingModal = () => {
   showBookingModal.value = false
-  bookingEvent.value = null
-  selectedQuantity.value = 1
-}
-
-const openTicketReview = () => {
-  showBookingModal.value = false
-  showTicketReview.value = true
-}
-
-const closeTicketReview = () => {
-  showTicketReview.value = false
   bookingEvent.value = null
   selectedQuantity.value = 1
   paymentError.value = ''
@@ -271,34 +257,18 @@ const canBookTickets = (event: Event) => {
     <Dialog 
       v-model="showBookingModal" 
       title="Book Tickets"
-      width="400px"
+      width="500px"
     >
       <div v-if="bookingEvent" class="space-y-6">
-        <!-- Event Details -->
-        <div class="bg-gray-50 rounded-lg p-4">
-          <h4 class="text-lg font-semibold text-gray-900 mb-2">{{ bookingEvent.title }}</h4>
-          <div class="space-y-1 text-sm text-gray-600">
-            <p class="flex items-center">
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              {{ formatDate(bookingEvent.date) }} at {{ formatTime(bookingEvent.date) }}
-            </p>
-            <p v-if="bookingEvent.location" class="flex items-center">
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              {{ bookingEvent.location }}
-            </p>
-            <p class="flex items-center">
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-              </svg>
-              {{ getRemainingTickets(bookingEvent) }} tickets remaining
-            </p>
+        <!-- Event Summary -->
+        <div class="text-center">
+          <h3 class="text-xl font-bold text-gray-900 mb-2">{{ bookingEvent.title }}</h3>
+          <div class="text-sm text-gray-600 space-y-1">
+            <p>{{ formatDate(bookingEvent.date) }} at {{ formatTime(bookingEvent.date) }}</p>
+            <p v-if="bookingEvent.location">{{ bookingEvent.location }}</p>
+            <p class="text-blue-600 font-medium">{{ getRemainingTickets(bookingEvent) }} tickets remaining</p>
           </div>
-          </div>
+        </div>
 
         <!-- Ticket Selection -->
         <div>
@@ -310,52 +280,42 @@ const canBookTickets = (event: Event) => {
             size="md"
             variant="outline"
           />
-          <p class="mt-1 text-xs text-gray-500">Maximum 5 tickets per person to prevent scalping</p>
         </div>
 
         <!-- Price Summary -->
-        <div class="bg-blue-50 rounded-lg p-4">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-medium text-gray-700">Total Price:</span>
-            <span class="text-xl font-bold text-blue-900">₱{{ (parseFloat(bookingEvent.ticket_price!.toString()) * selectedQuantity).toFixed(2) }}</span>
-            </div>
-          <p class="text-xs text-gray-500 mt-1">₱{{ bookingEvent.ticket_price }} per ticket</p>
+        <div class="bg-zinc-50 rounded-lg p-4 text-center">
+          <div class="text-2xl font-bold text-zinc-900">
+            ₱{{ (parseFloat(bookingEvent.ticket_price!.toString()) * selectedQuantity).toFixed(2) }}
           </div>
+          <p class="text-sm text-gray-600">{{ selectedQuantity }} × ₱{{ bookingEvent.ticket_price }} per ticket</p>
+        </div>
+
+        <!-- Error Message -->
+        <div v-if="paymentError" class="bg-red-50 border border-red-200 rounded-lg p-3">
+          <p class="text-sm text-red-600">{{ paymentError }}</p>
+        </div>
 
         <!-- Action Buttons -->
-        <div class="flex space-x-3 pt-4">
-            <button
-              @click="closeBookingModal"
+        <div class="flex space-x-3">
+          <button
+            @click="closeBookingModal"
             class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              @click="openTicketReview"
-            :disabled="getRemainingTickets(bookingEvent) === 0"
-            class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <span v-if="getRemainingTickets(bookingEvent) === 0">
-              Sold Out
-            </span>
-            <span v-else>
-              Review & Pay
-            </span>
-            </button>
+            Cancel
+          </button>
+          <LoadingButton
+            :loading="paymentLoading"
+            :disabled="getRemainingTickets(bookingEvent) === 0 || paymentLoading"
+            loading-text="Processing..."
+            :normal-text="getRemainingTickets(bookingEvent) === 0 ? 'Sold Out' : 'Book Now'"
+            variant="primary"
+            size="md"
+            class="flex-1"
+            @click="proceedToPayment"
+          />
         </div>
       </div>
     </Dialog>
-
-    <!-- Ticket Review Modal -->
-    <TicketReview
-      v-if="showTicketReview && bookingEvent"
-      :event="bookingEvent"
-      :quantity="selectedQuantity"
-      :user="authStore.user"
-      :loading="paymentLoading"
-      @close="closeTicketReview"
-      @proceed="proceedToPayment"
-    />
 
     <!-- CTA Section -->
     <CTA class="mt-12" />
