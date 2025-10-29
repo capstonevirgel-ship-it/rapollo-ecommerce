@@ -53,7 +53,7 @@ useHead(() => {
   if (product.value) {
     const title = product.value.meta_title || product.value.name
     return {
-      title: `${title} - Rapollo E-commerce`,
+      title: `${title} | RAPOLLO`,
       meta: [
         { name: 'description', content: product.value.meta_description || product.value.description || '' },
         { name: 'keywords', content: product.value.meta_keywords || '' }
@@ -61,7 +61,7 @@ useHead(() => {
     }
   }
   return {
-    title: 'Product - Rapollo E-commerce'
+    title: 'Product | RAPOLLO'
   }
 })
 
@@ -70,6 +70,7 @@ const selectedColor = ref<string | null>(null)
 const selectedSize = ref<number | null>(null)
 const selectedQuantity = ref(1)
 const isClient = ref(false)
+const currentImageIndex = ref(0)
 
 // Set client flag on mount and load guest cart
 onMounted(() => {
@@ -153,10 +154,37 @@ const currentVariant = computed(() => {
 })
 
 const currentImages = computed(() => {
-  if (currentVariant.value?.images?.length) {
-    return currentVariant.value.images
+  if (!product.value?.images) return []
+  
+  // If a specific variant is selected, filter images by color
+  if (selectedColor.value) {
+    // Filter images that belong to variants with the selected color
+    const variantImages = product.value.variants
+      ?.filter(variant => variant.color?.id.toString() === selectedColor.value)
+      ?.flatMap(variant => variant.images || []) || []
+    
+    // Also include general product images that might be color-specific
+    const generalImages = product.value.images.filter(image => {
+      // If image has variant_id, check if it belongs to selected color variant
+      if (image.variant_id) {
+        const variant = product.value.variants?.find(v => v.id === image.variant_id)
+        return variant?.color?.id.toString() === selectedColor.value
+      }
+      // If no variant_id, include it (general product images)
+      return true
+    })
+    
+    // Combine and deduplicate images
+    const allImages = [...variantImages, ...generalImages]
+    const uniqueImages = allImages.filter((image, index, self) => 
+      index === self.findIndex(img => img.id === image.id)
+    )
+    
+    return uniqueImages.length > 0 ? uniqueImages : product.value.images
   }
-  return product.value?.images || []
+  
+  // If no color selected, show all images
+  return product.value.images || []
 })
 
 const stockStatus = computed(() => {
@@ -191,6 +219,11 @@ const maxAvailableQuantity = computed(() => {
 const selectColor = (colorId: string) => {
   selectedColor.value = colorId
   selectedSize.value = null // Reset size when color changes
+  currentImageIndex.value = 0 // Reset to first image when color changes
+}
+
+const selectImage = (index: number) => {
+  currentImageIndex.value = index
 }
 
 const selectSize = (sizeId: number) => {
@@ -301,7 +334,7 @@ const addToCart = async () => {
         <div class="w-full md:w-1/2">
           <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4">
             <img
-              :src="getImageUrl(currentImages[0]?.url)"
+              :src="getImageUrl(currentImages[currentImageIndex]?.url)"
               :alt="product.name"
               class="w-full h-full object-cover"
             />
@@ -314,8 +347,13 @@ const addToCart = async () => {
               :key="index"
               :src="getImageUrl(image.url)"
               :alt="product.name"
-              class="w-16 h-16 object-cover rounded cursor-pointer border-2 border-transparent hover:border-gray-300"
-              @click="currentImages[0] = currentImages[index]"
+              :class="[
+                'w-16 h-16 object-cover rounded cursor-pointer border-2 transition-all duration-200',
+                currentImageIndex === index 
+                  ? 'border-gray-800 scale-105' 
+                  : 'border-transparent hover:border-gray-300'
+              ]"
+              @click="selectImage(index)"
             />
           </div>
         </div>

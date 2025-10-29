@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { useSettingsStore } from '~/stores/settings'
+import { getImageUrl } from '~/utils/imageHelper'
+
 definePageMeta({
   layout: false
 })
 
 // Set page title
 useHead({
-  title: 'Admin Login - Rapollo E-commerce',
+  title: 'Admin Login | RAPOLLO',
   meta: [
     { name: 'description', content: 'Admin login page for Rapollo E-commerce store management.' }
   ]
@@ -15,6 +18,12 @@ const username = ref('')
 const password = ref('')
 const rememberMe = ref(false)
 const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
+
+// Load settings on mount
+onMounted(async () => {
+  await settingsStore.fetchSettings()
+})
 
 async function handleLogin() {
   try {
@@ -35,8 +44,14 @@ async function handleLogin() {
   <div class="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4 py-10">
     <div class="w-full max-w-sm">
       <div class="text-center mb-8">
-        <Icon name="mdi:shield-account" class="mx-auto h-12 w-12 text-indigo-600" />
-        <h2 class="mt-4 text-2xl font-bold text-gray-900">Admin Portal</h2>
+        <div class="mx-auto w-32 h-32 mb-4 flex items-center justify-center rounded-full overflow-hidden">
+          <img 
+            src="/uploads/admin_logo.svg"
+            alt="Rapollo E-Commerce"
+            class="w-full h-full object-contain"
+          />
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 font-winner-extra-bold">{{ settingsStore.siteName || 'Admin Portal' }}</h2>
         <p class="mt-1 text-sm text-gray-600">Sign in to access your dashboard</p>
       </div>
 
@@ -121,7 +136,7 @@ async function handleLogin() {
       </div>
 
       <p class="mt-8 text-center text-sm text-gray-500">
-        © {{ new Date().getFullYear() }} Your Company. All rights reserved.
+        © {{ new Date().getFullYear() }} {{ settingsStore.siteName || 'Rapollo E-Commerce' }}. All rights reserved.
       </p>
     </div>
   </div>

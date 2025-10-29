@@ -85,7 +85,7 @@
             font-size: 14px;
             color: #71717a;
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            background-color: #f8fafc;
+            background-color: #f1f5f9;
             padding: 8px 12px;
             border-radius: 6px;
             display: inline-block;
@@ -109,14 +109,6 @@
             font-weight: bold;
         }
         
-        .event-details {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 32px;
-        }
-        
         .section-title {
             font-size: 18px;
             font-weight: 600;
@@ -124,6 +116,14 @@
             margin-bottom: 20px;
             padding-bottom: 8px;
             border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .event-details {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 32px;
         }
         
         .event-info {
@@ -148,69 +148,135 @@
             flex: 1;
         }
         
-        .ticket-item {
-            background-color: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 16px;
-            position: relative;
-            overflow: hidden;
+        /* Ticket Design */
+        .ticket-container {
+            margin-bottom: 32px;
         }
         
-        .ticket-item::before {
+        .ticket {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 0;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .ticket::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #18181b 0%, #27272a 100%);
+            height: 6px;
+            background: linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%);
         }
         
         .ticket-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
+            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
+            color: white;
+            padding: 20px 24px;
+            text-align: center;
+            position: relative;
         }
         
-        .ticket-number-large {
+        .ticket-title {
             font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .ticket-subtitle {
+            font-size: 14px;
+            color: #a1a1aa;
+            font-weight: 400;
+        }
+        
+        .ticket-body {
+            padding: 24px;
+        }
+        
+        .ticket-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .ticket-info-item {
+            text-align: center;
+            padding: 12px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .ticket-info-label {
+            font-size: 12px;
+            color: #71717a;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .ticket-info-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #18181b;
+        }
+        
+        .ticket-number-display {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .ticket-number-label {
+            font-size: 12px;
+            color: #71717a;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .ticket-number-value {
+            font-size: 24px;
             font-weight: 700;
             color: #18181b;
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background-color: #f1f5f9;
+            padding: 12px 20px;
+            border-radius: 8px;
+            display: inline-block;
+            border: 2px dashed #cbd5e1;
         }
         
-        .ticket-price {
-            font-size: 20px;
-            font-weight: 700;
-            color: #18181b;
-        }
-        
-        .ticket-details {
-            display: grid;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-        
-        .ticket-detail {
-            font-size: 14px;
-            color: #71717a;
+        .qr-section {
+            text-align: center;
+            margin-top: 20px;
         }
         
         .qr-placeholder {
-            width: 80px;
-            height: 80px;
+            width: 120px;
+            height: 120px;
             background-color: #f1f5f9;
-            border: 2px dashed #cbd5e1;
-            border-radius: 8px;
+            border: 3px dashed #cbd5e1;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 16px auto 0;
+            margin: 0 auto 12px;
             color: #94a3b8;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .qr-label {
             font-size: 12px;
+            color: #71717a;
             font-weight: 500;
         }
         
@@ -303,14 +369,14 @@
                 padding: 24px 20px;
             }
             
-            .ticket-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
+            .ticket-info-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
             }
             
-            .ticket-price {
-                align-self: flex-end;
+            .ticket-number-value {
+                font-size: 20px;
+                padding: 10px 16px;
             }
         }
     </style>
@@ -369,22 +435,49 @@
 
             <!-- Tickets -->
             <div class="section-title">Your Tickets</div>
-            @foreach($purchase->tickets as $ticket)
-                <div class="ticket-item">
-                    <div class="ticket-header">
-                        <div class="ticket-number-large">#{{ $ticket->ticket_number }}</div>
-                        <div class="ticket-price">₱{{ number_format($ticket->price, 2) }}</div>
+            <div class="ticket-container">
+                @foreach($purchase->tickets as $ticket)
+                    <div class="ticket">
+                        <div class="ticket-header">
+                            <div class="ticket-title">EVENT TICKET</div>
+                            <div class="ticket-subtitle">{{ $purchase->event->title ?? 'Event' }}</div>
+                        </div>
+                        
+                        <div class="ticket-body">
+                            <div class="ticket-info-grid">
+                                <div class="ticket-info-item">
+                                    <div class="ticket-info-label">Date</div>
+                                    <div class="ticket-info-value">{{ \Carbon\Carbon::parse($purchase->event->date)->format('M j, Y') }}</div>
+                                </div>
+                                <div class="ticket-info-item">
+                                    <div class="ticket-info-label">Time</div>
+                                    <div class="ticket-info-value">{{ \Carbon\Carbon::parse($purchase->event->date)->format('g:i A') }}</div>
+                                </div>
+                                <div class="ticket-info-item">
+                                    <div class="ticket-info-label">Location</div>
+                                    <div class="ticket-info-value">{{ $purchase->event->location ?? 'TBA' }}</div>
+                                </div>
+                                <div class="ticket-info-item">
+                                    <div class="ticket-info-label">Price</div>
+                                    <div class="ticket-info-value">₱{{ number_format($ticket->price, 2) }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="ticket-number-display">
+                                <div class="ticket-number-label">Ticket Number</div>
+                                <div class="ticket-number-value">#{{ $ticket->ticket_number }}</div>
+                            </div>
+                            
+                            <div class="qr-section">
+                                <div class="qr-placeholder">
+                                    QR Code
+                                </div>
+                                <div class="qr-label">Present this QR code at the entrance</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="ticket-details">
-                        <div class="ticket-detail">Type: General Admission</div>
-                        <div class="ticket-detail">Valid for: {{ $purchase->event->title ?? 'Event' }}</div>
-                        <div class="ticket-detail">Status: Confirmed</div>
-                    </div>
-                    <div class="qr-placeholder">
-                        QR Code
-                    </div>
-                </div>
-            @endforeach
+                @endforeach
+            </div>
 
             <!-- Total -->
             <div class="total-section">

@@ -43,7 +43,7 @@ onMounted(async () => {
 
 // Set page title
 useHead({
-  title: 'Shopping Cart - Rapollo E-commerce',
+  title: 'Shopping Cart | RAPOLLO',
   meta: [
     { name: 'description', content: 'Review your selected items and proceed to checkout at Rapollo E-commerce.' }
   ]

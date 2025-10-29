@@ -43,16 +43,32 @@ class SubcategoryController extends Controller
     /**
      * Display the specified subcategory.
      */
-    public function show(Subcategory $subcategory)
+    public function show($subcategory)
     {
-        return response()->json($subcategory->load([
-            'category',
-            'products.brand',
-            'products.variants.color',
-            'products.variants.size',
-            'products.variants.images',
-            'products.images'
-        ]));
+        // Check if the parameter is numeric (ID) or string (slug)
+        if (is_numeric($subcategory)) {
+            // Handle by ID
+            $subcategory = Subcategory::with([
+                'category',
+                'products.brand',
+                'products.variants.color',
+                'products.variants.size',
+                'products.variants.images',
+                'products.images'
+            ])->findOrFail($subcategory);
+        } else {
+            // Handle by slug
+            $subcategory = Subcategory::with([
+                'category',
+                'products.brand',
+                'products.variants.color',
+                'products.variants.size',
+                'products.variants.images',
+                'products.images'
+            ])->where('slug', $subcategory)->firstOrFail();
+        }
+        
+        return response()->json($subcategory);
     }
 
     /**

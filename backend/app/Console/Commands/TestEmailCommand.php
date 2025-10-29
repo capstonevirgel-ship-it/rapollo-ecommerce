@@ -24,7 +24,7 @@ class TestEmailCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Test email sending with Resend';
+    protected $description = 'Test email sending with Gmail SMTP';
 
     /**
      * Execute the console command.
@@ -35,7 +35,7 @@ class TestEmailCommand extends Command
         $email = $this->argument('email');
         
         if (!$email) {
-            $email = $this->ask('Enter email address to send test email to');
+            $email = 'lancejavate2002@gmail.com';
         }
         
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {

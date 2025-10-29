@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { getImageUrl } from '~/utils/imageHelper'
 import type { Event } from '~/types'
+import EventSkeleton from '~/components/skeleton/EventSkeleton.vue'
 
 interface Props {
   events: Event[]
@@ -95,12 +96,7 @@ onUnmounted(() => {
 <template>
   <div class="max-w-6xl mx-auto relative">
     <!-- Loading State -->
-    <div v-if="loading" class="flex flex-col md:flex-row gap-6 items-start">
-      <div class="w-full h-[400px] bg-gray-200 rounded-2xl animate-pulse"></div>
-      <div class="flex flex-row md:flex-col gap-2 w-full md:w-[120px]">
-        <div v-for="n in 4" :key="n" class="w-full h-20 bg-gray-200 rounded-lg animate-pulse"></div>
-      </div>
-    </div>
+    <EventSkeleton v-if="loading" />
 
     <!-- No Events State -->
     <div v-else-if="events.length === 0" class="text-center py-12">
@@ -169,13 +165,13 @@ onUnmounted(() => {
       </div>
 
       <!-- Event Thumbnails -->
-      <div class="flex flex-row lg:flex-col gap-3 w-full lg:w-[140px] h-[400px]">
+      <div class="flex flex-row lg:flex-col gap-3 w-full lg:w-[140px] lg:h-[400px] h-[150px]">
         <div
           v-for="(event, idx) in events.slice(0, 4)"
           :key="event.id"
           @click="setImage(idx)"
           :class="[
-            'relative w-full h-[calc(25%-9px)] lg:h-[calc(25%-9px)] rounded-lg overflow-hidden cursor-pointer transition-all duration-300 group',
+            'relative w-full h-auto lg:h-[calc(25%-9px)] rounded-lg overflow-hidden cursor-pointer transition-all duration-300 group',
             currentIndex === idx 
               ? 'ring-2 ring-gray-900 scale-105 shadow-lg' 
               : 'opacity-70 hover:opacity-100 hover:scale-105'
@@ -192,7 +188,7 @@ onUnmounted(() => {
     </div>
 
     <!-- View All Events Button -->
-    <div class="text-center mt-8">
+    <div class="text-center mt-4 md:mt-8">
       <NuxtLink
         to="/events"
         class="inline-flex items-center px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"

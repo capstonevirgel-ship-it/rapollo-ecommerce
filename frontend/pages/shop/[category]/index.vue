@@ -18,11 +18,14 @@ const isDataLoaded = ref(false)
 
 // Fetch category data on component mount
 onMounted(async () => {
+  console.log('Category page mounted, fetching category:', categorySlug)
   try {
     await categoryStore.fetchCategoryBySlug(categorySlug as string)
+    console.log('Category fetched successfully:', category.value?.name)
     isDataLoaded.value = true
   } catch (error) {
     console.error('Failed to fetch category:', error)
+    isDataLoaded.value = true // Set to true even on error to stop skeleton
   }
 })
 
@@ -31,14 +34,14 @@ useHead(() => {
   if (category.value) {
     const title = category.value.meta_title || category.value.name
     return {
-      title: `${title} - Rapollo E-commerce`,
+      title: `${title} | RAPOLLO`,
       meta: [
         { name: 'description', content: category.value.meta_description || `Shop ${category.value.name} products at Rapollo E-commerce` }
       ]
     }
   }
   return {
-    title: 'Category - Rapollo E-commerce'
+    title: 'Category | RAPOLLO'
   }
 })
 </script>

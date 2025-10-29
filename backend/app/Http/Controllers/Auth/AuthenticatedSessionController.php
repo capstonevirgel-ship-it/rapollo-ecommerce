@@ -21,12 +21,17 @@ class AuthenticatedSessionController extends Controller
         if ($request->expectsJson() || $request->is('api/*')) {
             // For API requests, create a Sanctum token
             $user = $request->user();
-            $token = $user->createToken('api-token')->plainTextToken;
+            $remember = $request->boolean('remember', false);
+            
+            // Create token with appropriate expiration
+            $tokenName = $remember ? 'remember-token' : 'api-token';
+            $token = $user->createToken($tokenName, $remember ? ['*'] : ['*'], $remember ? now()->addDays(30) : now()->addHours(24))->plainTextToken;
             
             return response()->json([
                 'message' => 'Login successful',
                 'user' => $user,
-                'token' => $token
+                'token' => $token,
+                'remember' => $remember
             ]);
         }
 

@@ -24,6 +24,7 @@ class ProductVariantSeeder extends Seeder
         $gray = Color::where('name', 'Gray')->first();
         $navy = Color::where('name', 'Navy')->first();
         $beige = Color::where('name', 'Beige')->first();
+        $brown = Color::where('name', 'Brown')->first();
 
         // Get sizes
         $xs = Size::where('name', 'XS')->first();
@@ -40,74 +41,59 @@ class ProductVariantSeeder extends Seeder
         $size12 = Size::where('name', '12')->first();
         $oneSize = Size::where('name', 'One Size')->first();
 
-        // Get products
-        $classicWhiteTee = Product::where('slug', 'classic-white-t-shirt')->first();
-        $graphicTee = Product::where('slug', 'graphic-print-t-shirt')->first();
-        $linenShirt = Product::where('slug', 'linen-button-up-shirt')->first();
-        $slimJeans = Product::where('slug', 'slim-fit-jeans')->first();
-        $snapbackCap = Product::where('slug', 'snapback-cap')->first();
-        $sportsWatch = Product::where('slug', 'sports-watch')->first();
-        $casualBlouse = Product::where('slug', 'casual-blouse')->first();
-        $classicSneakers = Product::where('slug', 'classic-sneakers')->first();
+        // Get Rapollo products
+        $fliptopTee = Product::where('slug', 'fliptop-collaboration-t-shirt')->first();
+        $rxpandaTee = Product::where('slug', 'rxpanda-collaboration-t-shirt')->first();
+        $turbohecticTee = Product::where('slug', 'turbohectic-collaboration-t-shirt')->first();
+        $ubecTee = Product::where('slug', 'ubec-classic-t-shirt')->first();
+        $sweatshirt = Product::where('slug', 'premium-sweatshirt')->first();
+        $socks = Product::where('slug', 'athletic-socks')->first();
+        $towel = Product::where('slug', 'sports-towel')->first();
 
         $variants = [
-            // Classic White T-Shirt variants
-            ['product_id' => $classicWhiteTee->id, 'color_id' => $white->id, 'size_id' => $s->id, 'price' => 24.99, 'stock' => 50, 'sku' => 'NKE-WHT-TEE-S'],
-            ['product_id' => $classicWhiteTee->id, 'color_id' => $white->id, 'size_id' => $m->id, 'price' => 24.99, 'stock' => 75, 'sku' => 'NKE-WHT-TEE-M'],
-            ['product_id' => $classicWhiteTee->id, 'color_id' => $white->id, 'size_id' => $l->id, 'price' => 24.99, 'stock' => 60, 'sku' => 'NKE-WHT-TEE-L'],
-            ['product_id' => $classicWhiteTee->id, 'color_id' => $white->id, 'size_id' => $xl->id, 'price' => 24.99, 'stock' => 40, 'sku' => 'NKE-WHT-TEE-XL'],
-            ['product_id' => $classicWhiteTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'price' => 24.99, 'stock' => 45, 'sku' => 'NKE-BLK-TEE-S'],
-            ['product_id' => $classicWhiteTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'price' => 24.99, 'stock' => 70, 'sku' => 'NKE-BLK-TEE-M'],
-            ['product_id' => $classicWhiteTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'price' => 24.99, 'stock' => 55, 'sku' => 'NKE-BLK-TEE-L'],
+            // FlipTop Collaboration T-Shirt variants (Black main + Red/Brown variants)
+            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'price' => 899.00, 'stock' => 50, 'sku' => 'NKE-FLIP-BLK-S'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'price' => 899.00, 'stock' => 75, 'sku' => 'NKE-FLIP-BLK-M'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'price' => 899.00, 'stock' => 60, 'sku' => 'NKE-FLIP-BLK-L'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'price' => 899.00, 'stock' => 40, 'sku' => 'NKE-FLIP-BLK-XL'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $red->id, 'size_id' => $s->id, 'price' => 899.00, 'stock' => 30, 'sku' => 'NKE-FLIP-RED-S'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $red->id, 'size_id' => $m->id, 'price' => 899.00, 'stock' => 50, 'sku' => 'NKE-FLIP-RED-M'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $red->id, 'size_id' => $l->id, 'price' => 899.00, 'stock' => 40, 'sku' => 'NKE-FLIP-RED-L'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $s->id, 'price' => 899.00, 'stock' => 25, 'sku' => 'NKE-FLIP-BRN-S'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $m->id, 'price' => 899.00, 'stock' => 35, 'sku' => 'NKE-FLIP-BRN-M'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $l->id, 'price' => 899.00, 'stock' => 30, 'sku' => 'NKE-FLIP-BRN-L'],
 
-            // Graphic Print T-Shirt variants
-            ['product_id' => $graphicTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'price' => 29.99, 'stock' => 30, 'sku' => 'ADD-BLK-GRAPHIC-S'],
-            ['product_id' => $graphicTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'price' => 29.99, 'stock' => 50, 'sku' => 'ADD-BLK-GRAPHIC-M'],
-            ['product_id' => $graphicTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'price' => 29.99, 'stock' => 40, 'sku' => 'ADD-BLK-GRAPHIC-L'],
-            ['product_id' => $graphicTee->id, 'color_id' => $white->id, 'size_id' => $s->id, 'price' => 29.99, 'stock' => 25, 'sku' => 'ADD-WHT-GRAPHIC-S'],
-            ['product_id' => $graphicTee->id, 'color_id' => $white->id, 'size_id' => $m->id, 'price' => 29.99, 'stock' => 45, 'sku' => 'ADD-WHT-GRAPHIC-M'],
+            // RxPanda Collaboration T-Shirt variants (Black only)
+            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'price' => 799.00, 'stock' => 30, 'sku' => 'ADD-RXP-BLK-S'],
+            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'price' => 799.00, 'stock' => 50, 'sku' => 'ADD-RXP-BLK-M'],
+            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'price' => 799.00, 'stock' => 40, 'sku' => 'ADD-RXP-BLK-L'],
+            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'price' => 799.00, 'stock' => 25, 'sku' => 'ADD-RXP-BLK-XL'],
 
-            // Linen Button-Up Shirt variants
-            ['product_id' => $linenShirt->id, 'color_id' => $beige->id, 'size_id' => $s->id, 'price' => 39.99, 'stock' => 20, 'sku' => 'UNQ-BEIGE-LINEN-S'],
-            ['product_id' => $linenShirt->id, 'color_id' => $beige->id, 'size_id' => $m->id, 'price' => 39.99, 'stock' => 35, 'sku' => 'UNQ-BEIGE-LINEN-M'],
-            ['product_id' => $linenShirt->id, 'color_id' => $beige->id, 'size_id' => $l->id, 'price' => 39.99, 'stock' => 30, 'sku' => 'UNQ-BEIGE-LINEN-L'],
-            ['product_id' => $linenShirt->id, 'color_id' => $white->id, 'size_id' => $s->id, 'price' => 39.99, 'stock' => 15, 'sku' => 'UNQ-WHT-LINEN-S'],
-            ['product_id' => $linenShirt->id, 'color_id' => $white->id, 'size_id' => $m->id, 'price' => 39.99, 'stock' => 25, 'sku' => 'UNQ-WHT-LINEN-M'],
+            // TurboHectic Collaboration T-Shirt variants (Black only)
+            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'price' => 799.00, 'stock' => 30, 'sku' => 'PUM-TURBO-BLK-S'],
+            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'price' => 799.00, 'stock' => 50, 'sku' => 'PUM-TURBO-BLK-M'],
+            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'price' => 799.00, 'stock' => 40, 'sku' => 'PUM-TURBO-BLK-L'],
+            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'price' => 799.00, 'stock' => 25, 'sku' => 'PUM-TURBO-BLK-XL'],
 
-            // Slim Fit Jeans variants
-            ['product_id' => $slimJeans->id, 'color_id' => $blue->id, 'size_id' => $s->id, 'price' => 59.99, 'stock' => 25, 'sku' => 'ZAR-BLU-JEANS-S'],
-            ['product_id' => $slimJeans->id, 'color_id' => $blue->id, 'size_id' => $m->id, 'price' => 59.99, 'stock' => 40, 'sku' => 'ZAR-BLU-JEANS-M'],
-            ['product_id' => $slimJeans->id, 'color_id' => $blue->id, 'size_id' => $l->id, 'price' => 59.99, 'stock' => 35, 'sku' => 'ZAR-BLU-JEANS-L'],
-            ['product_id' => $slimJeans->id, 'color_id' => $black->id, 'size_id' => $s->id, 'price' => 59.99, 'stock' => 20, 'sku' => 'ZAR-BLK-JEANS-S'],
-            ['product_id' => $slimJeans->id, 'color_id' => $black->id, 'size_id' => $m->id, 'price' => 59.99, 'stock' => 30, 'sku' => 'ZAR-BLK-JEANS-M'],
+            // Ubec Classic T-Shirt variants (White main + Brown variants)
+            ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $s->id, 'price' => 699.00, 'stock' => 20, 'sku' => 'UNQ-UBEC-WHT-S'],
+            ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $m->id, 'price' => 699.00, 'stock' => 35, 'sku' => 'UNQ-UBEC-WHT-M'],
+            ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $l->id, 'price' => 699.00, 'stock' => 30, 'sku' => 'UNQ-UBEC-WHT-L'],
+            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $s->id, 'price' => 699.00, 'stock' => 15, 'sku' => 'UNQ-UBEC-BRN-S'],
+            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $m->id, 'price' => 699.00, 'stock' => 25, 'sku' => 'UNQ-UBEC-BRN-M'],
+            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $l->id, 'price' => 699.00, 'stock' => 20, 'sku' => 'UNQ-UBEC-BRN-L'],
 
-            // Snapback Cap variants
-            ['product_id' => $snapbackCap->id, 'color_id' => $black->id, 'size_id' => $oneSize->id, 'price' => 19.99, 'stock' => 100, 'sku' => 'PUM-BLK-CAP-OS'],
-            ['product_id' => $snapbackCap->id, 'color_id' => $white->id, 'size_id' => $oneSize->id, 'price' => 19.99, 'stock' => 80, 'sku' => 'PUM-WHT-CAP-OS'],
-            ['product_id' => $snapbackCap->id, 'color_id' => $red->id, 'size_id' => $oneSize->id, 'price' => 19.99, 'stock' => 60, 'sku' => 'PUM-RED-CAP-OS'],
+            // Premium Sweatshirt variants (White only)
+            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $s->id, 'price' => 1299.00, 'stock' => 15, 'sku' => 'ZAR-SWEAT-WHT-S'],
+            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $m->id, 'price' => 1299.00, 'stock' => 25, 'sku' => 'ZAR-SWEAT-WHT-M'],
+            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $l->id, 'price' => 1299.00, 'stock' => 20, 'sku' => 'ZAR-SWEAT-WHT-L'],
+            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $xl->id, 'price' => 1299.00, 'stock' => 15, 'sku' => 'ZAR-SWEAT-WHT-XL'],
 
-            // Sports Watch variants
-            ['product_id' => $sportsWatch->id, 'color_id' => $black->id, 'size_id' => $oneSize->id, 'price' => 89.99, 'stock' => 25, 'sku' => 'NKE-BLK-WATCH-OS'],
-            ['product_id' => $sportsWatch->id, 'color_id' => $white->id, 'size_id' => $oneSize->id, 'price' => 89.99, 'stock' => 20, 'sku' => 'NKE-WHT-WATCH-OS'],
-            ['product_id' => $sportsWatch->id, 'color_id' => $blue->id, 'size_id' => $oneSize->id, 'price' => 89.99, 'stock' => 15, 'sku' => 'NKE-BLU-WATCH-OS'],
+            // Athletic Socks variants (Red only)
+            ['product_id' => $socks->id, 'color_id' => $red->id, 'size_id' => $oneSize->id, 'price' => 299.00, 'stock' => 100, 'sku' => 'HM-SOCK-RED-OS'],
 
-            // Casual Blouse variants
-            ['product_id' => $casualBlouse->id, 'color_id' => $white->id, 'size_id' => $xs->id, 'price' => 34.99, 'stock' => 15, 'sku' => 'HM-WHT-BLOUSE-XS'],
-            ['product_id' => $casualBlouse->id, 'color_id' => $white->id, 'size_id' => $s->id, 'price' => 34.99, 'stock' => 25, 'sku' => 'HM-WHT-BLOUSE-S'],
-            ['product_id' => $casualBlouse->id, 'color_id' => $white->id, 'size_id' => $m->id, 'price' => 34.99, 'stock' => 30, 'sku' => 'HM-WHT-BLOUSE-M'],
-            ['product_id' => $casualBlouse->id, 'color_id' => $blue->id, 'size_id' => $s->id, 'price' => 34.99, 'stock' => 20, 'sku' => 'HM-BLU-BLOUSE-S'],
-            ['product_id' => $casualBlouse->id, 'color_id' => $blue->id, 'size_id' => $m->id, 'price' => 34.99, 'stock' => 25, 'sku' => 'HM-BLU-BLOUSE-M'],
-
-            // Classic Sneakers variants
-            ['product_id' => $classicSneakers->id, 'color_id' => $white->id, 'size_id' => $size6->id, 'price' => 79.99, 'stock' => 20, 'sku' => 'ADD-WHT-SNEAK-6'],
-            ['product_id' => $classicSneakers->id, 'color_id' => $white->id, 'size_id' => $size7->id, 'price' => 79.99, 'stock' => 25, 'sku' => 'ADD-WHT-SNEAK-7'],
-            ['product_id' => $classicSneakers->id, 'color_id' => $white->id, 'size_id' => $size8->id, 'price' => 79.99, 'stock' => 30, 'sku' => 'ADD-WHT-SNEAK-8'],
-            ['product_id' => $classicSneakers->id, 'color_id' => $white->id, 'size_id' => $size9->id, 'price' => 79.99, 'stock' => 35, 'sku' => 'ADD-WHT-SNEAK-9'],
-            ['product_id' => $classicSneakers->id, 'color_id' => $white->id, 'size_id' => $size10->id, 'price' => 79.99, 'stock' => 40, 'sku' => 'ADD-WHT-SNEAK-10'],
-            ['product_id' => $classicSneakers->id, 'color_id' => $white->id, 'size_id' => $size11->id, 'price' => 79.99, 'stock' => 25, 'sku' => 'ADD-WHT-SNEAK-11'],
-            ['product_id' => $classicSneakers->id, 'color_id' => $black->id, 'size_id' => $size8->id, 'price' => 79.99, 'stock' => 20, 'sku' => 'ADD-BLK-SNEAK-8'],
-            ['product_id' => $classicSneakers->id, 'color_id' => $black->id, 'size_id' => $size9->id, 'price' => 79.99, 'stock' => 25, 'sku' => 'ADD-BLK-SNEAK-9'],
-            ['product_id' => $classicSneakers->id, 'color_id' => $black->id, 'size_id' => $size10->id, 'price' => 79.99, 'stock' => 30, 'sku' => 'ADD-BLK-SNEAK-10']
+            // Sports Towel variants (Black only)
+            ['product_id' => $towel->id, 'color_id' => $black->id, 'size_id' => $oneSize->id, 'price' => 599.00, 'stock' => 25, 'sku' => 'NKE-TOWEL-BLK-OS']
         ];
 
         foreach ($variants as $variant) {

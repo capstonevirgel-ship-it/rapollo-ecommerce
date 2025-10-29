@@ -12,8 +12,6 @@ export const useCategoryStore = defineStore("category", {
 
   actions: {
     async fetchCategories() {
-      if (this.loading) return;
-      
       this.loading = true;
       this.error = null;
       try {
@@ -62,6 +60,12 @@ export const useCategoryStore = defineStore("category", {
         this.category = data;
         return data;
       } catch (error: any) {
+        // Handle 404 errors gracefully - category might not exist
+        if (error.status === 404 || error.statusCode === 404) {
+          console.warn(`Category with slug '${slug}' not found`);
+          this.category = null;
+          return null;
+        }
         this.error = error.data?.message || error.message || "Failed to load category";
         throw error;
       } finally {
@@ -125,5 +129,7 @@ export const useCategoryStore = defineStore("category", {
     },
   },
 
-  // persist: true, // Disabled - categories are static data, no need to cache
+  persist: {
+    paths: ['categories', 'category', 'error'] // Exclude loading state from persistence
+  }
 });

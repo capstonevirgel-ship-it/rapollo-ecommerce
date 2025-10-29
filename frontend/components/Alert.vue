@@ -91,9 +91,12 @@ interface Alert {
   duration?: number
   autoClose?: boolean
   progress: number
+  key: string // Unique key for deduplication
 }
 
 const alerts = ref<Alert[]>([])
+const activeAlertKeys = ref<Set<string>>(new Set()) // Track active alert keys
+
 const alertClasses = {
   success: 'border-green-400',
   error: 'border-red-400',
@@ -117,19 +120,34 @@ const progressClasses = {
   warning: 'bg-yellow-400'
 }
 
+// Generate unique key for alert deduplication
+const generateAlertKey = (type: string, title: string, message?: string) => {
+  return `${type}-${title}-${message || ''}`
+}
+
 // Global alert function
-const showAlert = (alert: Omit<Alert, 'id' | 'progress'>) => {
+const showAlert = (alert: Omit<Alert, 'id' | 'progress' | 'key'>) => {
   const id = Math.random().toString(36).substr(2, 9)
   const duration = alert.duration || getDefaultDuration(alert.type)
   const autoClose = alert.autoClose !== false
+  const key = generateAlertKey(alert.type, alert.title, alert.message)
+  
+  // Check if an alert with the same key already exists
+  if (activeAlertKeys.value.has(key)) {
+    return key // Return existing key, don't create duplicate
+  }
   
   const newAlert: Alert = {
     ...alert,
     id,
+    key,
     duration,
     autoClose,
     progress: 100
   }
+  
+  // Add to active keys
+  activeAlertKeys.value.add(key)
   
   alerts.value.push(newAlert)
   
@@ -159,6 +177,9 @@ const showAlert = (alert: Omit<Alert, 'id' | 'progress'>) => {
 const removeAlert = (id: string) => {
   const index = alerts.value.findIndex(alert => alert.id === id)
   if (index > -1) {
+    const alert = alerts.value[index]
+    // Remove from active keys to allow showing the same alert again
+    activeAlertKeys.value.delete(alert.key)
     alerts.value.splice(index, 1)
   }
 }

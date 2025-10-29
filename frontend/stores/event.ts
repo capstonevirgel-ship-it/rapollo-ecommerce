@@ -6,16 +6,32 @@ export const useEventStore = defineStore('event', () => {
   const currentEvent = ref<Event | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 12,
+    total: 0,
+    from: 0,
+    to: 0
+  })
 
-  // Fetch all events
-  const fetchEvents = async () => {
+  // Fetch all events with pagination
+  const fetchEvents = async (page: number = 1, perPage: number = 12) => {
     loading.value = true
     error.value = null
     try {
-      console.log('Fetching events...')
-      const response = await useCustomFetch<PaginatedResponse<Event>>('/api/events')
+      console.log('Fetching events...', { page, perPage })
+      const response = await useCustomFetch<PaginatedResponse<Event>>(`/api/events?page=${page}&per_page=${perPage}`)
       console.log('API response:', response)
       events.value = response.data || []
+      pagination.value = {
+        current_page: response.current_page || 1,
+        last_page: response.last_page || 1,
+        per_page: response.per_page || 12,
+        total: response.total || 0,
+        from: response.from || 0,
+        to: response.to || 0
+      }
       console.log('Events loaded:', events.value.length)
     } catch (err: any) {
       error.value = err.data?.message || 'Failed to fetch events'
@@ -128,6 +144,7 @@ export const useEventStore = defineStore('event', () => {
     currentEvent,
     loading,
     error,
+    pagination,
     fetchEvents,
     fetchEvent,
     createEvent,

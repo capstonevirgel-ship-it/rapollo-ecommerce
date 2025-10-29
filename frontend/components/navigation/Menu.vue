@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { onMounted, reactive } from "vue";
+import { onMounted, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useCategoryStore } from "~/stores/category";
 import { useBrandStore } from "~/stores/brand";
 import { getImageUrl } from "~/utils/imageHelper";
@@ -24,32 +24,120 @@ const brandStore = useBrandStore();
 const { categories, loading: categoryLoading } = storeToRefs(categoryStore);
 const { brands, loading: brandLoading } = storeToRefs(brandStore);
 
+// Debug computed to understand loading state
+const isLoading = computed(() => {
+  const catLoading = categoryLoading.value;
+  const brandLoadingState = brandLoading.value;
+  const hasCategories = categories.value.length > 0;
+  const hasBrands = brands.value.length > 0;
+  
+  console.log('Menu loading state:', {
+    catLoading,
+    brandLoadingState,
+    hasCategories,
+    hasBrands,
+    shouldShowSkeleton: (catLoading || brandLoadingState) && (!hasCategories || !hasBrands)
+  });
+  
+  return (catLoading || brandLoadingState) && (!hasCategories || !hasBrands);
+});
+
 // Track image load errors for brands
 const brandImageError = reactive<Record<number, boolean>>({});
 
+// Track navbar position for mega menu
+const navRef = ref<HTMLElement | null>(null);
+const megaMenuTop = ref('9rem'); // Default fallback
+
+// Calculate mega menu position
+const calculateMegaMenuPosition = () => {
+  if (navRef.value) {
+    // Get the parent header element to calculate from the entire header height
+    const header = navRef.value.closest('header');
+    if (header) {
+      const rect = header.getBoundingClientRect();
+      // Position mega menu right below the header (fixed position uses viewport coordinates)
+      megaMenuTop.value = `${rect.bottom}px`;
+    }
+  }
+};
+
+// Close mega menu on scroll
+const handleScroll = () => {
+  if (props.activeCategory === 'shop') {
+    props.toggleCategory(null);
+  }
+};
+
+// Watch for activeCategory changes to recalculate position
+watch(() => props.activeCategory, (newVal) => {
+  if (newVal === 'shop') {
+    // Small delay to ensure DOM is updated
+    setTimeout(calculateMegaMenuPosition, 0);
+  }
+});
+
 onMounted(async () => {
   try {
-    await Promise.all([
-      categoryStore.fetchCategories(),
-      brandStore.fetchBrands()
-    ]);
+    console.log('Menu onMounted - initial state:', {
+      categoriesCount: categories.value.length,
+      brandsCount: brands.value.length,
+      categoryLoading: categoryLoading.value,
+      brandLoading: brandLoading.value,
+      isClient: process.client
+    });
+    
+    // Only fetch data on client side if we don't already have it
+    if (process.client) {
+      // Force fetch data if not available, regardless of loading state
+      const promises = [];
+      
+      if (categories.value.length === 0) {
+        console.log('Fetching categories...');
+        promises.push(categoryStore.fetchCategories());
+      }
+      if (brands.value.length === 0) {
+        console.log('Fetching brands...');
+        promises.push(brandStore.fetchBrands());
+      }
+      
+      // Wait for any pending requests
+      if (promises.length > 0) {
+        console.log('Waiting for', promises.length, 'requests to complete...');
+        await Promise.allSettled(promises);
+        console.log('All requests completed');
+      } else {
+        console.log('No requests needed - data already available');
+      }
+    }
+    // Calculate position after mount
+    calculateMegaMenuPosition();
+    // Add scroll listener to close mega menu
+    window.addEventListener('scroll', handleScroll);
+    // Add resize listener to recalculate position
+    window.addEventListener('resize', calculateMegaMenuPosition);
   } catch (error) {
     console.error('Error fetching data:', error);
   }
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll);
+  window.removeEventListener('resize', calculateMegaMenuPosition);
+});
 </script>
 
 <template>
-  <nav class="flex items-center space-x-8">
+  <nav ref="navRef" class="flex items-center space-x-8">
     <!-- Regular Nav Links -->
     <NuxtLink 
       v-for="link in navLinks" 
       :key="link.path" 
       :to="link.path" 
-      class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1"
-      active-class="text-primary-600 font-medium"
+      class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1 font-winner-extra-bold"
+      active-class="text-primary-600 font-medium font-winner-extra-bold"
     >
-      <Icon :name="link.icon" class="text-lg" />
+      <Icon :name="link.icon" class="text-lg lg:!hidden" />
       <span>{{ link.label }}</span>
     </NuxtLink>
 
@@ -60,8 +148,8 @@ onMounted(async () => {
         @click="toggleCategory(activeCategory === 'shop' ? null : 'shop')"
       >
         <NuxtLink to="/shop" class="flex items-center space-x-1">
-          <Icon name="mdi:shopping-outline" class="text-lg" />
-          <span>Shop</span>
+          <Icon name="mdi:shopping-outline" class="text-lg lg:!hidden" />
+          <span class="font-winner-extra-bold">Shop</span>
         </NuxtLink>
         <Icon 
           name="mdi:chevron-down" 
@@ -74,12 +162,13 @@ onMounted(async () => {
       <Transition name="mega-menu">
         <div 
           v-if="activeCategory === 'shop'"
-          class="fixed left-0 w-full bg-white shadow-lg border-t border-gray-200 py-8 top-[175px] z-50"
+          class="fixed left-0 w-full bg-white shadow-lg border-t border-gray-200 py-8 z-50"
+          :style="{ top: megaMenuTop }"
           @mouseleave="toggleCategory(null)"
         >
           <div class="container mx-auto px-4">
             <!-- Loading State -->
-            <div v-if="categoryLoading || brandLoading" class="space-y-8">
+            <div v-if="isLoading" class="space-y-8">
               <!-- Categories Loading -->
               <div class="grid grid-cols-6 gap-6">
                 <div v-for="n in 6" :key="n" class="space-y-3 animate-pulse">

@@ -9,7 +9,7 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Notifications - Admin - Rapollo E-commerce',
+  title: 'Notifications - Admin | RAPOLLO',
   meta: [
     { name: 'description', content: 'Manage admin notifications and alerts in your Rapollo E-commerce store.' }
   ]

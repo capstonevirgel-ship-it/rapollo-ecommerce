@@ -14,6 +14,9 @@ class Profile extends Model
         'full_name',
         'phone',
         'address',
+        'city',
+        'postal_code',
+        'country',
         'avatar_url',
     ];
 

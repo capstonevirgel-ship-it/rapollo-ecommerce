@@ -7,9 +7,12 @@ use Illuminate\Database\Seeder;
 use App\Models\Event;
 use App\Models\User;
 use Carbon\Carbon;
+use Database\Seeders\Traits\ImageUploadTrait;
 
 class EventSeeder extends Seeder
 {
+    use ImageUploadTrait;
+
     /**
      * Run the database seeds.
      */
@@ -26,66 +29,89 @@ class EventSeeder extends Seeder
             ]);
         }
 
-        // Create sample rap battle events
+        // Create rap battle events based on actual images
         $events = [
             [
                 'admin_id' => $admin->id,
-                'title' => 'Fliptop Battle League - Manila Championship',
-                'description' => 'The biggest rap battle event in the Philippines! Watch the country\'s top emcees battle it out for the championship title. Featuring surprise guest performances and exclusive merchandise.',
+                'title' => 'Kumunidad Rap Battle',
+                'description' => 'Join us for an epic rap battle event featuring the best local emcees. Experience the raw energy and creativity of Filipino rap culture. Food stalls and merchandise available.',
                 'date' => Carbon::now()->addDays(30)->format('Y-m-d'),
-                'location' => 'Araneta Coliseum, Quezon City',
-                'poster_url' => 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop',
+                'location' => 'Manila Convention Center',
+                'poster_filename' => 'jun_14_25_kumunidad_4.jpg',
                 'ticket_price' => 500.00,
-                'max_tickets' => 5000,
-                'available_tickets' => 5000
+                'max_tickets' => 1000,
+                'available_tickets' => 1000
             ],
             [
                 'admin_id' => $admin->id,
-                'title' => 'Sunugan Rap Battle - Cebu Edition',
-                'description' => 'Experience the raw energy of Cebu\'s rap battle scene. Local emcees will showcase their skills in this intense competition. Food stalls and merchandise available.',
+                'title' => 'Abri Gana Rap Battle',
+                'description' => 'Witness the intensity of underground rap battles as talented artists showcase their lyrical skills. A night of fierce competition and authentic hip-hop culture.',
                 'date' => Carbon::now()->addDays(45)->format('Y-m-d'),
-                'location' => 'Waterfront Cebu City Hotel, Cebu',
-                'poster_url' => 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop',
+                'location' => 'Quezon City Memorial Circle',
+                'poster_filename' => 'mar_25_25_abri_gana_5.jpg',
                 'ticket_price' => 300.00,
-                'max_tickets' => 800,
-                'available_tickets' => 800
+                'max_tickets' => 500,
+                'available_tickets' => 500
             ],
             [
                 'admin_id' => $admin->id,
-                'title' => 'Underground Rap Battle - Makati',
-                'description' => 'An intimate underground rap battle featuring up-and-coming artists. Discover new talent and enjoy the authentic hip-hop culture. Limited seating available.',
+                'title' => 'Laglag Bara Rap Battle - November Edition',
+                'description' => 'The legendary Laglag Bara series continues! Watch as emcees battle it out with their sharpest bars and most creative flows. Limited seating available.',
                 'date' => Carbon::now()->addDays(15)->format('Y-m-d'),
-                'location' => 'The Circuit, Makati City',
-                'poster_url' => 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop',
-                'ticket_price' => 200.00,
-                'max_tickets' => 200,
-                'available_tickets' => 200
-            ],
-            [
-                'admin_id' => $admin->id,
-                'title' => 'Rap Battle Workshop & Competition',
-                'description' => 'Learn the art of rap battling from professional emcees, then showcase your skills in a friendly competition. Perfect for beginners and aspiring rappers.',
-                'date' => Carbon::now()->addDays(20)->format('Y-m-d'),
-                'location' => 'Cultural Center of the Philippines, Manila',
-                'poster_url' => 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop',
-                'ticket_price' => 150.00,
-                'max_tickets' => 100,
-                'available_tickets' => 100
-            ],
-            [
-                'admin_id' => $admin->id,
-                'title' => 'Battle of the Beats - Davao',
-                'description' => 'A unique rap battle event combining freestyle rap with live beat production. Watch emcees battle while producers create beats on the spot. Food and drinks available.',
-                'date' => Carbon::now()->addDays(10)->format('Y-m-d'),
-                'location' => 'SMX Convention Center, Davao City',
-                'poster_url' => 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop',
-                'ticket_price' => 250.00,
+                'location' => 'Cultural Center of the Philippines',
+                'poster_filename' => 'nov_13_23_laglag_bara_6.jpg',
+                'ticket_price' => 400.00,
                 'max_tickets' => 300,
                 'available_tickets' => 300
+            ],
+            [
+                'admin_id' => $admin->id,
+                'title' => 'Laglag Bara Rap Battle - Anniversary Edition',
+                'description' => 'Celebrate another year of Laglag Bara with this special anniversary edition. Featuring returning champions and surprise guest performances.',
+                'date' => Carbon::now()->addDays(20)->format('Y-m-d'),
+                'location' => 'SM Mall of Asia Arena',
+                'poster_filename' => 'nov_19_24_laglag_bara_7.jpg',
+                'ticket_price' => 600.00,
+                'max_tickets' => 2000,
+                'available_tickets' => 2000
+            ],
+            [
+                'admin_id' => $admin->id,
+                'title' => 'Laglag Bara Rap Battle - October Showdown',
+                'description' => 'The October edition brings fresh talent and seasoned veterans to the stage. Experience the evolution of Filipino rap battle culture.',
+                'date' => Carbon::now()->addDays(10)->format('Y-m-d'),
+                'location' => 'Araneta Coliseum',
+                'poster_filename' => 'oct_22_25_laglag_bara_8.jpg',
+                'ticket_price' => 450.00,
+                'max_tickets' => 1500,
+                'available_tickets' => 1500
+            ],
+            [
+                'admin_id' => $admin->id,
+                'title' => 'Amihanan Rap Battle',
+                'description' => 'From the north comes Amihanan - a showcase of Northern Luzon\'s finest rap talent. Discover new voices and witness regional rap styles.',
+                'date' => Carbon::now()->addDays(25)->format('Y-m-d'),
+                'location' => 'Baguio Convention Center',
+                'poster_filename' => 'sep_1_25_amihanan_4.jpg',
+                'ticket_price' => 350.00,
+                'max_tickets' => 800,
+                'available_tickets' => 800
             ]
         ];
 
         foreach ($events as $eventData) {
+            // Create slug from title
+            $slug = strtolower(str_replace([' ', '-'], '_', $eventData['title']));
+            
+            // Upload poster and get the relative path
+            $posterUrl = $this->uploadEventPoster($slug, $eventData['poster_filename']);
+            
+            // Remove poster_filename from event data
+            unset($eventData['poster_filename']);
+            
+            // Add the uploaded poster URL
+            $eventData['poster_url'] = $posterUrl ?: "images/events/{$eventData['poster_filename']}";
+
             Event::create($eventData);
         }
     }

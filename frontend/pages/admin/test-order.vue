@@ -5,7 +5,7 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Test Order - Admin - Rapollo E-commerce',
+  title: 'Test Order - Admin | RAPOLLO',
   meta: [
     { name: 'description', content: 'Test order page for admin functionality.' }
   ]

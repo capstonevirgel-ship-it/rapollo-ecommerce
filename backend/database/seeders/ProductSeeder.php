@@ -16,6 +16,7 @@ class ProductSeeder extends Seeder
      */
     public function run(): void
     {
+        // Get existing brands
         $nike = Brand::where('slug', 'nike')->first();
         $adidas = Brand::where('slug', 'adidas')->first();
         $puma = Brand::where('slug', 'puma')->first();
@@ -30,111 +31,99 @@ class ProductSeeder extends Seeder
         $sneakers = Subcategory::where('slug', 'sneakers')->first();
         $hats = Subcategory::where('slug', 'hats')->first();
         $watches = Subcategory::where('slug', 'watches')->first();
+        $bags = Subcategory::where('slug', 'bags')->first();
 
         $products = [
             [
                 'subcategory_id' => $mensTshirts->id,
                 'brand_id' => $nike->id,
-                'name' => 'Classic White T-Shirt',
-                'slug' => 'classic-white-t-shirt',
-                'description' => 'A timeless classic white t-shirt made from 100% cotton. Perfect for layering or wearing on its own. Features a comfortable regular fit and pre-shrunk fabric for lasting quality.',
-                'meta_title' => 'Classic White T-Shirt - Nike',
-                'meta_description' => 'Premium quality white t-shirt from Nike. 100% cotton, regular fit, perfect for everyday wear.',
+                'name' => 'FlipTop Collaboration T-Shirt',
+                'slug' => 'fliptop-collaboration-t-shirt',
+                'description' => 'Official collaboration t-shirt featuring FlipTop branding. Made from premium cotton blend for comfort and durability. Perfect for rap battle events and streetwear enthusiasts.',
+                'meta_title' => 'FlipTop Collaboration T-Shirt - Nike',
+                'meta_description' => 'Official FlipTop collaboration t-shirt. Premium cotton blend, authentic Filipino rap culture.',
                 'is_active' => true,
                 'is_featured' => true,
-                'is_hot' => false,
-                'is_new' => false
+                'is_hot' => true,
+                'is_new' => true
             ],
             [
                 'subcategory_id' => $mensTshirts->id,
                 'brand_id' => $adidas->id,
-                'name' => 'Graphic Print T-Shirt',
-                'slug' => 'graphic-print-t-shirt',
-                'description' => 'Bold graphic print t-shirt featuring the iconic Adidas logo. Made from soft cotton blend for comfort and style. Perfect for casual outings and sports activities.',
-                'meta_title' => 'Graphic Print T-Shirt - Adidas',
-                'meta_description' => 'Stylish graphic t-shirt with Adidas branding. Soft cotton blend, comfortable fit.',
+                'name' => 'RxPanda Collaboration T-Shirt',
+                'slug' => 'rxpanda-collaboration-t-shirt',
+                'description' => 'Exclusive collaboration t-shirt with RxPanda featuring unique graphic designs. Soft cotton material with vibrant prints that represent Filipino rap culture and street art.',
+                'meta_title' => 'RxPanda Collaboration T-Shirt - Adidas',
+                'meta_description' => 'RxPanda collaboration t-shirt. Unique street art designs, soft cotton material.',
                 'is_active' => true,
                 'is_featured' => true,
+                'is_hot' => false,
+                'is_new' => true
+            ],
+            [
+                'subcategory_id' => $mensTshirts->id,
+                'brand_id' => $puma->id,
+                'name' => 'TurboHectic Collaboration T-Shirt',
+                'slug' => 'turbohectic-collaboration-t-shirt',
+                'description' => 'High-energy collaboration t-shirt with TurboHectic. Features bold graphics and dynamic designs that capture the intensity of Filipino rap battles and underground music scene.',
+                'meta_title' => 'TurboHectic Collaboration T-Shirt - Puma',
+                'meta_description' => 'TurboHectic collaboration t-shirt. Bold graphics, dynamic designs, underground rap culture.',
+                'is_active' => true,
+                'is_featured' => false,
                 'is_hot' => true,
+                'is_new' => false
+            ],
+            [
+                'subcategory_id' => $mensTshirts->id,
+                'brand_id' => $uniqlo->id,
+                'name' => 'Ubec Classic T-Shirt',
+                'slug' => 'ubec-classic-t-shirt',
+                'description' => 'Classic Ubec t-shirt featuring clean designs and comfortable fit. Made from high-quality cotton with subtle branding. Perfect for everyday wear and casual occasions.',
+                'meta_title' => 'Ubec Classic T-Shirt - Uniqlo',
+                'meta_description' => 'Classic Ubec t-shirt. High-quality cotton, comfortable fit, subtle branding.',
+                'is_active' => true,
+                'is_featured' => true,
+                'is_hot' => false,
                 'is_new' => false
             ],
             [
                 'subcategory_id' => $mensShirts->id,
-                'brand_id' => $uniqlo->id,
-                'name' => 'Linen Button-Up Shirt',
-                'slug' => 'linen-button-up-shirt',
-                'description' => 'Breathable linen shirt perfect for warm weather. Features a relaxed fit, button-down collar, and classic styling. Ideal for both casual and smart-casual occasions.',
-                'meta_title' => 'Linen Button-Up Shirt - Uniqlo',
-                'meta_description' => 'Comfortable linen shirt from Uniqlo. Breathable fabric, relaxed fit, perfect for summer.',
-                'is_active' => true,
-                'is_featured' => false,
-                'is_hot' => false,
-                'is_new' => true
-            ],
-            [
-                'subcategory_id' => $mensPants->id,
                 'brand_id' => $zara->id,
-                'name' => 'Slim Fit Jeans',
-                'slug' => 'slim-fit-jeans',
-                'description' => 'Modern slim fit jeans crafted from premium denim. Features a comfortable stretch blend, classic five-pocket design, and a versatile dark wash that pairs with everything.',
-                'meta_title' => 'Slim Fit Jeans - Zara',
-                'meta_description' => 'Stylish slim fit jeans from Zara. Premium denim, comfortable stretch, dark wash.',
-                'is_active' => true,
-                'is_featured' => true,
-                'is_hot' => false,
-                'is_new' => false
-            ],
-            [
-                'subcategory_id' => $hats->id,
-                'brand_id' => $puma->id,
-                'name' => 'Snapback Cap',
-                'slug' => 'snapback-cap',
-                'description' => 'Classic snapback cap with embroidered Puma logo. Features an adjustable snap closure, curved brim, and structured crown. Perfect for sports and casual wear.',
-                'meta_title' => 'Snapback Cap - Puma',
-                'meta_description' => 'Classic snapback cap from Puma. Adjustable fit, embroidered logo, perfect for sports.',
+                'name' => 'Premium Sweatshirt',
+                'slug' => 'premium-sweatshirt',
+                'description' => 'Comfortable and stylish sweatshirt perfect for cooler weather. Features soft fleece lining and relaxed fit. Ideal for layering or wearing on its own.',
+                'meta_title' => 'Premium Sweatshirt - Zara',
+                'meta_description' => 'Comfortable premium sweatshirt. Soft fleece lining, relaxed fit, perfect for layering.',
                 'is_active' => true,
                 'is_featured' => false,
-                'is_hot' => true,
-                'is_new' => false
-            ],
-            [
-                'subcategory_id' => $watches->id,
-                'brand_id' => $nike->id,
-                'name' => 'Sports Watch',
-                'slug' => 'sports-watch',
-                'description' => 'High-performance sports watch designed for athletes. Features water resistance, stopwatch function, and durable construction. Perfect for training and everyday use.',
-                'meta_title' => 'Sports Watch - Nike',
-                'meta_description' => 'Professional sports watch from Nike. Water resistant, stopwatch, durable design.',
-                'is_active' => true,
-                'is_featured' => true,
                 'is_hot' => false,
                 'is_new' => true
             ],
             [
-                'subcategory_id' => $womensTops->id,
+                'subcategory_id' => $bags->id,
                 'brand_id' => $hm->id,
-                'name' => 'Casual Blouse',
-                'slug' => 'casual-blouse',
-                'description' => 'Elegant casual blouse with a relaxed fit and soft fabric. Features a classic collar and button-down design. Perfect for office wear or casual outings.',
-                'meta_title' => 'Casual Blouse - H&M',
-                'meta_description' => 'Elegant casual blouse from H&M. Relaxed fit, soft fabric, perfect for office.',
+                'name' => 'Athletic Socks',
+                'slug' => 'athletic-socks',
+                'description' => 'Premium quality athletic socks with comfortable cushioning and moisture-wicking technology. Features subtle branding and comes in various colors to match your style.',
+                'meta_title' => 'Athletic Socks - H&M',
+                'meta_description' => 'Premium athletic socks. Comfortable cushioning, moisture-wicking, subtle branding.',
+                'is_active' => true,
+                'is_featured' => false,
+                'is_hot' => true,
+                'is_new' => false
+            ],
+            [
+                'subcategory_id' => $bags->id,
+                'brand_id' => $nike->id,
+                'name' => 'Sports Towel',
+                'slug' => 'sports-towel',
+                'description' => 'High-quality sports towel made from absorbent cotton material. Perfect for gym, beach, or everyday use. Features durable construction and premium branding.',
+                'meta_title' => 'Sports Towel - Nike',
+                'meta_description' => 'High-quality sports towel. Absorbent cotton, durable construction, perfect for gym or beach.',
                 'is_active' => true,
                 'is_featured' => false,
                 'is_hot' => false,
                 'is_new' => true
-            ],
-            [
-                'subcategory_id' => $sneakers->id,
-                'brand_id' => $adidas->id,
-                'name' => 'Classic Sneakers',
-                'slug' => 'classic-sneakers',
-                'description' => 'Iconic classic sneakers with timeless design. Features comfortable cushioning, durable rubber sole, and the signature three stripes. Perfect for everyday wear.',
-                'meta_title' => 'Classic Sneakers - Adidas',
-                'meta_description' => 'Iconic Adidas sneakers. Comfortable cushioning, durable sole, classic design.',
-                'is_active' => true,
-                'is_featured' => true,
-                'is_hot' => true,
-                'is_new' => false
             ]
         ];
 

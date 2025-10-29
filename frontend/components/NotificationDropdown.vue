@@ -26,7 +26,7 @@
     >
       <div 
         v-if="isOpen"
-        class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-[60]"
+        class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-[70]"
         @click.stop
       >
         <!-- Header -->
@@ -115,7 +115,7 @@
     <div 
       v-if="isOpen"
       @click="closeDropdown"
-      class="fixed inset-0 z-[55]"
+      class="fixed inset-0 z-[65]"
     ></div>
   </div>
 </template>

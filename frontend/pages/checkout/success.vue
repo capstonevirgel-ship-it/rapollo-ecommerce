@@ -12,7 +12,7 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Order Successful - Rapollo E-commerce',
+  title: 'Order Successful | RAPOLLO',
   meta: [
     { name: 'description', content: 'Your order has been successfully placed at Rapollo E-commerce.' }
   ]

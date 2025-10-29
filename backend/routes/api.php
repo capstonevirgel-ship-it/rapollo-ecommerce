@@ -20,6 +20,9 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShippingPriceController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\EventCommentController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
@@ -62,6 +65,9 @@ Route::get('products/{slug}', [ProductController::class, 'show']);
 Route::get('events', [EventController::class, 'index']);
 Route::get('events/{id}', [EventController::class, 'show']);
 
+// Event Comments (public read access)
+Route::get('events/{eventId}/comments', [EventCommentController::class, 'index']);
+
 // Public Shipping Prices (for checkout)
 Route::get('shipping-prices/active', [ShippingPriceController::class, 'getActivePrices']);
 
@@ -74,6 +80,9 @@ Route::post('webhooks', [WebhookController::class, 'handle']);
 Route::get('webhooks/test', [WebhookController::class, 'test']);
 Route::post('webhooks/test', [WebhookController::class, 'test']);
 Route::post('webhooks/update-payment-status', [WebhookController::class, 'updatePaymentStatus']);
+
+// Contact Form (public)
+Route::post('contact', [ContactController::class, 'submit']);
 
 
 // ----------------------
@@ -115,6 +124,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('events', [EventController::class, 'store']);
     Route::put('events/{id}', [EventController::class, 'update']);
     Route::delete('events/{id}', [EventController::class, 'destroy']);
+
+    // Event Comments (protected - authenticated users only)
+    Route::post('events/{eventId}/comments', [EventCommentController::class, 'store']);
+    Route::put('events/{eventId}/comments/{commentId}', [EventCommentController::class, 'update']);
+    Route::delete('events/{eventId}/comments/{commentId}', [EventCommentController::class, 'destroy']);
 
     // Tickets
     Route::get('tickets', [TicketController::class, 'index']);
@@ -185,5 +199,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     Route::delete('notifications/{id}', [NotificationController::class, 'delete']);
     Route::delete('notifications', [NotificationController::class, 'clearAll']);
+
+    // Profile
+    Route::get('profile', [ProfileController::class, 'show']);
+    Route::put('profile', [ProfileController::class, 'update']);
+    Route::post('profile/avatar', [ProfileController::class, 'uploadAvatar']);
 });
 

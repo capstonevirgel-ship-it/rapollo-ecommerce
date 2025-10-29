@@ -49,25 +49,40 @@ class ProductController extends Controller
             });
         }
         
-        // Brand filter
+        // Brand filter - handle both single and multiple brands
         if ($request->has('brand')) {
-            $query->whereHas('brand', function ($q) use ($request) {
-                $q->where('slug', $request->get('brand'));
-            });
+            $brands = is_array($request->get('brand')) ? $request->get('brand') : [$request->get('brand')];
+            $brands = array_filter($brands); // Remove empty values
+            
+            if (!empty($brands)) {
+                $query->whereHas('brand', function ($q) use ($brands) {
+                    $q->whereIn('slug', $brands);
+                });
+            }
         }
         
-        // Category filter
+        // Category filter - handle both single and multiple categories
         if ($request->has('category')) {
-            $query->whereHas('subcategory.category', function ($q) use ($request) {
-                $q->where('slug', $request->get('category'));
-            });
+            $categories = is_array($request->get('category')) ? $request->get('category') : [$request->get('category')];
+            $categories = array_filter($categories); // Remove empty values
+            
+            if (!empty($categories)) {
+                $query->whereHas('subcategory.category', function ($q) use ($categories) {
+                    $q->whereIn('slug', $categories);
+                });
+            }
         }
         
-        // Subcategory filter
+        // Subcategory filter - handle both single and multiple subcategories
         if ($request->has('subcategory')) {
-            $query->whereHas('subcategory', function ($q) use ($request) {
-                $q->where('slug', $request->get('subcategory'));
-            });
+            $subcategories = is_array($request->get('subcategory')) ? $request->get('subcategory') : [$request->get('subcategory')];
+            $subcategories = array_filter($subcategories); // Remove empty values
+            
+            if (!empty($subcategories)) {
+                $query->whereHas('subcategory', function ($q) use ($subcategories) {
+                    $q->whereIn('slug', $subcategories);
+                });
+            }
         }
         
         // Price range filter

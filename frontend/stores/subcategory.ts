@@ -62,6 +62,12 @@ export const useSubcategoryStore = defineStore("subcategory", {
         this.subcategory = data;
         return data;
       } catch (error: any) {
+        // Handle 404 errors gracefully - subcategory might not exist
+        if (error.status === 404 || error.statusCode === 404) {
+          console.warn(`Subcategory with slug '${slug}' not found`);
+          this.subcategory = null;
+          return null;
+        }
         this.error = error.data?.message || error.message || "Failed to load subcategory";
         throw error;
       } finally {
@@ -125,5 +131,7 @@ export const useSubcategoryStore = defineStore("subcategory", {
     },
   },
 
-  // persist: true, // Disabled - subcategories are static data, no need to cache
+  persist: {
+    paths: ['subcategories', 'subcategory', 'error'] // Exclude loading state from persistence
+  }
 });

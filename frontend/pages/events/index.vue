@@ -2,6 +2,7 @@
 import type { Event } from '~/types'
 import Dialog from '~/components/Dialog.vue'
 import Select from '~/components/Select.vue'
+import { getImageUrl } from '~/helpers/imageHelper'
 
 const eventStore = useEventStore()
 const ticketStore = useTicketStore()
@@ -9,16 +10,44 @@ const authStore = useAuthStore()
 const payMongoStore = usePayMongoStore()
 const { success, error } = useAlert()
 
+// Pagination state
+const currentPage = ref(1)
+const perPage = ref(12)
+
 // Fetch events on client side
 onMounted(async () => {
   console.log('Events page mounted, fetching events...')
-  await eventStore.fetchEvents()
+  await eventStore.fetchEvents(currentPage.value, perPage.value)
   console.log('Events after fetch:', eventStore.events)
 })
 
+// Handle page change
+const handlePageChange = async (page: number) => {
+  currentPage.value = page
+  await eventStore.fetchEvents(page, perPage.value)
+  // Scroll to top of events section
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Generate slug from event title
+const generateSlug = (title: string) => {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .trim()
+}
+
+// Navigate to event details
+const viewEventDetails = (event: Event) => {
+  const slug = generateSlug(event.title)
+  navigateTo(`/events/${slug}?id=${event.id}`)
+}
+
 // Set page title
 useHead({
-  title: 'Events - Rapollo E-commerce',
+  title: 'Events | RAPOLLO',
   meta: [
     { name: 'description', content: 'Discover exciting rap battle events and competitions. Book your tickets for upcoming events at Rapollo E-commerce.' }
   ]
@@ -65,6 +94,12 @@ const closeBookingModal = () => {
 
 const proceedToPayment = async () => {
   if (!bookingEvent.value) return
+  
+  // Validate ticket quantity
+  if (selectedQuantity.value > 5) {
+    error('Invalid Quantity', 'You can only purchase a maximum of 5 tickets at once. Please select 5 or fewer tickets.')
+    return
+  }
   
   paymentLoading.value = true
   paymentError.value = ''
@@ -171,7 +206,12 @@ const canBookTickets = (event: Event) => {
         <div v-for="event in eventStore.events" :key="event.id" class="bg-white rounded-lg shadow-md overflow-hidden">
           <!-- Event Image -->
           <div v-if="event.poster_url" class="h-48 w-full bg-gray-200">
-            <img :src="event.poster_url" :alt="event.title" class="h-full w-full object-cover">
+            <img 
+              :src="getImageUrl(event.poster_url)" 
+              :alt="event.title" 
+              class="h-full w-full object-cover"
+              @error="($event.target as HTMLImageElement).src = '/placeholder.png'"
+            >
           </div>
           <div v-else class="h-48 w-full bg-gray-200 flex items-center justify-center">
             <svg class="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -242,7 +282,7 @@ const canBookTickets = (event: Event) => {
               </button>
               
               <button
-                @click="() => {}"
+                @click="viewEventDetails(event)"
                 class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2"
               >
                 View Details
@@ -250,6 +290,45 @@ const canBookTickets = (event: Event) => {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="eventStore.pagination.last_page > 1" class="mt-12 flex justify-center">
+        <nav class="flex items-center space-x-2">
+          <!-- Previous Button -->
+          <button
+            @click="handlePageChange(currentPage - 1)"
+            :disabled="currentPage <= 1"
+            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+
+          <!-- Page Numbers -->
+          <template v-for="page in Math.min(5, eventStore.pagination.last_page)" :key="page">
+            <button
+              v-if="page <= eventStore.pagination.last_page"
+              @click="handlePageChange(page)"
+              :class="[
+                'px-3 py-2 text-sm font-medium rounded-md',
+                page === currentPage
+                  ? 'bg-zinc-900 text-white'
+                  : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+              ]"
+            >
+              {{ page }}
+            </button>
+          </template>
+
+          <!-- Next Button -->
+          <button
+            @click="handlePageChange(currentPage + 1)"
+            :disabled="currentPage >= eventStore.pagination.last_page"
+            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </nav>
       </div>
     </div>
 

@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* Winner Extra Bold Font */
+@font-face {
+  font-family: 'Winner Extra Bold';
+  src: url('/uploads/fonts/winner-extra-bold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Winner Extra Bold Font Class */
+.font-winner-extra-bold {
+  font-family: 'Winner Extra Bold', sans-serif;
+  font-weight: 800;
+}
+
 /* Custom Scrollbar Styles */
 ::-webkit-scrollbar {
   width: 6px;

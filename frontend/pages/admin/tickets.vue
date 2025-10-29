@@ -12,7 +12,7 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Tickets Management - Admin - Rapollo E-commerce',
+  title: 'Tickets Management - Admin | RAPOLLO',
   meta: [
     { name: 'description', content: 'Manage event tickets and bookings in your Rapollo E-commerce store.' }
   ]

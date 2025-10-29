@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Mail\ProductPurchaseConfirmation;
 use App\Mail\TicketPurchaseConfirmation;
 use App\Services\NotificationService;
+use App\Mail\PaymentFailureNotification;
 use Illuminate\Support\Facades\Mail;
 
 class WebhookController extends Controller
@@ -140,7 +141,15 @@ class WebhookController extends Controller
                           $data['data']['attributes']['payment_intent_id'] ?? 
                           null;
                           
-        $metadata = $paymentData['data']['attributes']['metadata'] ?? $paymentData['metadata'] ?? [];
+        // Extract metadata from payment intent (where it's actually stored)
+        $metadata = [];
+        if (isset($paymentData['data']['attributes']['payment_intent']['attributes']['metadata'])) {
+            $metadata = $paymentData['data']['attributes']['payment_intent']['attributes']['metadata'];
+        } elseif (isset($paymentData['data']['attributes']['metadata'])) {
+            $metadata = $paymentData['data']['attributes']['metadata'];
+        } elseif (isset($paymentData['metadata'])) {
+            $metadata = $paymentData['metadata'];
+        }
 
         // Log extracted values for debugging
         Log::info('PayMongo webhook extracted values', [
@@ -279,7 +288,29 @@ class WebhookController extends Controller
                           $data['data']['attributes']['payment_intent_id'] ?? 
                           null;
                           
-        $metadata = $paymentData['data']['attributes']['metadata'] ?? $paymentData['metadata'] ?? [];
+        // Extract metadata from payment intent (where it's actually stored)
+        $metadata = [];
+        if (isset($paymentData['data']['attributes']['payment_intent']['attributes']['metadata'])) {
+            $metadata = $paymentData['data']['attributes']['payment_intent']['attributes']['metadata'];
+        } elseif (isset($paymentData['data']['attributes']['metadata'])) {
+            $metadata = $paymentData['data']['attributes']['metadata'];
+        } elseif (isset($paymentData['metadata'])) {
+            $metadata = $paymentData['metadata'];
+        }
+
+        // Log extracted values for debugging
+        Log::info('PayMongo webhook extracted values', [
+            'event_type' => 'payment.failed',
+            'payment_intent_id' => $paymentIntentId,
+            'metadata' => $metadata,
+            'payment_id' => $data['data']['id'] ?? null,
+            'debug_payment_data_structure' => [
+                'has_payment_intent' => isset($paymentData['data']['attributes']['payment_intent']),
+                'payment_intent_id_in_payment_intent' => $paymentData['data']['attributes']['payment_intent']['id'] ?? 'not_found',
+                'metadata_in_payment_intent' => $paymentData['data']['attributes']['payment_intent']['attributes']['metadata'] ?? 'not_found',
+                'metadata_in_payment' => $paymentData['data']['attributes']['metadata'] ?? 'not_found'
+            ]
+        ]);
 
         try {
             // Check if we have a payment intent ID
@@ -296,41 +327,196 @@ class WebhookController extends Controller
                 ], 400);
             }
             
-            // Find the payment record
+            // Find the payment record by payment_intent_id first
             $paymentRecord = Payment::where('payment_intent_id', $paymentIntentId)->first();
             
-            // Fallback: try to find by purchase_id in metadata
+            // Fallback: try to find by purchase_id in metadata (this is the most reliable)
             if (!$paymentRecord && isset($metadata['purchase_id'])) {
                 $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])->first();
+                Log::info('Found payment record by purchase_id', [
+                    'purchase_id' => $metadata['purchase_id'],
+                    'payment_id' => $paymentRecord ? $paymentRecord->id : null
+                ]);
             }
             
-            // Additional fallback: try to find by transaction_id or payment ID
+            // Additional fallback: try to find by payment intent ID in metadata JSON
+            if (!$paymentRecord) {
+                // Look for payment records where metadata contains the payment_intent_id
+                $paymentRecord = Payment::whereRaw("JSON_EXTRACT(metadata, '$.data.attributes.payment_intent.id') = ?", [$paymentIntentId])->first();
+                Log::info('Found payment record by payment_intent_id in metadata', [
+                    'payment_intent_id' => $paymentIntentId,
+                    'payment_id' => $paymentRecord ? $paymentRecord->id : null
+                ]);
+            }
+            
+            // Final fallback: try to find by transaction_id (checkout session ID)
             if (!$paymentRecord) {
                 $paymentId = $data['data']['id'] ?? null;
                 if ($paymentId) {
                     $paymentRecord = Payment::where('transaction_id', $paymentId)->first();
+                    Log::info('Found payment record by transaction_id', [
+                        'transaction_id' => $paymentId,
+                        'payment_id' => $paymentRecord ? $paymentRecord->id : null
+                    ]);
                 }
             }
+            
+            // Additional fallback: try to find by looking for recent payments with same amount
+            if (!$paymentRecord) {
+                $amount = $paymentData['data']['attributes']['amount'] ?? null;
+                if ($amount) {
+                    // Convert amount from cents to decimal (PayMongo sends amount in cents)
+                    $amountInDecimal = $amount / 100;
+                    $paymentRecord = Payment::where('amount', $amountInDecimal)
+                        ->where('status', 'pending')
+                        ->where('created_at', '>=', now()->subHours(2)) // Within last 2 hours
+                        ->first();
+                    Log::info('Found payment record by amount and recent timestamp', [
+                        'amount' => $amountInDecimal,
+                        'payment_id' => $paymentRecord ? $paymentRecord->id : null
+                    ]);
+                }
+            }
+            
+            // Final fallback: try to find by payment intent ID in metadata and update it
+            if (!$paymentRecord && isset($metadata['purchase_id'])) {
+                // Look for payment records with this purchase_id and update payment_intent_id
+                $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])
+                    ->where('payment_intent_id', null)
+                    ->first();
+                
+                if ($paymentRecord) {
+                    // Update the payment record with the correct payment intent ID
+                    $paymentRecord->update(['payment_intent_id' => $paymentIntentId]);
+                    Log::info('Updated payment record with payment_intent_id', [
+                        'payment_id' => $paymentRecord->id,
+                        'payment_intent_id' => $paymentIntentId
+                    ]);
+                }
+            }
+            
+            // Log payment record search results
+            Log::info('Payment record search results', [
+                'payment_intent_id' => $paymentIntentId,
+                'found_record' => $paymentRecord ? true : false,
+                'payment_record_id' => $paymentRecord ? $paymentRecord->id : null,
+                'purchase_id' => $paymentRecord ? $paymentRecord->purchase_id : null
+            ]);
 
             if ($paymentRecord) {
-                // Update payment status
-                $paymentRecord->update([
+                // Update payment status and store payment_intent_id if not already stored
+                $updateData = [
                     'status' => 'failed',
                     'payment_failure_code' => $paymentData['failure_code'] ?? null,
                     'payment_failure_message' => $paymentData['failure_message'] ?? null,
                     'metadata' => json_encode($data)
-                ]);
+                ];
+                
+                // Store payment_intent_id if not already stored
+                if (!$paymentRecord->payment_intent_id) {
+                    $updateData['payment_intent_id'] = $paymentIntentId;
+                }
+                
+                $paymentRecord->update($updateData);
 
                 // Update purchase status to cancelled
                 $purchase = $paymentRecord->purchase;
                 if ($purchase) {
+                    $oldStatus = $purchase->status;
                     $purchase->update(['status' => 'cancelled']);
+                    
+                    Log::info('Updated purchase status to cancelled', [
+                        'purchase_id' => $purchase->id,
+                        'old_status' => $oldStatus,
+                        'new_status' => 'cancelled'
+                    ]);
+                    
+                    // Create cancelled tickets for failed payment so user can see what they tried to purchase
+                    if ($purchase->type === 'ticket') {
+                        $this->createCancelledTicketsForPurchase($purchase);
+                    }
+                    
+                    // Create notification for the user about failed payment
+                    $user = $purchase->user;
+                    if ($user) {
+                        try {
+                            // Create in-app notification
+                            if ($purchase->type === 'ticket') {
+                                NotificationService::createPaymentNotification(
+                                    $user,
+                                    'Payment Failed',
+                                    'Your payment for event tickets has failed. Please try again.',
+                                    [
+                                        'action_url' => '/events',
+                                        'action_text' => 'View Events'
+                                    ]
+                                );
+                                Log::info('Created payment failed notification for ticket purchase', [
+                                    'user_id' => $user->id,
+                                    'purchase_id' => $purchase->id
+                                ]);
+                            } else {
+                                NotificationService::createPaymentNotification(
+                                    $user,
+                                    'Payment Failed',
+                                    'Your payment for order #' . $purchase->id . ' has failed. Please try again.',
+                                    [
+                                        'action_url' => '/my-orders',
+                                        'action_text' => 'View Orders'
+                                    ]
+                                );
+                                Log::info('Created payment failed notification for product purchase', [
+                                    'user_id' => $user->id,
+                                    'purchase_id' => $purchase->id
+                                ]);
+                            }
+
+                            // Send email notification
+                            $failureReason = $paymentData['failure_message'] ?? 'Payment checkout has expired';
+                            $failureCode = $paymentData['failure_code'] ?? 'CLOSED';
+                            
+                            Mail::to($user->email)->send(new PaymentFailureNotification(
+                                $purchase, 
+                                $user, 
+                                $failureReason, 
+                                $failureCode
+                            ));
+                            
+                            Log::info('Sent payment failure email notification', [
+                                'user_id' => $user->id,
+                                'user_email' => $user->email,
+                                'purchase_id' => $purchase->id,
+                                'failure_reason' => $failureReason
+                            ]);
+                            
+                        } catch (\Exception $e) {
+                            Log::error('Failed to create payment failed notification or send email', [
+                                'user_id' => $user->id,
+                                'purchase_id' => $purchase->id,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    } else {
+                        Log::warning('No user found for purchase when creating payment failed notification', [
+                            'purchase_id' => $purchase->id
+                        ]);
+                    }
                 }
             }
 
+            $redirectUrl = config('app.frontend_url', 'http://localhost:3000') . '/checkout/failed';
+            
+            Log::info('Payment failure webhook completed successfully', [
+                'payment_intent_id' => $paymentIntentId,
+                'redirect_url' => $redirectUrl,
+                'payment_record_id' => $paymentRecord ? $paymentRecord->id : null,
+                'purchase_id' => $paymentRecord ? $paymentRecord->purchase_id : null
+            ]);
+
             return response()->json([
                 'message' => 'Payment failure processed',
-                'payment_intent_id' => $paymentIntentId
+                'payment_intent_id' => $paymentIntentId,
+                'redirect_url' => $redirectUrl
             ]);
 
         } catch (\Exception $e) {
@@ -391,6 +577,59 @@ class WebhookController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Failed to create tickets for purchase', [
+                'purchase_id' => $purchase->id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Create cancelled tickets for a failed purchase
+     */
+    private function createCancelledTicketsForPurchase(Purchase $purchase): void
+    {
+        try {
+            // Check if tickets already exist to prevent duplicates
+            $existingTicketsCount = Ticket::where('purchase_id', $purchase->id)->count();
+            if ($existingTicketsCount > 0) {
+                return; // Tickets already exist, skip creation
+            }
+
+            $purchaseItem = $purchase->purchaseItems()->first();
+            if (!$purchaseItem) {
+                return;
+            }
+
+            $quantity = $purchaseItem->quantity;
+            $event = $purchase->event;
+            
+            if (!$event) {
+                return;
+            }
+
+            // Create cancelled tickets
+            for ($i = 0; $i < $quantity; $i++) {
+                $ticket = new Ticket();
+                $ticket->purchase_id = $purchase->id;
+                $ticket->event_id = $event->id;
+                $ticket->user_id = $purchase->user_id;
+                $ticket->status = 'cancelled'; // Set status to cancelled
+                $ticket->ticket_number = $ticket->generateTicketNumber();
+                $ticket->price = $event->ticket_price;
+                $ticket->qr_code = $ticket->generateQRCode();
+                $ticket->booked_at = now();
+                $ticket->save();
+            }
+
+            Log::info('Created cancelled tickets for failed purchase', [
+                'purchase_id' => $purchase->id,
+                'quantity' => $quantity,
+                'event_id' => $event->id
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create cancelled tickets for purchase', [
                 'purchase_id' => $purchase->id,
                 'error' => $e->getMessage()
             ]);

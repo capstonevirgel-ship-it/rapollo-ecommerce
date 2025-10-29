@@ -4,9 +4,9 @@
     <div class="bg-gradient-to-r from-zinc-900 to-zinc-700 text-white py-20">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center">
-          <h1 class="text-4xl md:text-5xl font-bold mb-6">About Rapollo</h1>
+          <h1 class="text-4xl md:text-5xl font-winner-extra-bold mb-6">About Rapollo</h1>
           <p class="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
-            Your premier destination for quality fashion and lifestyle products
+            Where Bisaya rap battle culture meets fresh streetwear vibes
           </p>
         </div>
       </div>
@@ -17,31 +17,43 @@
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
-            <h2 class="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
+            <h2 class="text-3xl font-winner-extra-bold text-gray-900 mb-6">Our Story</h2>
             <p class="text-lg text-gray-600 mb-6">
-              Founded with a passion for bringing quality fashion and lifestyle products to our customers, 
-              Rapollo has grown from a small startup to a trusted e-commerce platform. We believe that 
-              everyone deserves access to stylish, affordable, and high-quality products.
+              Born from the streets of the Visayas, Rapollo started as a dream to bring that authentic hip-hop 
+              culture to the Philippines. We're not just another clothing brand - we're a movement that 
+              celebrates the raw energy of rap battles, the creativity of street art, and the boldness 
+              of Bisaya culture across the islands.
             </p>
             <p class="text-lg text-gray-600 mb-6">
-              Our journey began with a simple mission: to make shopping for clothes, accessories, and 
-              lifestyle products an enjoyable and convenient experience. Today, we're proud to serve 
-              thousands of customers with our carefully curated selection of products.
+              From underground cyphers to mainstream success, we've been there. Our gear isn't just 
+              clothing - it's armor for the next battle, confidence for the next verse, and style 
+              that screams "Bisaya represent!" We're here to outfit the next generation of Filipino 
+              rap legends from the Visayas.
             </p>
-            <div class="flex flex-wrap gap-4">
-              <div class="bg-white p-4 rounded-lg shadow-sm">
-                <h3 class="font-semibold text-gray-900">10K+</h3>
-                <p class="text-sm text-gray-600">Happy Customers</p>
-              </div>
-              <div class="bg-white p-4 rounded-lg shadow-sm">
-                <h3 class="font-semibold text-gray-900">500+</h3>
-                <p class="text-sm text-gray-600">Products</p>
-              </div>
-              <div class="bg-white p-4 rounded-lg shadow-sm">
-                <h3 class="font-semibold text-gray-900">50+</h3>
-                <p class="text-sm text-gray-600">Brands</p>
-              </div>
-            </div>
+             <!-- Stats Section -->
+             <div v-if="loading">
+               <StatsSkeleton />
+             </div>
+             <div v-else class="flex flex-wrap gap-4">
+               <div class="bg-white p-4 rounded-lg shadow-sm">
+                 <h3 class="font-semibold text-gray-900">
+                   {{ formatNumber(stats.totalCustomers) }}
+                 </h3>
+                 <p class="text-sm text-gray-600">Happy Customers</p>
+               </div>
+               <div class="bg-white p-4 rounded-lg shadow-sm">
+                 <h3 class="font-semibold text-gray-900">
+                   {{ formatNumber(stats.totalProducts) }}
+                 </h3>
+                 <p class="text-sm text-gray-600">Products</p>
+               </div>
+               <div class="bg-white p-4 rounded-lg shadow-sm">
+                 <h3 class="font-semibold text-gray-900">
+                   {{ formatNumber(stats.totalOrders) }}
+                 </h3>
+                 <p class="text-sm text-gray-600">Orders Delivered</p>
+               </div>
+             </div>
           </div>
           <div class="relative">
             <img 
@@ -58,7 +70,7 @@
     <div class="py-16">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4">Our Mission & Values</h2>
+          <h2 class="text-3xl font-winner-extra-bold text-gray-900 mb-4">Our Mission & Values</h2>
           <p class="text-lg text-gray-600 max-w-2xl mx-auto">
             We're committed to providing exceptional products and service while maintaining our core values
           </p>
@@ -66,36 +78,36 @@
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div class="text-center">
-            <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-zinc-300 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-3">Quality First</h3>
+            <h3 class="text-xl font-winner-extra-bold text-gray-900 mb-3">Quality First</h3>
             <p class="text-gray-600">
               We carefully select every product to ensure it meets our high standards for quality and durability.
             </p>
           </div>
           
           <div class="text-center">
-            <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-zinc-300 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-3">Customer Focus</h3>
+            <h3 class="text-xl font-winner-extra-bold text-gray-900 mb-3">Customer Focus</h3>
             <p class="text-gray-600">
               Your satisfaction is our priority. We're here to help you find exactly what you're looking for.
             </p>
           </div>
           
           <div class="text-center">
-            <div class="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-zinc-300 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-3">Innovation</h3>
+            <h3 class="text-xl font-winner-extra-bold text-gray-900 mb-3">Innovation</h3>
             <p class="text-gray-600">
               We continuously improve our platform and services to provide the best shopping experience.
             </p>
@@ -108,50 +120,55 @@
     <div class="py-16 bg-gray-50">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4">Meet Our Team</h2>
+          <h2 class="text-3xl font-winner-extra-bold text-gray-900 mb-4">Meet Our Team</h2>
           <p class="text-lg text-gray-600">
-            The passionate people behind Rapollo
+            The real ones behind the brand - Visayas' finest
           </p>
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+         <!-- Loading State -->
+         <TeamSkeleton v-if="loading" />
+
+        <!-- Error State -->
+        <div v-else-if="error" class="text-center py-12">
+          <div class="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+            <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <h3 class="text-lg font-medium text-red-800 mb-2">Failed to Load Team</h3>
+            <p class="text-red-600">{{ error }}</p>
+          </div>
+        </div>
+
+        <!-- Team Members -->
+        <div v-else-if="teamMembers.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div 
+            v-for="member in teamMembers" 
+            :key="member.name"
+            class="bg-white rounded-lg shadow-sm p-6 text-center"
+          >
             <img 
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80" 
-              alt="Team Member" 
+              :src="member.image ? getImageUrl(member.image) : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'" 
+              :alt="member.name" 
               class="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
+               @error="($event.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'"
             />
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">John Smith</h3>
-            <p class="text-blue-600 mb-3">CEO & Founder</p>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ member.name }}</h3>
+            <p class="text-blue-600 mb-3">{{ member.position }}</p>
             <p class="text-gray-600 text-sm">
-              Passionate about creating amazing shopping experiences and building lasting customer relationships.
+              {{ member.email }}
             </p>
           </div>
-          
-          <div class="bg-white rounded-lg shadow-sm p-6 text-center">
-            <img 
-              src="https://images.unsplash.com/photo-1494790108755-2616b612b786?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80" 
-              alt="Team Member" 
-              class="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
-            />
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">Sarah Johnson</h3>
-            <p class="text-blue-600 mb-3">Head of Operations</p>
-            <p class="text-gray-600 text-sm">
-              Ensures smooth operations and exceptional customer service across all touchpoints.
-            </p>
-          </div>
-          
-          <div class="bg-white rounded-lg shadow-sm p-6 text-center">
-            <img 
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80" 
-              alt="Team Member" 
-              class="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
-            />
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">Mike Chen</h3>
-            <p class="text-blue-600 mb-3">Head of Technology</p>
-            <p class="text-gray-600 text-sm">
-              Leads our technical team in building innovative solutions for better user experiences.
-            </p>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="text-center py-12">
+          <div class="bg-gray-50 rounded-lg p-8 max-w-md mx-auto">
+            <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <h3 class="text-lg font-winner-extra-bold text-gray-900 mb-2">Crew Coming Soon</h3>
+            <p class="text-gray-600">The squad is getting ready to drop their profiles. Stay tuned for the real ones!</p>
           </div>
         </div>
       </div>
@@ -163,11 +180,70 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useDashboardStore } from '~/stores/dashboard'
+import { useSettingsStore } from '~/stores/settings'
+import { getImageUrl } from '~/helpers/imageHelper'
+import type { TeamMember } from '~/types/settings'
+import StatsSkeleton from '~/components/skeleton/StatsSkeleton.vue'
+import TeamSkeleton from '~/components/skeleton/TeamSkeleton.vue'
+
 // Set page title and meta
 useHead({
-  title: 'About Us - Rapollo E-commerce',
+  title: 'About Us | RAPOLLO',
   meta: [
-    { name: 'description', content: 'Learn about Rapollo, your premier destination for quality fashion and lifestyle products. Discover our story, mission, and the team behind our success.' }
+    { name: 'description', content: 'Meet Rapollo - The Visayas\' premier streetwear brand for rap battle enthusiasts. Discover our story, mission, and the crew behind the freshest drops in the Philippines.' }
   ]
 })
+
+const dashboardStore = useDashboardStore()
+const settingsStore = useSettingsStore()
+
+// Reactive data
+const stats = ref({
+  totalCustomers: 0,
+  totalProducts: 0,
+  totalOrders: 0
+})
+
+const teamMembers = ref<TeamMember[]>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+// Fetch data on mount
+onMounted(async () => {
+  try {
+    loading.value = true
+    
+    // Fetch dashboard statistics
+    await dashboardStore.fetchStatistics()
+    if (dashboardStore.stats) {
+      stats.value = {
+        totalCustomers: dashboardStore.stats.total_customers,
+        totalProducts: dashboardStore.stats.total_products,
+        totalOrders: dashboardStore.stats.total_orders
+      }
+    }
+    
+    // Fetch team members from settings
+    await settingsStore.fetchSettings()
+    if (settingsStore.settings.team?.team_members) {
+      teamMembers.value = settingsStore.settings.team.team_members
+    }
+    
+  } catch (err: any) {
+    error.value = err.message || 'Failed to load data'
+    console.error('Error loading about page data:', err)
+  } finally {
+    loading.value = false
+  }
+})
+
+// Format numbers with K suffix for large numbers
+const formatNumber = (num: number) => {
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'K+'
+  }
+  return num.toString()
+}
 </script>

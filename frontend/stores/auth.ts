@@ -28,7 +28,12 @@ export const useAuthStore = defineStore('auth', {
                 
                 // Store the token for future requests
                 if (response.token) {
-                    const token = useCookie('auth-token');
+                    const token = useCookie('auth-token', {
+                        default: () => null,
+                        maxAge: credentials.remember ? 60 * 60 * 24 * 30 : 60 * 60 * 24, // 30 days or 1 day
+                        secure: true,
+                        sameSite: 'strict'
+                    });
                     token.value = response.token;
                 }
                 

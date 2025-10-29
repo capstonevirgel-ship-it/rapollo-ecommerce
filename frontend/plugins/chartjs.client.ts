@@ -1,4 +1,4 @@
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, BarElement } from 'chart.js'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, BarElement, Filler } from 'chart.js'
 
 export default defineNuxtPlugin(() => {
   ChartJS.register(
@@ -10,6 +10,7 @@ export default defineNuxtPlugin(() => {
     Tooltip,
     Legend,
     ArcElement,
-    BarElement
+    BarElement,
+    Filler
   )
 })

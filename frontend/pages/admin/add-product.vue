@@ -12,7 +12,7 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Add Product - Admin - Rapollo E-commerce',
+  title: 'Add Product - Admin | RAPOLLO',
   meta: [
     { name: 'description', content: 'Add new products to your Rapollo E-commerce store.' }
   ]

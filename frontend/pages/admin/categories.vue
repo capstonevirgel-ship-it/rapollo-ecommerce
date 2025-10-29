@@ -5,7 +5,7 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Categories Management - Admin - Rapollo E-commerce',
+  title: 'Categories Management - Admin | RAPOLLO',
   meta: [
     { name: 'description', content: 'Manage product categories in your Rapollo E-commerce store.' }
   ]

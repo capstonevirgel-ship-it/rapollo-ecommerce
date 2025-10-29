@@ -8,7 +8,7 @@ const notificationStore = useNotificationStore()
 
 // Set page title
 useHead({
-  title: 'Notifications - Rapollo E-commerce',
+  title: 'Notifications | RAPOLLO',
   meta: [
     { name: 'description', content: 'Stay updated with your order notifications and important updates from Rapollo E-commerce.' }
   ]

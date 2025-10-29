@@ -122,5 +122,7 @@ export const useBrandStore = defineStore("brand", {
     },
   },
 
-  persist: true,
+  persist: {
+    paths: ['brands', 'brand', 'error'] // Exclude loading state from persistence
+  }
 });

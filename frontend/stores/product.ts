@@ -15,12 +15,30 @@ export const useProductStore = defineStore("product", {
       this.loading = true;
       this.error = null;
       try {
-        const query = new URLSearchParams(params).toString();
+        // Build query string manually to handle arrays properly
+        const queryParts: string[] = [];
+        
+        for (const [key, value] of Object.entries(params)) {
+          if (value !== null && value !== undefined && value !== '') {
+            if (Array.isArray(value)) {
+              // Handle arrays by adding multiple parameters with []
+              value.forEach(item => {
+                if (item !== null && item !== undefined && item !== '') {
+                  queryParts.push(`${key}[]=${encodeURIComponent(item)}`);
+                }
+              });
+            } else {
+              queryParts.push(`${key}=${encodeURIComponent(value)}`);
+            }
+          }
+        }
+        
+        const query = queryParts.join('&');
         const url = query ? `/api/products?${query}` : "/api/products";
 
         const response = await useCustomFetch<any>(url, { method: "GET" });
         this.products = response.data || [];
-        return this.products;
+        return response; // Return full response to include pagination meta
       } catch (error: any) {
         this.error = error.data?.message || error.message || "Failed to fetch products";
         throw error;
@@ -145,5 +163,7 @@ export const useProductStore = defineStore("product", {
     },
   },
 
-  persist: true,
+  persist: {
+    paths: ['products', 'product', 'error'] // Exclude loading state from persistence
+  }
 });

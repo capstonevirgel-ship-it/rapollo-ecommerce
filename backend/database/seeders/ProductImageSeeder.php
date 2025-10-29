@@ -7,115 +7,132 @@ use Illuminate\Database\Seeder;
 use App\Models\ProductImage;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\File;
+use Database\Seeders\Traits\ImageUploadTrait;
 
 class ProductImageSeeder extends Seeder
 {
+    use ImageUploadTrait;
+
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
         // Get products
-        $classicWhiteTee = Product::where('slug', 'classic-white-t-shirt')->first();
-        $graphicTee = Product::where('slug', 'graphic-print-t-shirt')->first();
-        $linenShirt = Product::where('slug', 'linen-button-up-shirt')->first();
-        $slimJeans = Product::where('slug', 'slim-fit-jeans')->first();
-        $snapbackCap = Product::where('slug', 'snapback-cap')->first();
-        $sportsWatch = Product::where('slug', 'sports-watch')->first();
+        $fliptopTee = Product::where('slug', 'fliptop-collaboration-t-shirt')->first();
+        $rxpandaTee = Product::where('slug', 'rxpanda-collaboration-t-shirt')->first();
+        $turbohecticTee = Product::where('slug', 'turbohectic-collaboration-t-shirt')->first();
+        $ubecTee = Product::where('slug', 'ubec-classic-t-shirt')->first();
+        $sweatshirt = Product::where('slug', 'premium-sweatshirt')->first();
+        $socks = Product::where('slug', 'athletic-socks')->first();
+        $towel = Product::where('slug', 'sports-towel')->first();
 
-        // Get some variants for variant-specific images
-        $whiteTeeVariants = ProductVariant::where('product_id', $classicWhiteTee->id)->where('color_id', function($query) {
-            $query->select('id')->from('colors')->where('name', 'White');
-        })->get();
-
-        $graphicTeeVariants = ProductVariant::where('product_id', $graphicTee->id)->where('color_id', function($query) {
-            $query->select('id')->from('colors')->where('name', 'Black');
-        })->get();
-
-        $linenShirtVariants = ProductVariant::where('product_id', $linenShirt->id)->where('color_id', function($query) {
-            $query->select('id')->from('colors')->where('name', 'Beige');
-        })->get();
-
-        $jeansVariants = ProductVariant::where('product_id', $slimJeans->id)->where('color_id', function($query) {
-            $query->select('id')->from('colors')->where('name', 'Blue');
-        })->get();
-
-        $capVariants = ProductVariant::where('product_id', $snapbackCap->id)->where('color_id', function($query) {
-            $query->select('id')->from('colors')->where('name', 'Black');
-        })->get();
-
-        $watchVariants = ProductVariant::where('product_id', $sportsWatch->id)->where('color_id', function($query) {
-            $query->select('id')->from('colors')->where('name', 'Black');
-        })->get();
-
-        // Define the mapping of products to their test images
+        // Define the mapping of products to their actual images with proper organization
         $productImages = [
-            'classic-white-t-shirt' => 'classic_white_tee.png',
-            'graphic-print-t-shirt' => 'graphic_tee.png',
-            'linen-button-up-shirt' => 'linen_shirt.png',
-            'slim-fit-jeans' => 'slim_fit_jeans.png',
-            'snapback-cap' => 'snapback_cap.png',
-            'sports-watch' => 'sports_watch.png',
+            'fliptop-collaboration-t-shirt' => [
+                // Main product (Black) + Color variants
+                'main' => 'RapolloxFlipTop_Tshirt_Black_1.jpg',
+                'variants' => [
+                    'RapolloxFlipTop_Tshirt_Black_1(1).jpg',
+                    'RapolloxFlipTop_Tshirt_Black_2.jpg',
+                    'RapolloxFlipTop_Tshirt_Red_1.jpg',
+                    'RapolloxFlipTop_Tshirt_Red_2.jpg',
+                    'RapolloxFlipTop_Tshirt_Brown_1.jpg',
+                    'RapolloxFlipTop_Tshirt_Brown_2.jpg'
+                ]
+            ],
+            'rxpanda-collaboration-t-shirt' => [
+                // Main product (Black) + variants
+                'main' => 'RapolloxRxPanda_Tshirt_Black_1.jpg',
+                'variants' => [
+                    'RapolloxRxPanda_Tshirt_Black_2.jpg'
+                ]
+            ],
+            'turbohectic-collaboration-t-shirt' => [
+                // Main product (Black) + variants
+                'main' => 'RapolloxTurboHectic_Tshirt_Black_1.jpg',
+                'variants' => [
+                    'RapolloxTurboHectic_Tshirt_Black_2.jpg'
+                ]
+            ],
+            'ubec-classic-t-shirt' => [
+                // Main product (White) + Color variants
+                'main' => 'Rapollo_Ubec_Tshirt_White.jpg',
+                'variants' => [
+                    'Rapollo_Ubec_Tshirt_Brown_1.jpg',
+                    'Rapollo_Ubec_Tshirt_Brown_2.jpg'
+                ]
+            ],
+            'premium-sweatshirt' => [
+                // Single product (no variants)
+                'main' => 'Rapollo_Sweatshirt_White.jpg',
+                'variants' => []
+            ],
+            'athletic-socks' => [
+                // Single product (no variants)
+                'main' => 'Rapollo_Socks_Red_1.jpg',
+                'variants' => [
+                    'Rapollo_Socks_Red_2.jpg'
+                ]
+            ],
+            'sports-towel' => [
+                // Single product (no variants)
+                'main' => 'Rapollo_Towel_Black_1.jpg',
+                'variants' => [
+                    'Rapollo_Towel_Black_2.jpg'
+                ]
+            ]
         ];
 
-        // Create storage directories
-        Storage::makeDirectory('public/products');
-        Storage::makeDirectory('public/variants');
-        Storage::makeDirectory('public/brands');
-
-        foreach ($productImages as $productSlug => $imageName) {
+        foreach ($productImages as $productSlug => $imageData) {
             $product = Product::where('slug', $productSlug)->first();
             if (!$product) continue;
 
-            // Source path (frontend test images)
-            $sourcePath = base_path('../frontend/public/test_images/' . $imageName);
-            
-            // Check if source file exists
-            if (!File::exists($sourcePath)) {
-                $this->command->warn("Source image not found: {$sourcePath}");
-                continue;
+            // Upload main product image
+            $mainImagePath = $this->uploadProductImages($productSlug, [$imageData['main']]);
+            if (empty($mainImagePath)) continue;
+
+            // Upload variant images
+            $variantImagePaths = [];
+            if (!empty($imageData['variants'])) {
+                $variantImagePaths = $this->uploadProductImages($productSlug, $imageData['variants']);
             }
 
-            // Destination path in storage (relative path only, no /storage/ prefix)
-            $relativePath = 'products/' . $productSlug . '_' . $imageName;
-            
-            // Copy file to storage using File facade
-            $destinationFullPath = storage_path('app/public/' . $relativePath);
-            File::copy($sourcePath, $destinationFullPath);
-            
-            // Store only the relative path (without /storage/ prefix)
-            $storageUrl = $relativePath;
+            // Combine all images
+            $allImagePaths = array_merge($mainImagePath, $variantImagePaths);
 
             // Get variants for this product
             $variants = ProductVariant::where('product_id', $product->id)->get();
 
-            // Create product images
-            $images = [
-                // Primary image for the first variant
-                [
-                    'product_id' => $product->id,
-                    'variant_id' => $variants->first()?->id,
-                    'url' => $storageUrl,
-                    'is_primary' => true,
-                    'sort_order' => 1
-                ],
-                // General product image
-                [
-                    'product_id' => $product->id,
-                    'variant_id' => null,
-                    'url' => $storageUrl,
-                    'is_primary' => false,
-                    'sort_order' => 2
-                ]
-            ];
+            $sortOrder = 1;
+            foreach ($allImagePaths as $uploadedPath) {
+                // Create product images
+                $images = [
+                    // Primary image for the first variant
+                    [
+                        'product_id' => $product->id,
+                        'variant_id' => $variants->first()?->id,
+                        'url' => $uploadedPath,
+                        'is_primary' => $sortOrder === 1,
+                        'sort_order' => $sortOrder
+                    ],
+                    // General product image
+                    [
+                        'product_id' => $product->id,
+                        'variant_id' => null,
+                        'url' => $uploadedPath,
+                        'is_primary' => false,
+                        'sort_order' => $sortOrder
+                    ]
+                ];
 
-            foreach ($images as $image) {
-                ProductImage::create($image);
+                foreach ($images as $image) {
+                    ProductImage::create($image);
+                }
+
+                $this->command->info("Created image records for {$product->name}: {$uploadedPath}");
+                $sortOrder++;
             }
-
-            $this->command->info("Uploaded image for {$product->name}: {$storageUrl}");
         }
     }
 }

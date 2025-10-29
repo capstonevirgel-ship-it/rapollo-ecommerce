@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { watch, onUnmounted } from 'vue'
+
 const props = defineProps<{
   modelValue: boolean
   title?: string
@@ -12,12 +14,30 @@ const emit = defineEmits<{
 const close = () => {
   emit('update:modelValue', false)
 }
+
+// Handle body scroll when dialog is open
+watch(() => props.modelValue, (isOpen) => {
+  if (process.client) {
+    if (isOpen) {
+      document.body.classList.add('dialog-open')
+    } else {
+      document.body.classList.remove('dialog-open')
+    }
+  }
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (process.client) {
+    document.body.classList.remove('dialog-open')
+  }
+})
 </script>
 
 <template>
   <div
     v-if="modelValue"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    class="dialog-overlay flex items-center justify-center bg-black/50 p-4"
   >
     <div
       class="bg-white rounded-xl shadow-2xl w-full max-w-lg relative max-h-[90vh] overflow-y-auto"

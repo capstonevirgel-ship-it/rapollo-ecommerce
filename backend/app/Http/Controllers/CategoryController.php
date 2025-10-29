@@ -41,9 +41,18 @@ class CategoryController extends Controller
     /**
      * Display the specified category.
      */
-    public function show(Category $category)
+    public function show($category)
     {
-        return response()->json($category->load('subcategories'));
+        // Check if the parameter is numeric (ID) or string (slug)
+        if (is_numeric($category)) {
+            // Handle by ID
+            $category = Category::with('subcategories')->findOrFail($category);
+        } else {
+            // Handle by slug
+            $category = Category::with('subcategories')->where('slug', $category)->firstOrFail();
+        }
+        
+        return response()->json($category);
     }
 
     /**

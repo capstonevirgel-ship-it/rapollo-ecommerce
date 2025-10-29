@@ -1,214 +1,195 @@
-import { defineStore } from 'pinia'
-import type { AllSettings, Setting, SettingsUpdatePayload } from '~/types/settings'
+import { defineStore } from "pinia";
+import { useCustomFetch } from "~/composables/useCustomFetch";
 
-export const useSettingsStore = defineStore('settings', {
+export const useSettingsStore = defineStore("settings", {
   state: () => ({
-    settings: null as AllSettings | null,
+    settings: {} as Record<string, any>,
     loading: false,
     error: null as string | null,
   }),
 
+  getters: {
+    siteName: (state) => state.settings.site?.site_name || 'Rapollo E-Commerce',
+    siteLogo: (state) => state.settings.site?.site_logo || null,
+    siteAbout: (state) => state.settings.site?.site_about || 'Welcome to our e-commerce store. We offer quality products at affordable prices.',
+    contactEmail: (state) => state.settings.contact?.contact_email || 'info@rapollo.com',
+    contactPhone: (state) => state.settings.contact?.contact_phone || '+63 123 456 7890',
+    contactAddress: (state) => state.settings.contact?.contact_address || '123 Main Street, Manila, Philippines',
+    contactFacebook: (state) => state.settings.contact?.contact_facebook || null,
+    contactInstagram: (state) => state.settings.contact?.contact_instagram || null,
+    contactTwitter: (state) => state.settings.contact?.contact_twitter || null,
+  },
+
   actions: {
     async fetchSettings() {
-      this.loading = true
-      this.error = null
+      this.loading = true;
+      this.error = null;
       try {
-        const response = await useCustomFetch<AllSettings>('/api/settings', {
-          method: 'GET',
-        })
-        this.settings = response
-        return response
+        const response = await useCustomFetch<any>('/api/settings', { method: 'GET' });
+        this.settings = response;
+        return this.settings;
       } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to fetch settings'
-        throw error
+        this.error = error.data?.message || error.message || 'Failed to fetch settings';
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
 
     async fetchSettingsByGroup(group: string) {
-      this.loading = true
-      this.error = null
+      this.loading = true;
+      this.error = null;
       try {
-        const response = await useCustomFetch<any>(`/api/settings/group/${group}`, {
-          method: 'GET',
-        })
-        return response
+        const response = await useCustomFetch<any>(`/api/settings/group/${group}`, { method: 'GET' });
+        return response;
       } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to fetch settings'
-        throw error
+        this.error = error.data?.message || error.message || 'Failed to fetch settings';
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
 
-    async fetchSettingByKey(key: string) {
-      this.loading = true
-      this.error = null
+    async getSetting(key: string) {
       try {
-        const response = await useCustomFetch<{ key: string; value: any }>(`/api/settings/${key}`, {
-          method: 'GET',
-        })
-        return response.value
+        const response = await useCustomFetch<any>(`/api/settings/${key}`, { method: 'GET' });
+        return response.value;
       } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to fetch setting'
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-
-    async updateSettings(payload: SettingsUpdatePayload) {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await useCustomFetch<{ message: string; settings: AllSettings }>('/api/settings', {
-          method: 'POST',
-          body: payload,
-        })
-        this.settings = response.settings
-        return response
-      } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to update settings'
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-
-    async updateSingleSetting(key: string, value: any, group?: string, type?: string) {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await useCustomFetch<{ message: string; setting: { key: string; value: any } }>(
-          `/api/settings/${key}`,
-          {
-            method: 'PUT',
-            body: { value, group, type },
-          }
-        )
-        // Update local state
-        await this.fetchSettings()
-        return response
-      } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to update setting'
-        throw error
-      } finally {
-        this.loading = false
+        console.error(`Failed to fetch setting ${key}:`, error);
+        return null;
       }
     },
 
     async uploadLogo(file: File) {
-      this.loading = true
-      this.error = null
+      this.loading = true;
+      this.error = null;
       try {
-        const formData = new FormData()
-        formData.append('logo', file)
-
-        const response = await useCustomFetch<{ message: string; path: string; url: string }>(
-          '/api/settings/upload-logo',
-          {
-            method: 'POST',
-            body: formData,
-          }
-        )
-
-        // Refresh settings
-        await this.fetchSettings()
-        return response
+        const formData = new FormData();
+        formData.append('logo', file);
+        
+        const response = await useCustomFetch<any>('/api/settings/upload-logo', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        // Update the settings with the new logo path
+        if (this.settings.site) {
+          this.settings.site.site_logo = response.path;
+        }
+        
+        return response;
       } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to upload logo'
-        throw error
+        this.error = error.data?.message || error.message || 'Failed to upload logo';
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
 
     async deleteLogo() {
-      this.loading = true
-      this.error = null
+      this.loading = true;
+      this.error = null;
       try {
-        const response = await useCustomFetch<{ message: string }>('/api/settings/delete-logo', {
-          method: 'DELETE',
-        })
-
-        // Refresh settings
-        await this.fetchSettings()
-        return response
+        await useCustomFetch('/api/settings/delete-logo', { method: 'DELETE' });
+        
+        // Remove logo from settings
+        if (this.settings.site) {
+          this.settings.site.site_logo = null;
+        }
+        
+        return true;
       } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to delete logo'
-        throw error
+        this.error = error.data?.message || error.message || 'Failed to delete logo';
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
 
     async uploadTeamMemberImage(file: File) {
-      this.loading = true
-      this.error = null
+      this.loading = true;
+      this.error = null;
       try {
-        const formData = new FormData()
-        formData.append('image', file)
-
-        const response = await useCustomFetch<{ message: string; path: string; url: string }>(
-          '/api/settings/upload-team-member-image',
-          {
-            method: 'POST',
-            body: formData,
-          }
-        )
-
-        return response
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        const response = await useCustomFetch<any>('/api/settings/upload-team-member-image', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        return response;
       } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to upload team member image'
-        throw error
+        this.error = error.data?.message || error.message || 'Failed to upload team member image';
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
 
-    async deleteTeamMemberImage(path: string) {
-      this.loading = true
-      this.error = null
+    async deleteTeamMemberImage(imagePath: string) {
+      this.loading = true;
+      this.error = null;
       try {
-        const response = await useCustomFetch<{ message: string }>(
-          '/api/settings/delete-team-member-image',
-          {
-            method: 'DELETE',
-            body: { path },
-          }
-        )
-
-        return response
+        await useCustomFetch('/api/settings/delete-team-member-image', {
+          method: 'DELETE',
+          body: { image_path: imagePath }
+        });
+        
+        return true;
       } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to delete team member image'
-        throw error
+        this.error = error.data?.message || error.message || 'Failed to delete team member image';
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
 
-    async toggleMaintenance(enabled: boolean, message?: string) {
-      this.loading = true
-      this.error = null
+    async updateSettings(data: { settings: Array<{ key: string; value: any; group: string; type: string }> }) {
+      this.loading = true;
+      this.error = null;
       try {
-        const response = await useCustomFetch<{ message: string; maintenance_mode: boolean }>(
-          '/api/settings/toggle-maintenance',
-          {
-            method: 'POST',
-            body: { enabled, message },
-          }
-        )
-
-        // Refresh settings
-        await this.fetchSettings()
-        return response
+        const response = await useCustomFetch<any>('/api/settings', {
+          method: 'POST',
+          body: data,
+        });
+        
+        // Update local settings
+        this.settings = response;
+        
+        return response;
       } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to toggle maintenance mode'
-        throw error
+        this.error = error.data?.message || error.message || 'Failed to update settings';
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
+      }
+    },
+
+    async toggleMaintenance(enabled: boolean, message: string) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await useCustomFetch<any>('/api/settings/toggle-maintenance', {
+          method: 'POST',
+          body: { enabled, message },
+        });
+        
+        // Update local settings
+        if (this.settings.maintenance) {
+          this.settings.maintenance.maintenance_mode = enabled;
+          this.settings.maintenance.maintenance_message = message;
+        }
+        
+        return response;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || 'Failed to toggle maintenance mode';
+        throw error;
+      } finally {
+        this.loading = false;
       }
     },
   },
-})
+
+  persist: true,
+});

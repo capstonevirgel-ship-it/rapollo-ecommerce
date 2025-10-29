@@ -24,6 +24,7 @@ onMounted(async () => {
     isDataLoaded.value = true
   } catch (error) {
     console.error('Failed to fetch subcategory:', error)
+    isDataLoaded.value = true // Set to true even on error to stop skeleton
   }
 })
 
@@ -32,14 +33,14 @@ useHead(() => {
   if (subcategory.value) {
     const title = subcategory.value.meta_title || subcategory.value.name
     return {
-      title: `${title} - Rapollo E-commerce`,
+      title: `${title} | RAPOLLO`,
       meta: [
         { name: 'description', content: subcategory.value.meta_description || `Shop ${subcategory.value.name} products at Rapollo E-commerce` }
       ]
     }
   }
   return {
-    title: 'Subcategory - Rapollo E-commerce'
+    title: 'Subcategory | RAPOLLO'
   }
 })
 
@@ -53,8 +54,9 @@ const formatPrice = (price: number | undefined | null): string => {
 </script>
 
 <template>
-  <div class="px-4 py-8">
-    <Breadcrumbs />
+  <div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <Breadcrumbs />
     
     <!-- Loading skeleton -->
     <div v-if="!isDataLoaded || loading" class="space-y-4 animate-pulse">
@@ -112,5 +114,6 @@ const formatPrice = (price: number | undefined | null): string => {
 
     <!-- Not found -->
     <p v-else class="text-red-500 text-center py-20">Subcategory not found.</p>
+    </div>
   </div>
 </template>

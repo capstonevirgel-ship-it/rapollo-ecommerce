@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Event } from '~/types'
 import Dialog from '@/components/Dialog.vue'
+import { getImageUrl } from '~/helpers/imageHelper'
 
 // Use admin layout
 definePageMeta({
@@ -9,7 +10,7 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Events Management - Admin - Rapollo E-commerce',
+  title: 'Events Management - Admin | RAPOLLO',
   meta: [
     { name: 'description', content: 'Manage events and tickets in your Rapollo E-commerce store.' }
   ]
@@ -286,7 +287,7 @@ const formatTime = (dateString: string) => {
         <div v-for="event in eventStore.events" :key="event.id" class="bg-white rounded-lg shadow-md overflow-hidden">
           <!-- Event Image -->
           <div v-if="event.poster_url" class="h-48 w-full bg-gray-200">
-            <img :src="event.poster_url" :alt="event.title" class="h-full w-full object-cover">
+            <img :src="getImageUrl(event.poster_url)" :alt="event.title" class="h-full w-full object-cover">
           </div>
           <div v-else class="h-48 w-full bg-gray-200 flex items-center justify-center">
             <svg class="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -454,7 +455,7 @@ const formatTime = (dateString: string) => {
                 accept="image/*"
                 class="block w-full"
               />
-              <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF up to 2MB. Recommended: 16:9 aspect ratio.</p>
+              <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF, SVG up to 2MB. Recommended: 16:9 aspect ratio.</p>
             </div>
               </div>
             </div>
@@ -596,7 +597,7 @@ const formatTime = (dateString: string) => {
                 accept="image/*"
                 class="block w-full"
               />
-              <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF up to 2MB. Recommended: 16:9 aspect ratio.</p>
+              <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF, SVG up to 2MB. Recommended: 16:9 aspect ratio.</p>
             </div>
           </div>
         </div>

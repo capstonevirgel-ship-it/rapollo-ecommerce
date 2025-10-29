@@ -2,15 +2,22 @@
 import HeroCard from '@/components/HeroCard.vue';
 import Carousel from '@/components/Carousel.vue'; 
 import EventGallery from '@/components/EventGallery.vue';
+import ProductGallery from '@/components/ProductGallery.vue';
+import HeroSkeleton from '@/components/skeleton/HeroSkeleton.vue';
+import NewArrivalSkeleton from '@/components/skeleton/NewArrivalSkeleton.vue';
 import { useEventStore } from '~/stores/event';
 import { useBrandStore } from '~/stores/brand';
 import { useProductStore } from '~/stores/product';
+import { useSettingsStore } from '~/stores/settings';
+import { useAuthStore } from '~/stores/auth';
 import { getImageUrl } from '~/utils/imageHelper';
 import { onMounted, reactive, computed } from 'vue';
 
 const eventStore = useEventStore();
 const brandStore = useBrandStore();
 const productStore = useProductStore();
+const settingsStore = useSettingsStore();
+const authStore = useAuthStore();
 
 // Track image load errors for brands
 const brandImageError = reactive<Record<number, boolean>>({});
@@ -21,101 +28,114 @@ const allBrands = computed(() => {
   return [...brands, ...brands, ...brands]; // Triple for better seamless effect
 });
 
-const newArrivals = [
-  {
-    id: 1,
-    title: "Classic White T-Shirt",
-    price: 29.99,
-    image: "/t-shirt.jpg"
-  },
-  {
-    id: 2,
-    title: "Black Premium Tee",
-    price: 34.99,
-    image: "/t-shirt.jpg"
-  },
-  {
-    id: 3,
-    title: "Striped Casual Shirt",
-    price: 39.99,
-    image: "/t-shirt.jpg"
-  },
-  {
-    id: 4,
-    title: "Summer V-Neck",
-    price: 27.99,
-    image: "/t-shirt.jpg"
-  },
-  {
-    id: 5,
-    title: "Oversized Comfort Tee",
-    price: 31.99,
-    image: "/t-shirt.jpg"
-  }
-];
+// New arrivals are now stored in the ref above
 
 const handleProductClick = (product: any) => {
   console.log('Product clicked:', product);
 };
 
-// Fetch events, brands, and featured products on component mount
+// Separate data for featured, hot, and new products
+const featuredProducts = ref<any[]>([]);
+const hotProducts = ref<any[]>([]);
+const newArrivals = ref<any[]>([]);
+
+// Loading states for each section
+const isLoadingHero = ref(true);
+const isLoadingNewArrivals = ref(true);
+
+// Fetch events, brands, featured products, hot products, new arrivals, and settings on component mount
 onMounted(async () => {
   try {
-    await Promise.all([
-      eventStore.fetchEvents(),
-      brandStore.fetchBrands(),
-      productStore.fetchProducts({ is_featured: true, per_page: 3 })
-    ]);
+    // Only fetch data on client side
+    if (process.client) {
+      // Fetch all data in parallel for better performance
+      const promises = [
+        eventStore.fetchEvents(),
+        brandStore.fetchBrands(),
+        settingsStore.fetchSettings(),
+        productStore.fetchProducts({ is_featured: true, per_page: 3 }),
+        productStore.fetchProducts({ is_hot: true, per_page: 4 })
+      ];
+      
+      // Wait for all critical data to load
+      await Promise.allSettled(promises);
+      
+      // Set featured products
+      featuredProducts.value = [...productStore.products];
+      isLoadingHero.value = false;
+      
+      // Set hot products
+      hotProducts.value = [...productStore.products];
+      
+      // Fetch new products (below the fold, can load separately)
+      isLoadingNewArrivals.value = true;
+      productStore.fetchProducts({ is_new: true, per_page: 5 })
+        .then(() => {
+          newArrivals.value = [...productStore.products];
+          isLoadingNewArrivals.value = false;
+        })
+        .catch(() => {
+          isLoadingNewArrivals.value = false;
+        });
+    } else {
+      // On server side, just set loading to false
+      isLoadingHero.value = false;
+      isLoadingNewArrivals.value = false;
+    }
   } catch (error) {
     console.error('Failed to fetch data:', error);
+    isLoadingHero.value = false;
+    isLoadingNewArrivals.value = false;
   }
 });
 
-// Get featured products for hero section
-const featuredProducts = computed(() => {
-  return productStore.products.filter(product => product.is_featured === 1).slice(0, 3);
-});
+// Featured products are now stored in the ref above
 
-// Set page title
+// Set page title dynamically
 useHead({
-  title: 'Rapollo E-commerce - Rap Battle Merchandise & Event Tickets',
+  title: computed(() => `${settingsStore.siteName || 'RAPOLLO'} | Rap Battle Merchandise & Event Tickets`),
   meta: [
-    { name: 'description', content: 'Experience the ultimate rap battle culture with exclusive merchandise and event tickets. Shop premium products and book tickets for exciting rap battle events in the Philippines.' },
+    { name: 'description', content: computed(() => settingsStore.siteAbout || 'Welcome to our e-commerce store. We offer quality products at affordable prices.') },
     { name: 'keywords', content: 'rap battle, merchandise, event tickets, Philippines, rap culture, clothing, apparel' }
   ]
 })
 </script>
 
 <template>
-  <div class="bg-gray-50">
-    <section class="py-[60px]" id="hero-section">
-      <div class="mx-auto px-10 flex flex-col md:flex-row items-center justify-around gap-8 max-w-[1440px]">
-        <div class="lg:w-1/2 py-6 w-full">
-          <div>
-            <h1 class="text-4xl font-extrabold text-zinc-900 mb-2">
-              Rapollo Shop
-            </h1>
-            <h3 class="text-xl text-gray-700 mb-4">
-              Rap battle in the Philippines - Buy tickets and merchandises
-            </h3>
-            <p class="text-gray-500 text-base">
-              Experience the ultimate rap battle culture with exclusive merchandise and event tickets
-            </p>
-            <div class="mt-6">
-              <NuxtLink 
-                to="/shop" 
-                class="inline-flex items-center px-6 py-3 bg-zinc-900 text-white font-semibold rounded-lg hover:bg-zinc-800 transition-colors"
-              >
-                View Products
-                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </NuxtLink>
+  <div>
+    <section class="py-[60px] bg-white" id="hero-section">
+      <div class="mx-auto px-10 max-w-[1440px]">
+        <!-- Hero Skeleton -->
+        <HeroSkeleton v-if="isLoadingHero" />
+        
+        <!-- Hero Content -->
+        <div v-else class="flex flex-col md:flex-row items-center justify-around gap-8">
+          <div class="lg:w-1/2 py-6 w-full">
+            <div>
+              <h1 class="text-6xl font-extrabold text-zinc-900 mb-2 font-winner-extra-bold">
+                {{ settingsStore.siteName || 'Rapollo E-Commerce' }}
+              </h1>
+              <h3 class="text-xl text-gray-700 mb-4">
+                Rap battle in the Philippines - Buy tickets and merchandises
+              </h3>
+              <p class="text-gray-500 text-base">
+                Experience the ultimate rap battle culture with exclusive merchandise and event tickets
+              </p>
+              <div class="mt-6">
+                <NuxtLink 
+                  to="/shop" 
+                  class="inline-flex items-center justify-center px-6 py-3 bg-zinc-900 text-white font-semibold rounded-lg hover:bg-zinc-800 transition-colors"
+                >
+                  View Products
+                  <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </NuxtLink>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="flex lg:w-1/2 w-full">
-          <div class="flex w-full gap-4">
+          <div class="flex lg:w-1/2 w-full">
+            <div class="flex w-full gap-4">
             <!-- Featured Product 1 (Large) -->
             <div class="w-1/2" v-if="featuredProducts[0]">
               <div 
@@ -123,7 +143,7 @@ useHead({
                 @click="() => navigateTo(`/shop/${featuredProducts[0].subcategory?.category?.slug}/${featuredProducts[0].subcategory?.slug}/${featuredProducts[0].slug}`)"
               >
                 <img 
-                  :src="getImageUrl(featuredProducts[0].images?.[0]?.url || '')" 
+                  :src="getImageUrl(featuredProducts[0].images?.[0]?.url || null)" 
                   :alt="featuredProducts[0].name"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
@@ -156,7 +176,7 @@ useHead({
                 @click="() => navigateTo(`/shop/${featuredProducts[1].subcategory?.category?.slug}/${featuredProducts[1].subcategory?.slug}/${featuredProducts[1].slug}`)"
               >
                 <img 
-                  :src="getImageUrl(featuredProducts[1].images?.[0]?.url || '')" 
+                  :src="getImageUrl(featuredProducts[1].images?.[0]?.url || null)" 
                   :alt="featuredProducts[1].name"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
@@ -184,7 +204,7 @@ useHead({
                 @click="() => navigateTo(`/shop/${featuredProducts[2].subcategory?.category?.slug}/${featuredProducts[2].subcategory?.slug}/${featuredProducts[2].slug}`)"
               >
                 <img 
-                  :src="getImageUrl(featuredProducts[2].images?.[0]?.url || '')" 
+                  :src="getImageUrl(featuredProducts[2].images?.[0]?.url || null)" 
                   :alt="featuredProducts[2].name"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
@@ -208,6 +228,20 @@ useHead({
             </div>
           </div>
         </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hot Products Section -->
+    <section class="py-[60px] bg-gray-100" id="hot-products">
+      <div class="mx-auto px-10 max-w-[1440px] items-center">
+        <div class="text-center mb-12">
+          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-winner-extra-bold">Trending Products</h2>
+          <p class="text-gray-600 max-w-2xl mx-auto">
+            Check out our most popular items right now
+          </p>
+        </div>
+        <ProductGallery :products="hotProducts" :loading="productStore.loading" />
       </div>
     </section>
 
@@ -215,63 +249,71 @@ useHead({
     <section class="py-[60px] bg-white" id="new-arrivals">
       <div class="mx-auto px-10 max-w-[1440px] flex flex-col items-center">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4">New Arrivals</h2>
+          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-winner-extra-bold">New Arrivals</h2>
           <p class="text-gray-600 max-w-2xl mx-auto">
             Discover our latest collection of premium t-shirts and casual wear
           </p>
         </div>
 
+        <!-- New Arrivals Skeleton -->
+        <NewArrivalSkeleton v-if="isLoadingNewArrivals" />
+
         <!-- Carousel Component -->
-        <Carousel
-          :items="newArrivals"
-          :autoplay="true"
-          :autoplay-interval="5000"
-          :show-arrows="true"
-          :items-to-show="3"
-          :items-to-scroll="1"
-          @item-click="handleProductClick"
-        >
-          <template #item="{ item }">
-            <div class="p-4 h-full">
-              <div class="bg-gray-50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow h-full flex flex-col justify-center">
-                <div class="aspect-square overflow-hidden flex justify-center">
-                  <img 
-                    :src="item.image" 
-                    :alt="item.title" 
-                    class="object-cover w-3/4 h-3/4"
-                  />
-                </div>
-                <div class="p-4 flex-grow">
-                  <h3 class="font-medium text-gray-900 text-lg mb-1">{{ item.title }}</h3>
-                  <p class="text-gray-600">${{ item.price.toFixed(2) }}</p>
-                </div>
-                <div class="p-4">
-                  <button 
-                    class="w-full bg-zinc-900 text-white py-2 rounded-md hover:bg-zinc-800 transition-colors cursor-pointer"
-                    @click.stop="handleProductClick(item)"
-                  >
-                    View Details
-                  </button>
+        <template v-else>
+          <Carousel
+            :items="newArrivals"
+            :autoplay="true"
+            :autoplay-interval="5000"
+            :show-arrows="true"
+            :items-to-show="3"
+            :items-to-scroll="1"
+            @item-click="handleProductClick"
+          >
+            <template #item="{ item }">
+              <div class="p-4 h-full">
+                <div class="bg-gray-50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow h-full flex flex-col justify-center">
+                  <div class="aspect-square overflow-hidden flex justify-center">
+                    <img 
+                      :src="getImageUrl(item.images?.[0]?.url || null)" 
+                      :alt="item.name" 
+                      class="object-cover w-3/4 h-3/4"
+                    />
+                  </div>
+                  <div class="p-4 flex-grow">
+                    <h3 class="font-medium text-gray-900 text-lg mb-1">{{ item.name }}</h3>
+                    <p class="text-gray-600">₱{{ item.variants?.[0]?.price?.toFixed(2) || '0.00' }}</p>
+                  </div>
+                  <div class="p-4">
+                    <button 
+                      class="w-full bg-zinc-900 text-white py-2 rounded-md hover:bg-zinc-800 transition-colors cursor-pointer"
+                      @click.stop="() => navigateTo(`/shop/${item.subcategory?.category?.slug}/${item.subcategory?.slug}/${item.slug}`)"
+                    >
+                      View Details
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </template>
-        </Carousel>
+            </template>
+          </Carousel>
 
-        <RouterLink 
-          to="#" 
-          class="mt-8 inline-block text-center bg-zinc-900 text-white px-6 py-3 rounded-md hover:bg-zinc-800 transition-colors mx-auto"
-        >
-          View All Products
-        </RouterLink>
+          <NuxtLink
+            to="/shop?is_new=true"
+            class="mt-8 inline-flex items-center px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            View All New Arrivals
+            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </NuxtLink>
+        </template>
       </div>
     </section>
 
     <!-- Brands Section -->
-    <section class="py-[60px] bg-gray-50" id="brands">
+    <section class="py-[60px] bg-gray-100" id="brands">
       <div class="mx-auto px-10 max-w-[1440px]">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4">Our Brands</h2>
+          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-winner-extra-bold">Our Brands</h2>
           <p class="text-gray-600 max-w-2xl mx-auto">
             Discover the premium brands we partner with to bring you the best products
           </p>
@@ -284,7 +326,7 @@ useHead({
               <div class="w-24 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm border">
                 <img 
                   v-if="!brandImageError[brand.id]"
-                  :src="getImageUrl(brand.logo_url, 'brand')"
+                  :src="getImageUrl(brand.logo_url || null, 'brand')"
                   :alt="brand.name"
                   class="w-16 h-8 object-contain"
                   @error="brandImageError[brand.id] = true"
@@ -305,12 +347,12 @@ useHead({
     <section class="py-[60px] bg-white" id="events">
       <div class="mx-auto px-10 max-w-[1440px] items-center">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4">Upcoming Events</h2>
+          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-winner-extra-bold">Upcoming Events</h2>
           <p class="text-gray-600 max-w-2xl mx-auto">
             Don't miss out on our exciting rap battle events and competitions
           </p>
         </div>
-        <EventGallery :events="eventStore.events" :loading="eventStore.loading" />
+        <EventGallery :events="eventStore.events.slice(0, 5)" :loading="eventStore.loading" />
       </div>
     </section>
 

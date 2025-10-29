@@ -219,11 +219,14 @@ const clearAllFilters = () => {
 // Fetch data on mount
 onMounted(async () => {
   try {
-    await Promise.all([
-      categoryStore.fetchCategories(),
-      subcategoryStore.fetchSubcategories(),
-      brandStore.fetchBrands()
-    ])
+    // Only fetch data on client side
+    if (process.client) {
+      await Promise.all([
+        categoryStore.fetchCategories(),
+        subcategoryStore.fetchSubcategories(),
+        brandStore.fetchBrands()
+      ])
+    }
   } catch (error) {
     console.error('Error fetching filter data:', error)
   }

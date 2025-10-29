@@ -32,9 +32,9 @@ const currentBrand = computed(() => {
 // ---------------------
 const currentPage = ref(1)
 const perPage = 9 // show 9 products per page (3 columns x 3 rows)
-const isLoading = ref(false)
 const showFilters = ref(false)
 const isUpdatingFilters = ref(false) // Flag to prevent recursive calls
+const isLoadingProducts = ref(false) // Local loading state for products
 
 // Filter state
 interface ProductFilters {
@@ -78,13 +78,14 @@ const handlePageChange = (page: number) => {
 // ---------------------
 const fetchData = async () => {
   // Prevent multiple simultaneous API calls
-  if (isLoading.value) {
+  if (isLoadingProducts.value) {
     console.log('API call already in progress, skipping...')
     return
   }
   
+  isLoadingProducts.value = true
+  
   try {
-    isLoading.value = true
     
     // Build query parameters
     const params: any = {
@@ -104,12 +105,21 @@ const fetchData = async () => {
     if (filters.value.is_new) params.is_new = true
     if (filters.value.min_price) params.min_price = filters.value.min_price
     if (filters.value.max_price) params.max_price = filters.value.max_price
-    if (filters.value.categories.length > 0) params.category = filters.value.categories[0] // Backend only supports one category
-    if (filters.value.subcategories.length > 0) params.subcategory = filters.value.subcategories[0] // Backend only supports one subcategory
-    if (filters.value.brands.length > 0 && !brandSlug.value) params.brand = filters.value.brands[0] // Backend only supports one brand
+    
+    // Handle multiple categories, subcategories, and brands
+    if (filters.value.categories.length > 0) {
+      params.category = filters.value.categories
+    }
+    if (filters.value.subcategories.length > 0) {
+      params.subcategory = filters.value.subcategories
+    }
+    if (filters.value.brands.length > 0 && !brandSlug.value) {
+      params.brand = filters.value.brands
+    }
     
     console.log('Fetching products with params:', params)
-    const response: any = await productStore.fetchProducts(params)
+    const response: any = await (productStore as any).fetchProducts(params)
+    console.log('Products fetched:', response?.data?.length || 0, 'items')
 
     // If API returns meta, set pagination
     if (response?.meta) {
@@ -128,17 +138,25 @@ const fetchData = async () => {
         total_pages: 1
       }
     }
+    
   } catch (err) {
     console.error("Failed to fetch products", err)
   } finally {
-    isLoading.value = false
+    isLoadingProducts.value = false
   }
 }
 
 // ---------------------
 // Computed
 // ---------------------
-const products = computed(() => productStore.products)
+const products = computed(() => {
+  console.log('Products computed:', productStore.products.length, 'items')
+  return productStore.products
+})
+const isLoading = computed(() => {
+  console.log('IsLoading computed:', isLoadingProducts.value)
+  return isLoadingProducts.value
+}) // Use local loading state
 const pageTitle = computed(() => {
   if (currentBrand.value) {
     return `${currentBrand.value.name} Products`
@@ -151,14 +169,14 @@ useHead(() => {
   if (currentBrand.value) {
     const title = currentBrand.value.meta_title || `${currentBrand.value.name} Products`
     return {
-      title: `${title} - Rapollo E-commerce`,
+      title: `${title} | RAPOLLO`,
       meta: [
         { name: 'description', content: currentBrand.value.meta_description || `Shop ${currentBrand.value.name} products at Rapollo E-commerce` }
       ]
     }
   }
   return {
-    title: 'Shop - Rapollo E-commerce',
+    title: 'Shop | RAPOLLO',
     meta: [
       { name: 'description', content: 'Shop premium products at Rapollo E-commerce. Find the best merchandise and event tickets.' }
     ]
@@ -217,12 +235,24 @@ const toggleFilters = () => {
 // Watchers
 // ---------------------
 onMounted(async () => {
-  // Fetch brands first to get brand info
-  await brandStore.fetchBrands()
-  await fetchData()
+  console.log('Shop page mounted, starting data fetch...')
+  try {
+    // Fetch brands first to get brand info
+    console.log('Fetching brands...')
+    await (brandStore as any).fetchBrands()
+    console.log('Brands fetched:', brandStore.brands.length)
+    
+    console.log('Fetching products...')
+    await fetchData()
+    console.log('Initial data fetch completed')
+  } catch (error) {
+    console.error('Error in onMounted:', error)
+  }
 })
 
-watch(currentPage, fetchData)
+watch(currentPage, () => {
+  fetchData()
+})
 
 // Single watcher with debouncing and recursion prevention
 let debounceTimeout: NodeJS.Timeout

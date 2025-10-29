@@ -41,7 +41,8 @@ export const useNotificationStore = defineStore('notification', () => {
       if (params.search) query.append('search', params.search)
       if (params.page) query.append('page', params.page.toString())
 
-      const url = `/api/notifications?${query.toString()}`
+      const queryString = query.toString()
+      const url = queryString ? `/api/notifications?${queryString}` : '/api/notifications'
       console.log('Fetching notifications from:', url)
       
       const response = await useCustomFetch<NotificationResponse>(url)
@@ -49,7 +50,13 @@ export const useNotificationStore = defineStore('notification', () => {
       
       notifications.value = response.notifications || []
       return response
-    } catch (error) {
+    } catch (error: any) {
+      // Handle authentication errors gracefully
+      if (error.status === 401 || error.statusCode === 401) {
+        console.warn('User not authenticated, skipping notifications fetch')
+        notifications.value = []
+        return { notifications: [], pagination: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }
+      }
       console.error('Failed to fetch notifications:', error)
       throw error
     } finally {
@@ -66,7 +73,13 @@ export const useNotificationStore = defineStore('notification', () => {
       
       unreadCount.value = response.count || 0
       return response.count
-    } catch (error) {
+    } catch (error: any) {
+      // Handle authentication errors gracefully
+      if (error.status === 401 || error.statusCode === 401) {
+        console.warn('User not authenticated, skipping unread count fetch')
+        unreadCount.value = 0
+        return 0
+      }
       console.error('Failed to fetch unread count:', error)
       throw error
     }
@@ -166,9 +179,9 @@ export const useNotificationStore = defineStore('notification', () => {
   }
 
   return {
-    notifications: readonly(notifications),
-    unreadCount: readonly(unreadCount),
-    loading: readonly(loading),
+    notifications,
+    unreadCount,
+    loading,
     fetchNotifications,
     fetchUnreadCount,
     markAsRead,

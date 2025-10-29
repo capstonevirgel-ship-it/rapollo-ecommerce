@@ -6,10 +6,23 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Order Failed - Rapollo E-commerce',
+  title: 'Payment Failed | RAPOLLO',
   meta: [
-    { name: 'description', content: 'Your order could not be processed. Please try again at Rapollo E-commerce.' }
+    { name: 'description', content: 'Your payment could not be processed. Please try again at Rapollo E-commerce.' }
   ]
+})
+
+const route = useRoute()
+const authStore = useAuthStore()
+
+// Check if user came from PayMongo error page
+const fromPayMongo = computed(() => {
+  return route.query.from === 'paymongo' || route.query.status === 'expired'
+})
+
+// Get failure reason from URL params
+const failureReason = computed(() => {
+  return route.query.reason as string || 'Payment checkout has expired'
 })
 
 const goToCheckout = () => {
@@ -19,6 +32,22 @@ const goToCheckout = () => {
 const goToShop = () => {
   navigateTo('/shop')
 }
+
+const goToEvents = () => {
+  navigateTo('/events')
+}
+
+const goToMyTickets = () => {
+  navigateTo('/my-tickets')
+}
+
+// Auto-redirect if coming from PayMongo
+onMounted(() => {
+  if (fromPayMongo.value) {
+    // Show a brief message that we detected the PayMongo error
+    console.log('Detected PayMongo payment failure - redirecting to our failed page')
+  }
+})
 </script>
 
 <template>
@@ -34,26 +63,47 @@ const goToShop = () => {
 
         <!-- Error Message -->
         <div class="mb-8">
-          <h1 class="text-3xl font-bold text-gray-900 mb-4">Order Failed</h1>
+          <h1 class="text-3xl font-bold text-gray-900 mb-4">Payment Failed</h1>
           <p class="text-gray-600 text-lg">
-            We're sorry, but there was an issue processing your order. Your payment was not completed.
+            We're sorry, but there was an issue processing your payment. Your transaction was not completed.
+          </p>
+          <p class="text-gray-500 mt-2">
+            {{ failureReason }}
           </p>
           <p class="text-gray-500 mt-2">
             Please try again or contact our support team if you need assistance.
           </p>
         </div>
 
+        <!-- PayMongo Detection Message -->
+        <div v-if="fromPayMongo" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div class="flex items-center">
+            <svg class="h-5 w-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-blue-800 text-sm">
+              We detected you came from PayMongo's payment page. Your payment has been processed and cancelled tickets have been created.
+            </p>
+          </div>
+        </div>
+
         <!-- Action Buttons -->
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <button
-            @click="goToCheckout"
-            class="px-8 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium"
+            @click="goToEvents"
+            class="px-8 py-3 bg-zinc-900 text-white rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 font-medium"
           >
-            Try Again
+            View Events
+          </button>
+          <button
+            @click="goToMyTickets"
+            class="px-8 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium"
+          >
+            View My Tickets
           </button>
           <button
             @click="goToShop"
-            class="px-8 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium"
+            class="px-8 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium"
           >
             Continue Shopping
           </button>
@@ -73,7 +123,7 @@ const goToShop = () => {
           </ul>
           <p class="text-sm text-gray-600 mt-3">
             For additional support, please contact us at 
-            <a href="mailto:support@rapollo.com" class="text-primary-600 hover:underline">support@rapollo.com</a>
+            <a href="mailto:support@rapollo.com" class="text-zinc-900 hover:underline font-medium">support@rapollo.com</a>
           </p>
         </div>
       </div>

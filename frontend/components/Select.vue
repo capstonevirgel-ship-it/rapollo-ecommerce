@@ -85,29 +85,29 @@ const dropdownStyle = computed(() => {
   const spaceBelow = viewportHeight - rect.bottom
   const spaceAbove = rect.top
   
-  let top = rect.bottom + 4 // Default: below the select
+  let top = rect.height + 4 // Default: below the select (relative to select element)
   let maxHeight = '200px'
   
   // If not enough space below, open above
   if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-    top = rect.top - dropdownHeight - 4
+    top = -dropdownHeight - 4 // Above the select (relative to select element)
   }
   
   // If not enough space above either, use available space
   if (spaceAbove < dropdownHeight && spaceBelow < dropdownHeight) {
     if (spaceBelow > spaceAbove) {
-      top = rect.bottom + 4
+      top = rect.height + 4
       maxHeight = `${spaceBelow - 8}px`
     } else {
-      top = 4
+      top = -spaceAbove + 4
       maxHeight = `${spaceAbove - 8}px`
     }
   }
   
   return {
     top: `${top}px`,
-    left: `${rect.left}px`,
-    width: `${rect.width}px`,
+    left: '0px', // Relative to the select element
+    width: '100%', // Full width of the select element
     maxHeight
   }
 })
@@ -264,7 +264,7 @@ watch(isOpen, (newValue) => {
     <div
       v-if="isOpen"
       ref="dropdownRef"
-      class="fixed z-[9999] mt-1 w-full bg-white shadow-lg rounded-md py-1 text-base border border-gray-200 focus:outline-none"
+      class="absolute z-[9999] mt-1 w-full bg-white shadow-lg rounded-md py-1 text-base border border-gray-200 focus:outline-none"
       :style="dropdownStyle"
     >
         <!-- Search input (if many options) -->

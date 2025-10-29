@@ -5,6 +5,8 @@ import Drawer from '@/components/navigation/Drawer.vue'
 import { useAuthStore } from '~/stores/auth'
 import { useCartStore } from '~/stores/cart'
 import { useNotificationStore } from '~/stores/notification'
+import { useSettingsStore } from '~/stores/settings'
+import { getImageUrl } from '~/utils/imageHelper'
 import NotificationDropdown from '~/components/NotificationDropdown.vue'
 
 const isMenuOpen = ref(false)
@@ -16,23 +18,31 @@ const activeMobileCategory = ref<string | null>(null)
 const authStore = useAuthStore()
 const cartStore = useCartStore()
 const notificationStore = useNotificationStore()
+const settingsStore = useSettingsStore()
 
 const lastScrollY = ref(0)
 const isHeaderVisible = ref(true)
 
 // Load notifications when user is authenticated
 watch(() => authStore.user, async (user) => {
-  if (user) {
+  if (user && authStore.isAuthenticated && process.client) {
     try {
       await notificationStore.fetchNotifications()
       await notificationStore.fetchUnreadCount()
     } catch (error) {
       console.error('Failed to load notifications:', error)
+      // Don't throw the error, just log it to prevent breaking the UI
     }
   }
 }, { immediate: true })
 
 const handleScroll = () => {
+  // Don't hide header when mobile menu is open
+  if (isMenuOpen.value) {
+    isHeaderVisible.value = true
+    return
+  }
+  
   const currentScrollY = window.scrollY
   isHeaderVisible.value = currentScrollY < lastScrollY.value || currentScrollY < 50
   lastScrollY.value = currentScrollY
@@ -40,7 +50,8 @@ const handleScroll = () => {
 
 onMounted(async () => {
   window.addEventListener('scroll', handleScroll)
-  // Load cart data if user is authenticated
+  // Load settings and cart data
+  await settingsStore.fetchSettings()
   if (authStore.isAuthenticated) {
     await cartStore.index()
   }
@@ -129,17 +140,32 @@ const navLinks: NavLink[] = [
     class="bg-zinc-900 text-gray-100 shadow-sm sticky top-0 z-50 transition-transform duration-300"
     :class="{ '-translate-y-full': !isHeaderVisible }"
   >
-    <div class="mx-auto py-3 px-4">
+    <div class="mx-auto max-w-[88rem] py-3 px-4">
       <!-- Top Bar -->
-      <div class="flex justify-between items-center mb-10">
+      <div class="flex justify-between items-center mb-4">
         <div class="flex space-x-3 text-gray-300 hover:text-white">
-          <a href="https://facebook.com" target="_blank">
+          <a 
+            v-if="settingsStore.contactFacebook"
+            :href="settingsStore.contactFacebook" 
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Icon name="mdi:facebook" class="text-xl hover:text-primary-600" />
           </a>
-          <a href="https://twitter.com" target="_blank">
+          <a 
+            v-if="settingsStore.contactTwitter"
+            :href="settingsStore.contactTwitter" 
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Icon name="mdi:twitter" class="text-xl hover:text-primary-600" />
           </a>
-          <a href="https://instagram.com" target="_blank">
+          <a 
+            v-if="settingsStore.contactInstagram"
+            :href="settingsStore.contactInstagram" 
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Icon name="mdi:instagram" class="text-xl hover:text-primary-600" />
           </a>
         </div>
@@ -153,12 +179,17 @@ const navLinks: NavLink[] = [
       </div>
 
       <!-- Main Header Grid (Desktop) -->
-      <div class="hidden md:grid grid-cols-3 items-center">
+      <div class="hidden lg:grid grid-cols-3 items-center">
         <!-- Logo (Column 1) -->
         <div class="flex items-center">
           <NuxtLink to="/" class="flex items-center space-x-2">
-            <Icon name="mdi-application" class="text-2xl text-primary-600" />
-            <span class="text-xl font-bold text-gray-300 hover:text-white">YourLogo</span>
+            <img 
+              v-if="settingsStore.siteLogo" 
+              :src="getImageUrl(settingsStore.siteLogo, 'default')" 
+              :alt="settingsStore.siteName || 'Rapollo E-Commerce'"
+              class="w-24 h-24 object-contain"
+            />
+            <Icon v-else name="mdi-application" class="text-2xl text-primary-600" />
           </NuxtLink>
         </div>
 
@@ -173,7 +204,8 @@ const navLinks: NavLink[] = [
 
         <!-- Cart + Auth + Theme -->
         <div class="flex justify-end items-center space-x-4">
-          <NuxtLink to="/cart" aria-label="Cart" class="relative">
+          <!-- Cart (hidden for admin) -->
+          <NuxtLink v-if="!authStore.isAdmin" to="/cart" aria-label="Cart" class="relative">
             <Icon name="mdi:cart-outline" class="text-2xl hover:text-primary-600" />
             <span 
               v-if="cartStore.cartCount > 0" 
@@ -183,11 +215,11 @@ const navLinks: NavLink[] = [
             </span>
           </NuxtLink>
           
-          <!-- Notifications -->
+          <!-- Notifications (hidden for admin, shown in admin header instead) -->
           <NotificationDropdown
-            v-if="authStore.isAuthenticated"
-            :notifications="notificationStore.notifications"
-            :view-all-url="authStore.isAdmin ? '/admin/notifications' : '/notifications'"
+            v-if="authStore.isAuthenticated && !authStore.isAdmin"
+            :notifications="[...notificationStore.notifications]"
+            view-all-url="/notifications"
             @mark-as-read="handleMarkAsRead"
             @delete="handleDeleteNotification"
             @mark-all-as-read="handleMarkAllAsRead"
@@ -195,8 +227,8 @@ const navLinks: NavLink[] = [
           
           <!-- Theme Toggle -->
           
-          <!-- Authenticated User -->
-          <div v-if="authStore.isAuthenticated" class="flex items-center space-x-4">
+          <!-- Authenticated User (hidden for admin) -->
+          <div v-if="authStore.isAuthenticated && !authStore.isAdmin" class="flex items-center space-x-4">
             <button 
               @click="toggleProfileDrawer"
               class="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-800 transition-colors"
@@ -210,7 +242,7 @@ const navLinks: NavLink[] = [
           </div>
           
           <!-- Guest User -->
-          <div v-else class="flex items-center space-x-4">
+          <div v-else-if="!authStore.isAuthenticated" class="flex items-center space-x-4">
             <NuxtLink to="/login" class="text-base text-gray-300 hover:text-white">Sign In</NuxtLink>
             <NuxtLink to="/register" class="text-base text-gray-300 hover:text-white">Register</NuxtLink>
           </div>
@@ -218,16 +250,31 @@ const navLinks: NavLink[] = [
       </div>
 
       <!-- Mobile Header -->
-      <div class="flex md:hidden justify-between items-center">
+      <div class="flex lg:hidden justify-between items-center">
         <NuxtLink to="/" class="flex items-center space-x-2 z-50">
-          <Icon name="mdi-application" class="text-2xl text-primary-600" />
-          <span class="text-xl font-bold text-gray-300 hover:text-white">YourLogo</span>
+          <img 
+            v-if="settingsStore.siteLogo" 
+            :src="getImageUrl(settingsStore.siteLogo, 'default')" 
+            :alt="settingsStore.siteName || 'Rapollo E-Commerce'"
+            class="w-8 h-8 object-contain"
+          />
+          <Icon v-else name="mdi-application" class="text-2xl text-primary-600" />
+          <span class="text-xl font-bold text-gray-300 hover:text-white font-winner-extra-bold">{{ settingsStore.siteName || 'Rapollo E-Commerce' }}</span>
         </NuxtLink>
 
         <div class="flex items-center space-x-4">
           <button @click="toggleShopDrawer" aria-label="Open shop">
             <Icon name="mdi:shopping-outline" class="text-2xl" />
           </button>
+          <NuxtLink to="/cart" aria-label="Cart" class="relative">
+            <Icon name="mdi:cart-outline" class="text-2xl" />
+            <span 
+              v-if="cartStore.cartCount > 0" 
+              class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center"
+            >
+              {{ cartStore.cartCount > 99 ? '99+' : cartStore.cartCount }}
+            </span>
+          </NuxtLink>
           <button @click="toggleMenu" aria-label="Toggle menu">
             <Icon :name="isMenuOpen ? 'mdi:close' : 'mdi:menu'" class="text-2xl" />
           </button>
@@ -243,107 +290,142 @@ const navLinks: NavLink[] = [
         leave-from-class="opacity-100 transform translate-y-0"
         leave-to-class="opacity-0 transform -translate-y-2"
       >
-        <div v-if="isMenuOpen" class="md:hidden mt-4 pb-4 space-y-3 bg-gray-800 rounded-lg mx-4">
-          <NuxtLink
-            v-for="link in navLinks"
-            :key="`mobile-${link.path}`"
-            :to="link.path"
-            @click="isMenuOpen = false"
-            class="px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-2 mx-2"
-            active-class="text-white font-medium bg-gray-700"
-          >
-            <Icon :name="link.icon" class="text-lg" />
-            <span>{{ link.label }}</span>
-          </NuxtLink>
-          
-          <!-- Mobile Auth + Theme -->
-          <div class="border-t border-gray-700 pt-3 mt-3">
-            <!-- Theme Toggle for Mobile -->
-            <div class="px-4 py-2 flex items-center justify-between">
-              <span class="text-gray-300">Theme</span>
+        <div v-if="isMenuOpen" class="lg:hidden fixed inset-0 top-[5.8rem] bg-zinc-900/95 backdrop-blur-md z-40 overflow-y-auto">
+          <div class="px-6 py-6 space-y-4">
+            <!-- Navigation Links -->
+            <div class="space-y-1">
+              <NuxtLink
+                v-for="link in navLinks"
+                :key="`mobile-${link.path}`"
+                :to="link.path"
+                @click="isMenuOpen = false"
+                class="flex items-center space-x-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
+                active-class="text-white bg-zinc-800/50 font-winner-extra-bold"
+              >
+                <div class="w-8 h-8 bg-zinc-800/50 rounded-lg flex items-center justify-center group-hover:bg-zinc-700/50 transition-colors">
+                  <Icon :name="link.icon" class="text-lg" />
+                </div>
+                <span class="text-base font-medium">{{ link.label }}</span>
+              </NuxtLink>
             </div>
             
-            <div v-if="authStore.isAuthenticated" class="px-4 py-2">
-              <div class="flex items-center space-x-3 mb-3">
-                <img 
-                  src="/uploads/avatar_placeholder.png" 
-                  :alt="authStore.user?.user_name || 'User'"
-                  class="w-10 h-10 rounded-full object-cover"
-                />
-                <div>
-                  <p class="text-gray-300 font-medium">{{ authStore.user?.user_name }}</p>
-                  <p class="text-gray-400 text-sm">{{ authStore.user?.email }}</p>
+            <!-- Divider -->
+            <div class="border-t border-zinc-700/50 my-4"></div>
+            
+            <!-- User Section -->
+            <div class="space-y-2">
+              <div v-if="authStore.isAuthenticated" class="space-y-3">
+                <!-- User Profile -->
+                <div class="flex items-center space-x-3 px-4 py-3 bg-zinc-800/30 rounded-xl">
+                  <img 
+                    src="/uploads/avatar_placeholder.png" 
+                    :alt="authStore.user?.user_name || 'User'"
+                    class="w-10 h-10 rounded-full object-cover border-2 border-zinc-700"
+                  />
+                  <div class="flex-1">
+                    <p class="text-white font-medium text-base">{{ authStore.user?.user_name }}</p>
+                    <p class="text-gray-400 text-sm">{{ authStore.user?.email }}</p>
+                  </div>
+                </div>
+                
+                <!-- User Menu -->
+                <div class="space-y-1">
+                  <NuxtLink
+                    to="/my-tickets"
+                    @click="isMenuOpen = false"
+                    class="flex items-center space-x-3 px-4 py-2 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
+                  >
+                    <div class="w-7 h-7 bg-zinc-800/50 rounded-lg flex items-center justify-center">
+                      <Icon name="mdi:ticket-outline" class="text-base" />
+                    </div>
+                    <span class="font-medium text-sm">My Tickets</span>
+                  </NuxtLink>
+                  <NuxtLink
+                    to="/my-orders"
+                    @click="isMenuOpen = false"
+                    class="flex items-center space-x-3 px-4 py-2 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
+                  >
+                    <div class="w-7 h-7 bg-zinc-800/50 rounded-lg flex items-center justify-center">
+                      <Icon name="mdi:package-variant" class="text-base" />
+                    </div>
+                    <span class="font-medium text-sm">Order History</span>
+                  </NuxtLink>
+                  <NuxtLink
+                    to="/my-reviews"
+                    @click="isMenuOpen = false"
+                    class="flex items-center space-x-3 px-4 py-2 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
+                  >
+                    <div class="w-7 h-7 bg-zinc-800/50 rounded-lg flex items-center justify-center">
+                      <Icon name="mdi:star-outline" class="text-base" />
+                    </div>
+                    <span class="font-medium text-sm">My Reviews</span>
+                  </NuxtLink>
+                  <NuxtLink
+                    to="/profile"
+                    @click="isMenuOpen = false"
+                    class="flex items-center space-x-3 px-4 py-2 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
+                  >
+                    <div class="w-7 h-7 bg-zinc-800/50 rounded-lg flex items-center justify-center">
+                      <Icon name="mdi:account-outline" class="text-base" />
+                    </div>
+                    <span class="font-medium text-sm">Profile</span>
+                  </NuxtLink>
+                  <NuxtLink
+                    to="/settings"
+                    @click="isMenuOpen = false"
+                    class="flex items-center space-x-3 px-4 py-2 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
+                  >
+                    <div class="w-7 h-7 bg-zinc-800/50 rounded-lg flex items-center justify-center">
+                      <Icon name="mdi:cog-outline" class="text-base" />
+                    </div>
+                    <span class="font-medium text-sm">Settings</span>
+                  </NuxtLink>
+                  <NuxtLink
+                    v-if="authStore.user?.role === 'admin'"
+                    to="/admin/events"
+                    @click="isMenuOpen = false"
+                    class="flex items-center space-x-3 px-4 py-2 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
+                  >
+                    <div class="w-7 h-7 bg-zinc-800/50 rounded-lg flex items-center justify-center">
+                      <Icon name="mdi:shield-account" class="text-base" />
+                    </div>
+                    <span class="font-medium text-sm">Admin Panel</span>
+                  </NuxtLink>
+                  <button 
+                    @click="authStore.logout(); isMenuOpen = false" 
+                    class="flex items-center space-x-3 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-xl transition-all duration-200 w-full"
+                  >
+                    <div class="w-7 h-7 bg-red-900/20 rounded-lg flex items-center justify-center">
+                      <Icon name="mdi:logout" class="text-base" />
+                    </div>
+                    <span class="font-medium text-sm">Logout</span>
+                  </button>
                 </div>
               </div>
-              <div class="space-y-2">
+              
+              <!-- Guest User -->
+              <div v-else class="space-y-1">
                 <NuxtLink
-                  to="/my-tickets"
+                  to="/login"
                   @click="isMenuOpen = false"
-                  class="block text-gray-300 hover:text-white"
+                  class="flex items-center space-x-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
                 >
-                  My Tickets
+                  <div class="w-8 h-8 bg-zinc-800/50 rounded-lg flex items-center justify-center group-hover:bg-zinc-700/50 transition-colors">
+                    <Icon name="mdi:login" class="text-lg" />
+                  </div>
+                  <span class="text-base font-medium">Sign In</span>
                 </NuxtLink>
                 <NuxtLink
-                  to="/my-orders"
+                  to="/register"
                   @click="isMenuOpen = false"
-                  class="block text-gray-300 hover:text-white"
+                  class="flex items-center space-x-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
                 >
-                  Order History
+                  <div class="w-8 h-8 bg-zinc-800/50 rounded-lg flex items-center justify-center group-hover:bg-zinc-700/50 transition-colors">
+                    <Icon name="mdi:account-plus" class="text-lg" />
+                  </div>
+                  <span class="text-base font-medium">Register</span>
                 </NuxtLink>
-                <NuxtLink
-                  to="/my-reviews"
-                  @click="isMenuOpen = false"
-                  class="block text-gray-300 hover:text-white"
-                >
-                  My Reviews
-                </NuxtLink>
-                <NuxtLink
-                  to="/profile"
-                  @click="isMenuOpen = false"
-                  class="block text-gray-300 hover:text-white"
-                >
-                  Profile
-                </NuxtLink>
-                <NuxtLink
-                  to="/settings"
-                  @click="isMenuOpen = false"
-                  class="block text-gray-300 hover:text-white"
-                >
-                  Settings
-                </NuxtLink>
-                <NuxtLink
-                  v-if="authStore.user?.role === 'admin'"
-                  to="/admin/events"
-                  @click="isMenuOpen = false"
-                  class="block text-gray-300 hover:text-white"
-                >
-                  Admin Panel
-                </NuxtLink>
-                <button 
-                  @click="authStore.logout(); isMenuOpen = false" 
-                  class="block w-full text-left text-red-400 hover:text-red-300"
-                >
-                  Logout
-                </button>
               </div>
-            </div>
-            <div v-else class="space-y-2">
-              <NuxtLink
-                to="/login"
-                @click="isMenuOpen = false"
-                class="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-50 rounded-lg transition-colors flex items-center space-x-2"
-              >
-                <Icon name="mdi:login" class="text-lg" />
-                <span>Sign In</span>
-              </NuxtLink>
-              <NuxtLink
-                to="/register"
-                @click="isMenuOpen = false"
-                class="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-50 rounded-lg transition-colors flex items-center space-x-2"
-              >
-                <Icon name="mdi:account-plus" class="text-lg" />
-                <span>Register</span>
-              </NuxtLink>
             </div>
           </div>
         </div>
