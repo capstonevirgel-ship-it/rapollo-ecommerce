@@ -11,7 +11,7 @@ class Product extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'subcategory_id', 'brand_id', 'name', 'slug', 'description',
+        'subcategory_id', 'brand_id', 'default_color_id', 'name', 'slug', 'description',
         'meta_title', 'meta_description', 'meta_keywords', 'canonical_url',
         'robots', 'is_active', 'is_featured', 'is_hot', 'is_new'
     ];
@@ -24,6 +24,11 @@ class Product extends Model
     public function brand()
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    public function defaultColor()
+    {
+        return $this->belongsTo(Color::class, 'default_color_id');
     }
 
     public function variants()

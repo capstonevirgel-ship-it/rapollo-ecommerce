@@ -18,7 +18,6 @@ import AdminActionButton from '@/components/AdminActionButton.vue'
 import AdminAddButton from '@/components/AdminAddButton.vue'
 import { useSubcategoryStore } from '~/stores/subcategory'
 import { useCategoryStore } from '~/stores/category'
-import type { Subcategory } from '~/types'
 
 const subcategoryStore = useSubcategoryStore()
 const categoryStore = useCategoryStore()
@@ -33,7 +32,6 @@ const columns = [
 ]
 
 const selectedIds = ref<number[]>([])
-const selectedSubcategory = ref<Subcategory | null>(null)
 
 const newSubcategory = ref({
   category_id: null as number | null,
@@ -54,24 +52,13 @@ const subcategoryRows = computed(() =>
   })
 )
 
-onMounted(() => {
-  categoryStore.fetchCategories()
-  subcategoryStore.fetchSubcategories()
+onMounted(async () => {
+  // Load categories first so category_name can be computed
+  await categoryStore.fetchCategories()
+  await subcategoryStore.fetchSubcategories()
 })
 
-const isSubcategoryLoading = ref(false)
 
-const handleRowClick = async (row: any) => {
-  isSubcategoryLoading.value = true
-  try {
-    await subcategoryStore.fetchSubcategoryById(row.id)
-    selectedSubcategory.value = subcategoryStore.subcategory
-  } catch (error) {
-    console.error('Error fetching subcategory:', error)
-  } finally {
-    isSubcategoryLoading.value = false
-  }
-}
 
 const addSubcategory = () => {
   newSubcategory.value = { category_id: null, name: '', slug: '', meta_title: '', meta_description: '' }
@@ -92,9 +79,13 @@ const saveSubcategory = async () => {
 </script>
 
 <template>
-  <div class="p-4 mb-4 bg-white shadow border-0">
-    <div class="flex justify-between items-center mb-4">
-      <h1 class="text-2xl font-bold">Subcategories</h1>
+  <div class="space-y-8 sm:space-y-10">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Subcategories</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Organize products into subcategories within categories</p>
+      </div>
       <AdminAddButton text="Add Subcategory" @click="addSubcategory" />
     </div>
 
@@ -103,7 +94,6 @@ const saveSubcategory = async () => {
       :rows="subcategoryRows"
       v-model:selected="selectedIds"
       :rows-per-page="5"
-      @row-click="handleRowClick"
       class="cursor-pointer"
     >
       <!-- Slot for action buttons -->
@@ -124,43 +114,6 @@ const saveSubcategory = async () => {
         </div>
       </template>
     </DataTable>
-  </div>
-  
-  <div class="p-4 bg-white shadow border-0">
-    <h1 class="text-2xl font-bold mb-4">SEO Preview</h1>
-
-    <!-- Skeleton loader -->
-    <div
-      v-if="isSubcategoryLoading"
-      class="border rounded-lg p-4 bg-white shadow-sm max-w-2xl animate-pulse"
-    >
-      <div class="h-4 bg-gray-200 rounded w-24 mb-3"></div>
-      <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-      <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-      <div class="h-4 bg-gray-200 rounded w-full"></div>
-    </div>
-
-  <!-- Preview content -->
-  <div
-    v-else-if="selectedSubcategory"
-    class="border rounded-lg p-4 bg-white shadow-sm max-w-2xl"
-  >
-    <p class="text-sm text-gray-500 mb-2">SEO Preview</p>
-    <p class="text-blue-800 text-lg font-medium leading-snug truncate">
-      {{ selectedSubcategory.meta_title || selectedSubcategory.name }}
-    </p>
-    <p class="text-green-700 text-sm truncate">
-      https://yourdomain.com/shop/{{ selectedSubcategory.slug }}
-    </p>
-    <p class="text-gray-700 text-sm mt-1 line-clamp-2">
-      {{ selectedSubcategory.meta_description || 'No meta description provided.' }}
-    </p>
-  </div>
-
-    <!-- Empty state -->
-    <div v-else class="text-gray-500 italic">
-      Select a subcategory to see the SEO preview.
-    </div>
   </div>
 
   <Dialog v-model="isDialogOpen" title="Add Subcategory">

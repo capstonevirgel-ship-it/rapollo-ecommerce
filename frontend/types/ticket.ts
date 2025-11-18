@@ -5,8 +5,7 @@ export interface Ticket {
   purchase_id: number
   ticket_number: string
   price: number
-  status: 'pending' | 'confirmed' | 'cancelled' | 'used'
-  qr_code: string
+  status: 'pending' | 'confirmed' | 'cancelled' | 'used' | 'failed'
   booked_at: string
   created_at: string
   updated_at: string
@@ -48,7 +47,7 @@ export interface Purchase {
   user_id: number
   total: number
   status: 'pending' | 'processing' | 'completed' | 'cancelled'
-  type: 'product' | 'ticket'
+  type?: 'product' | 'ticket' // Optional to handle NULL values from existing purchases
   event_id?: number
   shipping_address?: any
   billing_address?: any

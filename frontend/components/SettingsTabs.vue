@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 import { useShippingStore, type ShippingPrice, type ShippingPriceForm } from '~/stores/shipping'
+import { useTaxStore, type TaxPrice, type TaxPriceForm } from '~/stores/tax'
 import { useAlert } from '~/composables/useAlert'
 import { getImageUrl } from '~/helpers/imageHelper'
 import Dialog from '~/components/Dialog.vue'
 import DataTable from '@/components/DataTable.vue'
 import AdminActionButton from '@/components/AdminActionButton.vue'
 import AdminAddButton from '@/components/AdminAddButton.vue'
+import Toggle from '@/components/Toggle.vue'
 import type { TeamMember } from '~/types/settings'
 
 interface Props {
@@ -23,6 +25,7 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 const shippingStore = useShippingStore()
+const taxStore = useTaxStore()
 const { success: showSuccess, error: showError } = useAlert()
 
 // Site Identity
@@ -37,6 +40,16 @@ const markLogoForDeletion = ref(false)
 const contactEmail = ref('')
 const contactPhone = ref('')
 const contactAddress = ref('')
+
+// Store Address (structured) under Contact tab
+const storeAddressModel = ref<{ street?: string; barangay?: string; city?: string; province?: string; zipcode?: string } | null>(null)
+const storeStreet = ref('')
+const storeBarangay = ref('')
+const storeCity = ref('')
+const storeProvince = ref('')
+const storeZipcode = ref('')
+const iframeLink = ref('')
+const gmapLink = ref('')
 
 // Social Links
 const contactFacebook = ref('')
@@ -67,6 +80,12 @@ const showBulkEditShippingDialog = ref(false)
 const selectedShippingPrice = ref<ShippingPrice | null>(null)
 const isShippingSubmitting = ref(false)
 
+// Tax Management
+const showCreateTaxDialog = ref(false)
+const showEditTaxDialog = ref(false)
+const selectedTaxPrice = ref<TaxPrice | null>(null)
+const isTaxSubmitting = ref(false)
+
 const createShippingForm = ref<ShippingPriceForm>({
   region: '',
   price: 0,
@@ -77,10 +96,28 @@ const createShippingForm = ref<ShippingPriceForm>({
 const editShippingForm = ref<Partial<ShippingPriceForm>>({})
 const bulkEditShippingData = ref<Array<{ id: number; price: number; is_active: boolean }>>([])
 
+const createTaxForm = ref<TaxPriceForm>({
+  name: '',
+  rate: 0,
+  description: '',
+  is_active: true
+})
+
+const editTaxForm = ref<Partial<TaxPriceForm>>({})
+
 // DataTable columns for shipping
 const shippingColumns = [
   { label: "Region", key: "region" },
   { label: "Price", key: "price" },
+  { label: "Description", key: "description" },
+  { label: "Status", key: "status" },
+  { label: "Actions", key: "actions" }
+]
+
+// DataTable columns for tax
+const taxColumns = [
+  { label: "Name", key: "name" },
+  { label: "Rate (%)", key: "rate" },
   { label: "Description", key: "description" },
   { label: "Status", key: "status" },
   { label: "Actions", key: "actions" }
@@ -134,6 +171,23 @@ const loadSettings = async () => {
       contactFacebook.value = contact.contact_facebook || ''
       contactInstagram.value = contact.contact_instagram || ''
       contactTwitter.value = contact.contact_twitter || ''
+
+      // Store Address + Map Links
+      const store = settings.store || {}
+      storeStreet.value = store.store_street || ''
+      storeBarangay.value = store.store_barangay || ''
+      storeCity.value = store.store_city || ''
+      storeProvince.value = store.store_province || ''
+      storeZipcode.value = store.store_zipcode || ''
+      iframeLink.value = store.iframe_link || ''
+      gmapLink.value = store.gmap_link || ''
+      storeAddressModel.value = {
+        street: storeStreet.value,
+        barangay: storeBarangay.value,
+        city: storeCity.value,
+        province: storeProvince.value,
+        zipcode: storeZipcode.value,
+      }
 
       // Team Members
       const team = settings.team || {}
@@ -209,15 +263,48 @@ const saveSiteIdentity = async () => {
   }
 }
 
-// Save contact information
+// Save store address (structured)
+const saveStoreAddress = async () => {
+  try {
+    saving.value = true
+    const addr = storeAddressModel.value || {}
+    const settings = [
+      { key: 'store_street', value: addr.street ?? storeStreet.value, group: 'store', type: 'text' },
+      { key: 'store_barangay', value: addr.barangay ?? storeBarangay.value, group: 'store', type: 'text' },
+      { key: 'store_city', value: addr.city ?? storeCity.value, group: 'store', type: 'text' },
+      { key: 'store_province', value: addr.province ?? storeProvince.value, group: 'store', type: 'text' },
+      { key: 'store_zipcode', value: addr.zipcode ?? storeZipcode.value, group: 'store', type: 'text' },
+    ]
+    await settingsStore.updateSettings({ settings })
+    await loadSettings()
+    showSuccess('Store address updated successfully')
+    emit('toggle-edit-mode')
+  } catch (error) {
+    console.error('Failed to update store address:', error)
+    showError('Failed to update store address')
+  } finally {
+    saving.value = false
+  }
+}
+
+// Save contact information (includes structured store address + map links)
 const saveContactInformation = async () => {
   try {
     saving.value = true
 
+    const addr = storeAddressModel.value || {}
     const settings = [
       { key: 'contact_email', value: contactEmail.value, group: 'contact', type: 'text' },
       { key: 'contact_phone', value: contactPhone.value, group: 'contact', type: 'text' },
-      { key: 'contact_address', value: contactAddress.value, group: 'contact', type: 'textarea' }
+      // structured store address
+      { key: 'store_street', value: addr.street ?? storeStreet.value, group: 'store', type: 'text' },
+      { key: 'store_barangay', value: addr.barangay ?? storeBarangay.value, group: 'store', type: 'text' },
+      { key: 'store_city', value: addr.city ?? storeCity.value, group: 'store', type: 'text' },
+      { key: 'store_province', value: addr.province ?? storeProvince.value, group: 'store', type: 'text' },
+      { key: 'store_zipcode', value: addr.zipcode ?? storeZipcode.value, group: 'store', type: 'text' },
+      // map links
+      { key: 'iframe_link', value: iframeLink.value, group: 'store', type: 'text' },
+      { key: 'gmap_link', value: gmapLink.value, group: 'store', type: 'text' },
     ]
 
     await settingsStore.updateSettings({ settings })
@@ -505,11 +592,122 @@ const handleBulkEditShipping = async () => {
   }
 }
 
+// Tax Management Functions
+const loadTaxData = async () => {
+  try {
+    await taxStore.fetchTaxPrices()
+  } catch (err) {
+    console.error('Failed to load tax data:', err)
+    showError('Failed to Load', 'Could not load tax prices')
+  }
+}
+
+const openCreateTaxDialog = () => {
+  createTaxForm.value = {
+    name: '',
+    rate: 0,
+    description: '',
+    is_active: true
+  }
+  showCreateTaxDialog.value = true
+}
+
+const handleCreateTax = async () => {
+  if (!createTaxForm.value.name || createTaxForm.value.rate < 0 || createTaxForm.value.rate > 100) {
+    showError('Validation Error', 'Please fill in all required fields. Rate must be between 0 and 100.')
+    return
+  }
+
+  isTaxSubmitting.value = true
+  try {
+    await taxStore.createTaxPrice(createTaxForm.value)
+    showSuccess('Success', 'Tax price created successfully')
+    showCreateTaxDialog.value = false
+  } catch (err) {
+    showError('Failed to Create', 'Could not create tax price')
+  } finally {
+    isTaxSubmitting.value = false
+  }
+}
+
+const openEditTaxDialog = (taxPrice: TaxPrice) => {
+  selectedTaxPrice.value = taxPrice
+  editTaxForm.value = {
+    name: taxPrice.name,
+    rate: taxPrice.rate,
+    description: taxPrice.description || '',
+    is_active: taxPrice.is_active
+  }
+  showEditTaxDialog.value = true
+}
+
+const handleEditTax = async () => {
+  if (!selectedTaxPrice.value || !editTaxForm.value.rate || editTaxForm.value.rate < 0 || editTaxForm.value.rate > 100) {
+    showError('Validation Error', 'Please fill in all required fields. Rate must be between 0 and 100.')
+    return
+  }
+
+  isTaxSubmitting.value = true
+  try {
+    await taxStore.updateTaxPrice(selectedTaxPrice.value.id, editTaxForm.value)
+    showSuccess('Success', 'Tax price updated successfully')
+    showEditTaxDialog.value = false
+  } catch (err) {
+    showError('Failed to Update', 'Could not update tax price')
+  } finally {
+    isTaxSubmitting.value = false
+  }
+}
+
+const handleDeleteTax = async (taxPrice: TaxPrice) => {
+  if (!confirm(`Are you sure you want to delete tax "${taxPrice.name}"?`)) {
+    return
+  }
+
+  try {
+    await taxStore.deleteTaxPrice(taxPrice.id)
+    showSuccess('Success', 'Tax price deleted successfully')
+  } catch (err) {
+    showError('Failed to Delete', 'Could not delete tax price')
+  }
+}
+
+// Computed tax data for DataTable
+const taxData = computed(() => {
+  return taxStore.taxPrices.map((tax) => ({
+    id: tax.id,
+    name: tax.name,
+    rate: `${tax.rate}%`,
+    description: tax.description || '-',
+    status: tax.is_active ? 'Active' : 'Inactive',
+    rawData: tax
+  }))
+})
+
 // Initialize data
 loadSettings()
-if (props.activeTab === 'shipping') {
-  loadShippingData()
+
+// Load shipping and tax data when component mounts or tab changes
+const loadShippingAndTaxData = async () => {
+  if (props.activeTab === 'shipping') {
+    await Promise.all([
+      loadShippingData(),
+      loadTaxData()
+    ])
+  }
 }
+
+// Load data on mount if shipping tab is active
+onMounted(() => {
+  loadShippingAndTaxData()
+})
+
+// Watch for tab changes and load data when shipping tab is activated
+watch(() => props.activeTab, (newTab) => {
+  if (newTab === 'shipping') {
+    loadShippingAndTaxData()
+  }
+})
 </script>
 
 <template>
@@ -627,20 +825,69 @@ if (props.activeTab === 'shipping') {
         </div>
       </div>
 
-      <!-- Address -->
+      <!-- Structured Store Address -->
       <div class="mb-8">
         <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
           <Icon name="mdi:map-marker-outline" class="text-lg mr-2" />
-          Address
+          Store Address
         </label>
-        <textarea
-          v-if="props.isEditingMode"
-          v-model="contactAddress"
-          rows="3"
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-          placeholder="123 Main Street, Manila, Philippines"
-        ></textarea>
-        <p v-else class="text-gray-900 py-2 whitespace-pre-wrap">{{ contactAddress || 'Not set' }}</p>
+        <div v-if="props.isEditingMode">
+          <AddressForm v-model="storeAddressModel" />
+        </div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Street</label>
+            <p class="text-gray-900">{{ storeStreet || 'Not provided' }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Barangay</label>
+            <p class="text-gray-900">{{ storeBarangay || 'Not provided' }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">City / Municipality</label>
+            <p class="text-gray-900">{{ storeCity || 'Not provided' }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Province</label>
+            <p class="text-gray-900">{{ storeProvince || 'Not provided' }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Zip Code</label>
+            <p class="text-gray-900">{{ storeZipcode || 'Not provided' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Links -->
+      <div class="grid grid-cols-1 gap-6 mb-8">
+        <div>
+          <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
+            <Icon name="mdi:map" class="text-lg mr-2" />
+            Google Maps Iframe URL
+          </label>
+          <input
+            v-if="props.isEditingMode"
+            v-model="iframeLink"
+            type="url"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            placeholder="https://www.google.com/maps/embed?..."
+          />
+          <p v-else class="text-gray-900 py-2 break-all">{{ iframeLink || 'Not set' }}</p>
+        </div>
+        <div>
+          <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
+            <Icon name="mdi:link" class="text-lg mr-2" />
+            Google Maps Place URL
+          </label>
+          <input
+            v-if="props.isEditingMode"
+            v-model="gmapLink"
+            type="url"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            placeholder="https://www.google.com/maps/place/..."
+          />
+          <p v-else class="text-gray-900 py-2 break-all">{{ gmapLink || 'Not set' }}</p>
+        </div>
       </div>
 
       <button
@@ -716,6 +963,8 @@ if (props.activeTab === 'shipping') {
         {{ saving ? 'Saving...' : 'Save Changes' }}
       </button>
     </div>
+
+    <!-- Store Address Tab removed; merged into Contact -->
 
     <!-- Team Tab -->
     <div v-if="activeTab === 'team'" class="p-8">
@@ -862,15 +1111,17 @@ if (props.activeTab === 'shipping') {
       </button>
     </div>
 
-    <!-- Shipping Prices Tab -->
+    <!-- Shipping & Tax Tab -->
     <div v-if="activeTab === 'shipping'" class="p-8">
-      <div class="space-y-6">
-        <!-- Header -->
-        <div class="flex justify-between items-center">
-          <div>
-            <h2 class="text-xl font-semibold text-gray-900">Shipping Price Management</h2>
-            <p class="text-gray-600 mt-1">Manage shipping prices for different regions</p>
-          </div>
+      <div class="space-y-12">
+        <!-- Shipping Prices Section -->
+        <div class="space-y-6">
+          <!-- Header -->
+          <div class="flex justify-between items-center">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900">Shipping Price Management</h2>
+              <p class="text-gray-600 mt-1">Manage shipping prices for different regions</p>
+            </div>
           <div class="flex gap-3">
             <button
               @click="openBulkEditShippingDialog"
@@ -917,12 +1168,18 @@ if (props.activeTab === 'shipping') {
           <template #status="{ row }">
             <span
               :class="[
-                'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                'inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full',
                 row.rawData.is_active
                   ? 'bg-green-100 text-green-800'
                   : 'bg-red-100 text-red-800'
               ]"
             >
+              <span
+                :class="[
+                  'w-1.5 h-1.5 rounded-full mr-1.5',
+                  row.rawData.is_active ? 'bg-green-600' : 'bg-red-600'
+                ]"
+              ></span>
               {{ row.status }}
             </span>
           </template>
@@ -944,6 +1201,90 @@ if (props.activeTab === 'shipping') {
             </div>
           </template>
         </DataTable>
+        </div>
+
+        <!-- Tax Prices Section -->
+        <div class="space-y-6 border-t border-gray-200 pt-8">
+          <!-- Header -->
+          <div class="flex justify-between items-center">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900">Tax Price Management</h2>
+              <p class="text-gray-600 mt-1">Manage tax rates (e.g., VAT, GST, Sales Tax). Multiple active taxes will be summed.</p>
+            </div>
+            <AdminAddButton text="Add Tax Price" @click="openCreateTaxDialog" />
+          </div>
+
+          <!-- Total Tax Rate Display -->
+          <div v-if="taxStore.totalTaxRate > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-blue-900">Total Active Tax Rate</p>
+                <p class="text-2xl font-bold text-blue-600">{{ typeof taxStore.totalTaxRate === 'number' ? taxStore.totalTaxRate.toFixed(2) : '0.00' }}%</p>
+                <p class="text-xs text-blue-700 mt-1">Sum of all active tax rates</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loading State -->
+          <div v-if="taxStore.loading" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-800"></div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="taxData.length === 0" class="text-center py-8">
+            <div class="text-gray-500">No tax prices found</div>
+            <AdminAddButton text="Add First Tax Price" @click="openCreateTaxDialog" class="mt-4" />
+          </div>
+
+          <!-- Tax Prices DataTable -->
+          <DataTable
+            v-else
+            :columns="taxColumns"
+            :rows="taxData"
+          >
+            <template #name="{ row }">
+              <div class="font-medium text-gray-900">{{ row.name }}</div>
+            </template>
+
+            <template #rate="{ row }">
+              <div class="font-medium text-gray-900">{{ row.rate }}</div>
+            </template>
+
+            <template #description="{ row }">
+              <div class="text-gray-900 max-w-xs truncate">{{ row.description }}</div>
+            </template>
+
+            <template #status="{ row }">
+              <span
+                :class="[
+                  'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                  row.rawData.is_active
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                ]"
+              >
+                {{ row.status }}
+              </span>
+            </template>
+
+            <template #actions="{ row }">
+              <div class="flex gap-2 justify-center">
+                <AdminActionButton
+                  icon="mdi:pencil"
+                  text="Edit"
+                  variant="primary"
+                  @click="openEditTaxDialog(row.rawData)"
+                />
+                <AdminActionButton
+                  icon="mdi:delete"
+                  text="Delete"
+                  variant="danger"
+                  @click="handleDeleteTax(row.rawData)"
+                />
+              </div>
+            </template>
+          </DataTable>
+        </div>
       </div>
     </div>
 
@@ -1081,14 +1422,10 @@ if (props.activeTab === 'shipping') {
           ></textarea>
         </div>
 
-        <div class="flex items-center">
-          <input
-            v-model="createShippingForm.is_active"
-            type="checkbox"
-            class="h-4 w-4 text-zinc-900 focus:ring-zinc-900 border-gray-300 rounded"
-          />
-          <label class="ml-2 text-sm text-gray-700">Active</label>
-        </div>
+        <Toggle
+          v-model="createShippingForm.is_active"
+          label="Active"
+        />
 
         <div class="flex justify-end gap-3 pt-4">
           <button
@@ -1151,14 +1488,10 @@ if (props.activeTab === 'shipping') {
           ></textarea>
         </div>
 
-        <div class="flex items-center">
-          <input
-            v-model="editShippingForm.is_active"
-            type="checkbox"
-            class="h-4 w-4 text-zinc-900 focus:ring-zinc-900 border-gray-300 rounded"
-          />
-          <label class="ml-2 text-sm text-gray-700">Active</label>
-        </div>
+        <Toggle
+          v-model="editShippingForm.is_active"
+          label="Active"
+        />
 
         <div class="flex justify-end gap-3 pt-4">
           <button
@@ -1228,6 +1561,130 @@ if (props.activeTab === 'shipping') {
             class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
           >
             {{ isShippingSubmitting ? 'Updating...' : 'Update All' }}
+          </button>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Create Tax Price Dialog -->
+    <Dialog v-model="showCreateTaxDialog" title="Add Tax Price" width="500px">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+          <input
+            v-model="createTaxForm.name"
+            type="text"
+            placeholder="e.g., VAT, GST, Sales Tax"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Rate (%) *</label>
+          <input
+            v-model.number="createTaxForm.rate"
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            placeholder="0.00"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            required
+          />
+          <p class="text-xs text-gray-500 mt-1">Enter percentage (e.g., 8 for 8%, 20 for 20%)</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <textarea
+            v-model="createTaxForm.description"
+            rows="3"
+            placeholder="Optional description"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+          ></textarea>
+        </div>
+
+        <Toggle
+          v-model="createTaxForm.is_active"
+          label="Active"
+        />
+
+        <div class="flex justify-end gap-3 pt-4">
+          <button
+            @click="showCreateTaxDialog = false"
+            class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="handleCreateTax"
+            :disabled="isTaxSubmitting"
+            class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          >
+            {{ isTaxSubmitting ? 'Creating...' : 'Create' }}
+          </button>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Edit Tax Price Dialog -->
+    <Dialog v-model="showEditTaxDialog" title="Edit Tax Price" width="500px">
+      <div v-if="selectedTaxPrice" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+          <input
+            v-model="editTaxForm.name"
+            type="text"
+            placeholder="e.g., VAT, GST, Sales Tax"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Rate (%) *</label>
+          <input
+            v-model.number="editTaxForm.rate"
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            placeholder="0.00"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            required
+          />
+          <p class="text-xs text-gray-500 mt-1">Enter percentage (e.g., 8 for 8%, 20 for 20%)</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <textarea
+            v-model="editTaxForm.description"
+            rows="3"
+            placeholder="Optional description"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+          ></textarea>
+        </div>
+
+        <Toggle
+          v-model="editTaxForm.is_active"
+          label="Active"
+        />
+
+        <div class="flex justify-end gap-3 pt-4">
+          <button
+            @click="showEditTaxDialog = false"
+            class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="handleEditTax"
+            :disabled="isTaxSubmitting"
+            class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          >
+            {{ isTaxSubmitting ? 'Updating...' : 'Update' }}
           </button>
         </div>
       </div>

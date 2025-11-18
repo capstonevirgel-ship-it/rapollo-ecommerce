@@ -120,14 +120,13 @@ const handleSearch = async () => {
 </script>
 
 <template>
-  <div class="p-6">
+  <div class="space-y-8 sm:space-y-10">
     <!-- Header -->
-    <div class="mb-6">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">Notifications</h1>
-          <p class="text-gray-600">Stay updated with your store activities</p>
-        </div>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Notifications</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Stay updated with your store activities</p>
+      </div>
         <div class="flex items-center gap-3">
           <span v-if="unreadCount > 0" class="bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full">
             {{ unreadCount }} unread
@@ -146,10 +145,10 @@ const handleSearch = async () => {
             Clear all
           </button>
         </div>
-      </div>
+    </div>
 
-      <!-- Search and Filters -->
-      <div class="flex flex-col sm:flex-row gap-4">
+    <!-- Search and Filters -->
+    <div class="flex flex-col sm:flex-row gap-6">
         <!-- Search -->
         <div class="flex-1">
           <div class="relative">
@@ -181,7 +180,6 @@ const handleSearch = async () => {
             <span class="ml-1 text-xs opacity-75">({{ filter.count }})</span>
           </button>
         </div>
-      </div>
     </div>
 
     <!-- Notifications List -->

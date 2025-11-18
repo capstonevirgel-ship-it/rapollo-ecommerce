@@ -17,7 +17,6 @@ import Dialog from '@/components/Dialog.vue'
 import AdminActionButton from '@/components/AdminActionButton.vue'
 import AdminAddButton from '@/components/AdminAddButton.vue'
 import { useCategoryStore } from '~/stores/category'
-import type { Category } from '~/types'
 
 const categoryStore = useCategoryStore()
 
@@ -30,35 +29,20 @@ const columns = [
 ]
 
 const selectedIds = ref<number[]>([])
-const selectedCategory = ref<Category | null>(null)
 
 const newCategory = ref({
   name: '',
-  slug: '',
-  meta_title: '',
-  meta_description: ''
+  slug: ''
 })
 
 onMounted(() => {
   categoryStore.fetchCategories()
 })
 
-const isCategoryLoading = ref(false)
 
-const handleRowClick = async (row: any) => {
-  isCategoryLoading.value = true
-  try {
-    await categoryStore.fetchCategoryById(row.id)
-    selectedCategory.value = categoryStore.category
-  } catch (error) {
-    console.error('Error fetching category:', error)
-  } finally {
-    isCategoryLoading.value = false
-  }
-}
 
 const addCategory = () => {
-  newCategory.value = { name: '', slug: '', meta_title: '', meta_description: '' }
+  newCategory.value = { name: '', slug: '' }
   isDialogOpen.value = true
 }
 
@@ -71,9 +55,13 @@ const saveCategory = async () => {
 </script>
 
 <template>
-  <div class="p-4 mb-4 bg-white shadow border-0">
-    <div class="flex justify-between items-center mb-4">
-      <h1 class="text-2xl font-bold">Categories</h1>
+  <div class="space-y-8 sm:space-y-10">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Categories</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Organize products by categories</p>
+      </div>
       <AdminAddButton text="Add Category" @click="addCategory" />
     </div>
 
@@ -82,7 +70,6 @@ const saveCategory = async () => {
       :rows="categoryStore.categories"
       v-model:selected="selectedIds"
       :rows-per-page="5"
-      @row-click="handleRowClick"
       class="cursor-pointer"
     >
       <!-- Slot for action buttons -->
@@ -104,50 +91,11 @@ const saveCategory = async () => {
       </template>
     </DataTable>
   </div>
-  
-<div class="p-4 bg-white shadow border-0">
-  <h1 class="text-2xl font-bold mb-4">SEO Preview</h1>
-
-  <!-- Skeleton loader -->
-  <div
-    v-if="isCategoryLoading"
-    class="border rounded-lg p-4 bg-white shadow-sm max-w-2xl animate-pulse"
-  >
-    <div class="h-4 bg-gray-200 rounded w-24 mb-3"></div>
-    <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-    <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-    <div class="h-4 bg-gray-200 rounded w-full"></div>
-  </div>
-
-  <!-- Preview content -->
-  <div
-    v-else-if="selectedCategory"
-    class="border rounded-lg p-4 bg-white shadow-sm max-w-2xl"
-  >
-    <p class="text-sm text-gray-500 mb-2">SEO Preview</p>
-    <p class="text-blue-800 text-lg font-medium leading-snug truncate">
-      {{ selectedCategory.meta_title || selectedCategory.name }}
-    </p>
-    <p class="text-green-700 text-sm truncate">
-      https://yourdomain.com/shop/{{ selectedCategory.slug }}
-    </p>
-    <p class="text-gray-700 text-sm mt-1 line-clamp-2">
-      {{ selectedCategory.meta_description || 'No meta description provided.' }}
-    </p>
-  </div>
-
-  <!-- Empty state -->
-  <div v-else class="text-gray-500 italic">
-    Select a category to see the SEO preview.
-  </div>
-</div>
 
   <Dialog v-model="isDialogOpen" title="Add Category">
     <div class="space-y-4">
       <input v-model="newCategory.name" type="text" placeholder="Name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
       <input v-model="newCategory.slug" type="text" placeholder="Slug" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
-      <input v-model="newCategory.meta_title" type="text" placeholder="Meta Title" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900" />
-      <textarea v-model="newCategory.meta_description" placeholder="Meta Description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"></textarea>
     </div>
     <div class="mt-6 flex justify-end space-x-2">
       <button @click="isDialogOpen = false" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">Cancel</button>

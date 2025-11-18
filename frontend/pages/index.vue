@@ -11,7 +11,7 @@ import { useProductStore } from '~/stores/product';
 import { useSettingsStore } from '~/stores/settings';
 import { useAuthStore } from '~/stores/auth';
 import { getImageUrl } from '~/utils/imageHelper';
-import { onMounted, reactive, computed } from 'vue';
+import { onMounted, reactive, computed, ref } from 'vue';
 
 const eventStore = useEventStore();
 const brandStore = useBrandStore();
@@ -43,6 +43,14 @@ const newArrivals = ref<any[]>([]);
 const isLoadingHero = ref(true);
 const isLoadingNewArrivals = ref(true);
 
+const brandActions = brandStore as unknown as {
+  fetchBrands: () => Promise<unknown>
+}
+
+const productActions = productStore as unknown as {
+  fetchProducts: (params?: Record<string, unknown>) => Promise<unknown>
+}
+
 // Fetch events, brands, featured products, hot products, new arrivals, and settings on component mount
 onMounted(async () => {
   try {
@@ -51,10 +59,10 @@ onMounted(async () => {
       // Fetch all data in parallel for better performance
       const promises = [
         eventStore.fetchEvents(),
-        brandStore.fetchBrands(),
+        brandActions.fetchBrands(),
         settingsStore.fetchSettings(),
-        productStore.fetchProducts({ is_featured: true, per_page: 3 }),
-        productStore.fetchProducts({ is_hot: true, per_page: 4 })
+        productActions.fetchProducts({ is_featured: true, per_page: 3 }),
+        productActions.fetchProducts({ is_hot: true, per_page: 4 })
       ];
       
       // Wait for all critical data to load
@@ -69,7 +77,7 @@ onMounted(async () => {
       
       // Fetch new products (below the fold, can load separately)
       isLoadingNewArrivals.value = true;
-      productStore.fetchProducts({ is_new: true, per_page: 5 })
+      productActions.fetchProducts({ is_new: true, per_page: 5 })
         .then(() => {
           newArrivals.value = [...productStore.products];
           isLoadingNewArrivals.value = false;

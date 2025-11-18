@@ -7,6 +7,7 @@ use Illuminate\Database\Seeder;
 use App\Models\Product;
 use App\Models\Brand;
 use App\Models\Subcategory;
+use App\Models\Color;
 use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
@@ -33,10 +34,16 @@ class ProductSeeder extends Seeder
         $watches = Subcategory::where('slug', 'watches')->first();
         $bags = Subcategory::where('slug', 'bags')->first();
 
+        // Get colors for default color assignment
+        $black = Color::where('name', 'Black')->first();
+        $white = Color::where('name', 'White')->first();
+        $red = Color::where('name', 'Red')->first();
+
         $products = [
             [
                 'subcategory_id' => $mensTshirts->id,
                 'brand_id' => $nike->id,
+                'default_color_id' => $black->id, // Black is the main/default color
                 'name' => 'FlipTop Collaboration T-Shirt',
                 'slug' => 'fliptop-collaboration-t-shirt',
                 'description' => 'Official collaboration t-shirt featuring FlipTop branding. Made from premium cotton blend for comfort and durability. Perfect for rap battle events and streetwear enthusiasts.',
@@ -50,6 +57,7 @@ class ProductSeeder extends Seeder
             [
                 'subcategory_id' => $mensTshirts->id,
                 'brand_id' => $adidas->id,
+                'default_color_id' => $black->id, // Black is the only color
                 'name' => 'RxPanda Collaboration T-Shirt',
                 'slug' => 'rxpanda-collaboration-t-shirt',
                 'description' => 'Exclusive collaboration t-shirt with RxPanda featuring unique graphic designs. Soft cotton material with vibrant prints that represent Filipino rap culture and street art.',
@@ -63,6 +71,7 @@ class ProductSeeder extends Seeder
             [
                 'subcategory_id' => $mensTshirts->id,
                 'brand_id' => $puma->id,
+                'default_color_id' => $black->id, // Black is the only color
                 'name' => 'TurboHectic Collaboration T-Shirt',
                 'slug' => 'turbohectic-collaboration-t-shirt',
                 'description' => 'High-energy collaboration t-shirt with TurboHectic. Features bold graphics and dynamic designs that capture the intensity of Filipino rap battles and underground music scene.',
@@ -76,6 +85,7 @@ class ProductSeeder extends Seeder
             [
                 'subcategory_id' => $mensTshirts->id,
                 'brand_id' => $uniqlo->id,
+                'default_color_id' => $white->id, // White is the main/default color
                 'name' => 'Ubec Classic T-Shirt',
                 'slug' => 'ubec-classic-t-shirt',
                 'description' => 'Classic Ubec t-shirt featuring clean designs and comfortable fit. Made from high-quality cotton with subtle branding. Perfect for everyday wear and casual occasions.',
@@ -89,6 +99,7 @@ class ProductSeeder extends Seeder
             [
                 'subcategory_id' => $mensShirts->id,
                 'brand_id' => $zara->id,
+                'default_color_id' => $white->id, // White is the only color
                 'name' => 'Premium Sweatshirt',
                 'slug' => 'premium-sweatshirt',
                 'description' => 'Comfortable and stylish sweatshirt perfect for cooler weather. Features soft fleece lining and relaxed fit. Ideal for layering or wearing on its own.',
@@ -102,6 +113,7 @@ class ProductSeeder extends Seeder
             [
                 'subcategory_id' => $bags->id,
                 'brand_id' => $hm->id,
+                'default_color_id' => $red->id, // Red is the only color
                 'name' => 'Athletic Socks',
                 'slug' => 'athletic-socks',
                 'description' => 'Premium quality athletic socks with comfortable cushioning and moisture-wicking technology. Features subtle branding and comes in various colors to match your style.',
@@ -115,6 +127,7 @@ class ProductSeeder extends Seeder
             [
                 'subcategory_id' => $bags->id,
                 'brand_id' => $nike->id,
+                'default_color_id' => $black->id, // Black is the only color
                 'name' => 'Sports Towel',
                 'slug' => 'sports-towel',
                 'description' => 'High-quality sports towel made from absorbent cotton material. Perfect for gym, beach, or everyday use. Features durable construction and premium branding.',

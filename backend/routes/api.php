@@ -18,9 +18,12 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShippingPriceController;
+use App\Http\Controllers\TaxPriceController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PsgcController;
+use App\Http\Controllers\ShippingResolverController;
 use App\Http\Controllers\EventCommentController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -74,6 +77,15 @@ Route::get('shipping-prices/active', [ShippingPriceController::class, 'getActive
 // Public Ratings (view only)
 Route::get('ratings', [RatingController::class, 'index']);
 Route::get('ratings/statistics', [RatingController::class, 'statistics']);
+
+// PSGC proxy (public)
+Route::get('psgc/regions', [PsgcController::class, 'regions']);
+Route::get('psgc/provinces', [PsgcController::class, 'provinces']);
+Route::get('psgc/cities-municipalities', [PsgcController::class, 'citiesMunicipalities']);
+Route::get('psgc/barangays', [PsgcController::class, 'barangays']);
+
+// Shipping region resolver (public)
+Route::get('shipping/resolve-region', [ShippingResolverController::class, 'resolve']);
 
 // Webhooks (public endpoints for external services)
 Route::post('webhooks', [WebhookController::class, 'handle']);
@@ -147,6 +159,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('purchases', [PurchaseController::class, 'store']);
     Route::get('purchases/{id}', [PurchaseController::class, 'show']);
     Route::get('purchases/admin/all', [PurchaseController::class, 'adminIndex']);
+    
+    // Orders (product purchases only)
+    Route::get('orders/admin', [PurchaseController::class, 'adminOrders']);
 
     // Shipping Prices
     Route::get('shipping-prices', [ShippingPriceController::class, 'index']);
@@ -155,6 +170,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('shipping-prices/{id}', [ShippingPriceController::class, 'update']);
     Route::delete('shipping-prices/{id}', [ShippingPriceController::class, 'destroy']);
     Route::put('shipping-prices/bulk-update', [ShippingPriceController::class, 'bulkUpdate']);
+
+    // Tax Prices
+    Route::get('tax-prices', [TaxPriceController::class, 'index']);
+    Route::post('tax-prices', [TaxPriceController::class, 'store']);
+    Route::get('tax-prices/{id}', [TaxPriceController::class, 'show']);
+    Route::put('tax-prices/{id}', [TaxPriceController::class, 'update']);
+    Route::delete('tax-prices/{id}', [TaxPriceController::class, 'destroy']);
+    Route::get('tax-prices/active', [TaxPriceController::class, 'getActiveRate']);
     Route::get('purchases/admin/{id}', [PurchaseController::class, 'adminShow']);
     Route::put('purchases/{id}/status', [PurchaseController::class, 'updateStatus']);
 
@@ -174,6 +197,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Dashboard (protected)
     Route::get('dashboard/statistics', [DashboardController::class, 'statistics']);
     Route::get('dashboard/revenue-chart', [DashboardController::class, 'revenueChart']);
+    Route::get('dashboard/ticket-sales-chart', [DashboardController::class, 'ticketSalesChart']);
     Route::get('dashboard/order-status-chart', [DashboardController::class, 'orderStatusChart']);
     Route::get('dashboard/category-chart', [DashboardController::class, 'categoryChart']);
     Route::get('dashboard/top-products', [DashboardController::class, 'topProducts']);

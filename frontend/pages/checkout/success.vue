@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCartStore } from '~/stores/cart'
 import { usePurchaseStore } from '~/stores/purchase'
+import { useTicketStore } from '~/stores/ticket'
+import Carousel from '~/components/Carousel.vue'
 import { getImageUrl } from '~/utils/imageHelper'
 
 // Define page meta
@@ -21,6 +23,7 @@ useHead({
 // Stores
 const cartStore = useCartStore()
 const purchaseStore = usePurchaseStore()
+const ticketStore = useTicketStore()
 const route = useRoute()
 
 // Reactive data
@@ -31,7 +34,22 @@ const error = ref<string | null>(null)
 // Computed properties
 const isTicketPurchase = computed(() => purchase.value?.type === 'ticket')
 const orderNumber = computed(() => purchase.value?.order_number || `ORD-${purchase.value?.id}`)
-const totalAmount = computed(() => purchase.value?.total || 0)
+
+const toNumber = (value: unknown) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
+}
+
+const formatCurrency = (value: unknown) => {
+  const num = toNumber(value)
+  return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const totalAmount = computed(() => toNumber(purchase.value?.total))
 const purchaseDate = computed(() => {
   if (!purchase.value?.created_at) return ''
   return new Date(purchase.value.created_at).toLocaleDateString('en-US', {
@@ -58,12 +76,47 @@ const fetchPurchaseDetails = async () => {
     
     const purchaseData = await purchaseStore.fetchPurchaseById(Number(purchaseId))
     purchase.value = purchaseData
+
+    if (purchase.value?.type === 'ticket') {
+      await ticketStore.fetchTickets()
+    }
     
-    // Clear cart on success
-    cartStore.clearCart()
+    // Selectively clear only purchased items
+    // 1) Build set of purchased variant ids
+    const purchasedVariantIds = new Set<number>(
+      (purchaseData.items || []).map((it: any) => it.variant_id).filter((id: any) => typeof id === 'number')
+    )
+    // 2) Fallback to session storage list if API items missing
+    if (purchasedVariantIds.size === 0 && typeof window !== 'undefined') {
+      try {
+        const raw = sessionStorage.getItem('purchased_variant_ids')
+        const arr = raw ? JSON.parse(raw) : []
+        arr.forEach((id: any) => { if (typeof id === 'number') purchasedVariantIds.add(id) })
+      } catch {}
+    }
+    
+    // 3) If we have purchased variant ids, remove only those from the server cart
+    if (purchasedVariantIds.size > 0) {
+      try {
+        // Refresh cart to get current cart item ids
+        await cartStore.index().catch(() => {})
+        const toRemove = cartStore.cart.filter((ci: any) => purchasedVariantIds.has(ci.variant_id))
+        for (const ci of toRemove) {
+          await cartStore.removeFromCart(ci.id, true)
+        }
+      } catch (e) {
+        console.warn('Selective cart cleanup failed, falling back to full clear')
+        cartStore.clearCart()
+      }
+    } else {
+      // If we cannot identify which items were purchased, do not nuke remaining items
+      // but ensure we at least refresh cart state
+      await cartStore.index().catch(() => {})
+    }
     
     // Clear session storage
     sessionStorage.removeItem('last_purchase_id')
+    sessionStorage.removeItem('purchased_variant_ids')
     
   } catch (err: any) {
     error.value = err.message || 'Failed to fetch order details'
@@ -77,6 +130,125 @@ const fetchPurchaseDetails = async () => {
 onMounted(() => {
   fetchPurchaseDetails()
 })
+
+const ticketsForPurchase = computed(() => {
+  if (purchase.value?.type !== 'ticket' || !purchase.value?.id) return []
+  return (ticketStore.tickets || []).filter((ticket: any) => ticket.purchase_id === purchase.value?.id)
+})
+
+const hasTicketData = computed(() => ticketsForPurchase.value.length > 0)
+const ticketLoading = computed(() => ticketStore.loading)
+const ticketError = computed(() => ticketStore.error)
+
+const ticketEventInfo = computed(() => {
+  if (purchase.value?.type !== 'ticket') return null
+  const event = purchase.value?.event || ticketsForPurchase.value[0]?.event
+  if (!event) return null
+  const dateSource = event.date || event.event_date
+
+  const eventDate = dateSource ? new Date(dateSource) : null
+
+  return {
+    title: event.title,
+    description: event.description,
+    location: event.location,
+    posterUrl: event.poster_url,
+    formattedDate: eventDate
+      ? eventDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : null,
+    formattedTime: eventDate
+      ? eventDate.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : null
+  }
+})
+
+const displayTickets = computed(() => {
+  if (purchase.value?.type !== 'ticket') return []
+  if (!ticketEventInfo.value) return []
+
+  const base = ticketsForPurchase.value.length
+    ? ticketsForPurchase.value
+    : [
+        {
+          ticket_number: purchase.value?.ticket_number || orderNumber.value,
+          event: purchase.value?.event
+        }
+      ]
+
+  return base.map((ticket: any, index: number) => ({
+    id: ticket.id || index + 1,
+    ticketNumber: ticket.ticket_number || `TKT-${index + 1}`,
+    orderNumber: orderNumber.value,
+    event: ticketEventInfo.value
+  }))
+})
+
+const totalTicketQuantity = computed(() => {
+  if (purchase.value?.type !== 'ticket') return 0
+  const fromTickets = ticketsForPurchase.value.reduce((sum, ticket: any) => sum + (toNumber(ticket.quantity) || 1), 0)
+  if (fromTickets > 0) return fromTickets
+  if (purchase.value?.quantity) return toNumber(purchase.value.quantity)
+  return ticketsForPurchase.value.length || 1
+})
+
+const ticketUnitPrice = computed(() => {
+  if (purchase.value?.type !== 'ticket') return 0
+  const ticket = ticketsForPurchase.value[0]
+  const value =
+    (ticket && (toNumber(ticket.price) || toNumber(ticket.event?.ticket_price))) ||
+    toNumber(purchase.value?.event?.ticket_price)
+
+  if (value) return value
+  return totalTicketQuantity.value ? totalAmount.value / totalTicketQuantity.value : totalAmount.value || 0
+})
+
+const getProductItemUnitPrice = (item: any) => {
+  const candidates = [
+    item?.final_unit_price,
+    item?.finalUnitPrice,
+    item?.unit_price,
+    item?.unitPrice,
+    item?.price,
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null) continue
+    const numeric = typeof candidate === 'string' ? parseFloat(candidate) : Number(candidate)
+    if (!Number.isNaN(numeric)) {
+      return numeric
+    }
+  }
+
+  return 0
+}
+
+const getProductItemTotalPrice = (item: any) => {
+  const candidates = [
+    item?.final_total_price,
+    item?.finalTotalPrice,
+    item?.total_price,
+    item?.totalPrice,
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null) continue
+    const numeric = typeof candidate === 'string' ? parseFloat(candidate) : Number(candidate)
+    if (!Number.isNaN(numeric)) {
+      return numeric
+    }
+  }
+
+  const unit = getProductItemUnitPrice(item)
+  const quantity = typeof item?.quantity === 'number' ? item.quantity : parseInt(item?.quantity ?? 0, 10)
+  return unit * (Number.isNaN(quantity) ? 0 : quantity)
+}
 </script>
 
 <template>
@@ -103,7 +275,7 @@ onMounted(() => {
         <p class="text-lg text-gray-600 mb-8">{{ error }}</p>
         <NuxtLink
           to="/my-orders"
-          class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition"
+          class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 transition"
         >
           View My Orders
         </NuxtLink>
@@ -127,8 +299,99 @@ onMounted(() => {
           </p>
         </div>
 
-        <!-- Order Summary -->
-        <div class="bg-white rounded-lg shadow-sm p-6">
+        <!-- Ticket Summary -->
+        <div v-if="isTicketPurchase" class="space-y-6">
+          <div v-if="ticketLoading" class="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-600 shadow-sm">
+            Fetching your tickets...
+          </div>
+          <div v-else-if="ticketError" class="bg-red-50 border border-red-200 rounded-lg p-6 text-center text-red-700 shadow-sm">
+            {{ ticketError }}
+          </div>
+          <div v-else class="space-y-6">
+            <Carousel
+              v-if="ticketEventInfo && displayTickets.length > 0"
+              :items="displayTickets"
+              :items-to-show="1"
+              :items-to-scroll="1"
+              :autoplay="false"
+              :show-arrows="displayTickets.length > 1"
+            >
+              <template #item="{ item }">
+                <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm overflow-visible">
+                  <div class="relative">
+                    <div class="h-64 w-full">
+                      <img
+                        :src="getImageUrl(item.event.posterUrl || '', 'event')"
+                        :alt="item.event.title"
+                        class="h-full w-full object-cover rounded-t-3xl"
+                        @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.src = getImageUrl('', 'event') }"
+                      />
+                    </div>
+                    <div class="absolute top-4 right-4">
+                      <span class="px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.35em] bg-white/95 text-gray-900 rounded-full shadow">
+                        {{ item.orderNumber }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="p-6 space-y-6">
+                    <div class="space-y-2">
+                      <h2 class="text-2xl font-winner-extra-bold leading-tight text-gray-900">
+                        {{ item.event.title }}
+                      </h2>
+                      <p v-if="item.event.location" class="text-sm font-medium text-gray-600">
+                        {{ item.event.location }}
+                      </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-3">
+                      <div
+                        v-if="item.event.formattedDate"
+                        class="px-5 py-2 rounded-full border border-zinc-900 text-sm font-semibold text-zinc-900 uppercase tracking-wide"
+                      >
+                        {{ item.event.formattedDate }}
+                      </div>
+                      <div
+                        v-if="item.event.formattedTime"
+                        class="px-5 py-2 rounded-full border border-zinc-900 text-sm font-semibold text-zinc-900 uppercase tracking-wide"
+                      >
+                        {{ item.event.formattedTime }}
+                      </div>
+                      <div class="px-5 py-2 rounded-full border border-zinc-900 text-sm font-semibold text-zinc-900 uppercase tracking-wide">
+                        Price: ₱{{ formatCurrency(ticketUnitPrice) }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="relative bg-gray-50 px-6 py-6 border-t-2 border-dashed border-gray-300 rounded-b-3xl">
+                    <div class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2">
+                      <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_0_0_22px)]"></div>
+                    </div>
+                    <div class="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2">
+                      <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_22px_0_0)]"></div>
+                    </div>
+                    <div class="flex flex-col items-center text-center space-y-3">
+                      <span class="text-xl font-winner-extra-bold tracking-[0.2em] text-gray-900">
+                        {{ item.ticketNumber }}
+                      </span>
+                      <div class="w-full h-px bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)]"></div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </Carousel>
+
+            <div
+              v-if="displayTickets.length === 0"
+              class="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-600 shadow-sm"
+            >
+              Ticket records are being prepared. Please refresh this page shortly to view your tickets.
+            </div>
+          </div>
+        </div>
+
+        <!-- Product Order Summary -->
+        <div v-else class="bg-white rounded-lg shadow-sm p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-6">Order Summary</h2>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -142,7 +405,7 @@ onMounted(() => {
             </div>
             <div>
               <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Amount</h3>
-              <p class="mt-1 text-lg font-semibold text-gray-900">₱{{ totalAmount.toLocaleString() }}</p>
+              <p class="mt-1 text-lg font-semibold text-gray-900">₱{{ formatCurrency(totalAmount) }}</p>
             </div>
             <div>
               <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Status</h3>
@@ -152,25 +415,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Event Details (for tickets) -->
-          <div v-if="isTicketPurchase && purchase.event" class="border-t pt-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Event Details</h3>
-            <div class="bg-gray-50 rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900">{{ purchase.event.title }}</h4>
-              <p v-if="purchase.event.description" class="text-gray-600 mt-2">{{ purchase.event.description }}</p>
-              <div v-if="purchase.event.event_date" class="mt-2 text-sm text-gray-500">
-                Event Date: {{ new Date(purchase.event.event_date).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                }) }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Order Items -->
           <div v-if="purchase.items && purchase.items.length > 0" class="border-t pt-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Order Items</h3>
             <div class="space-y-4">
@@ -179,21 +423,15 @@ onMounted(() => {
                 :key="item.id"
                 class="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg"
               >
-                <!-- Product Image -->
-                <div v-if="item.variant?.images?.[0]" class="flex-shrink-0">
+                <div class="flex-shrink-0">
                   <img 
-                    :src="getImageUrl(item.variant.images[0].url)" 
-                    :alt="item.variant.product?.name || 'Product'"
-                    class="w-16 h-16 object-cover rounded-lg"
+                    :src="getImageUrl(item.variant?.images?.[0]?.url || item.variant?.product?.images?.[0]?.url || '')"
+                    :alt="item.variant?.product?.name || 'Product'"
+                    class="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                    @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.src = getImageUrl('', 'product') }"
                   />
                 </div>
-                <div v-else class="flex-shrink-0 w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
 
-                <!-- Product Details -->
                 <div class="flex-1 min-w-0">
                   <h4 class="text-sm font-medium text-gray-900 truncate">
                     {{ item.variant?.product?.name || 'Product' }}
@@ -208,13 +446,12 @@ onMounted(() => {
                   </div>
         </div>
 
-                <!-- Price -->
                 <div class="text-right">
                   <p class="text-sm font-medium text-gray-900">
-                    ₱{{ (item.price * item.quantity).toLocaleString() }}
+                    ₱{{ formatCurrency(getProductItemTotalPrice(item)) }}
                   </p>
                   <p class="text-xs text-gray-500">
-                    ₱{{ item.price.toLocaleString() }} each
+                    ₱{{ formatCurrency(getProductItemUnitPrice(item)) }} each
                   </p>
                 </div>
               </div>
@@ -254,16 +491,16 @@ onMounted(() => {
         <!-- Action Buttons -->
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <NuxtLink
-            :to="isTicketPurchase ? '/events' : '/shop'"
-            class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition"
+            :to="isTicketPurchase ? '/my-tickets' : '/shop'"
+            class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 transition"
           >
-            {{ isTicketPurchase ? 'Browse Events' : 'Continue Shopping' }}
+            {{ isTicketPurchase ? 'View My Tickets' : 'Continue Shopping' }}
           </NuxtLink>
           <NuxtLink
-            :to="isTicketPurchase ? '/my-tickets' : '/my-orders'"
+            :to="isTicketPurchase ? '/events' : '/my-orders'"
             class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition"
           >
-            View My {{ isTicketPurchase ? 'Tickets' : 'Orders' }}
+            {{ isTicketPurchase ? 'Browse More Events' : 'View My Orders' }}
           </NuxtLink>
         </div>
 

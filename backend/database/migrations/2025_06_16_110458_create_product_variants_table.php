@@ -13,7 +13,8 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('color_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('size_id')->nullable()->constrained()->nullOnDelete();
-            $table->decimal('price', 10, 2);
+            $table->decimal('base_price', 10, 2); // Base price before tax
+            $table->decimal('price', 10, 2); // Final price (base_price + taxes)
             $table->integer('stock')->default(0);
             $table->string('sku', 50)->unique()->nullable();
             $table->timestamps();

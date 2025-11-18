@@ -3,6 +3,7 @@ import type { Event } from '~/types'
 import Dialog from '~/components/Dialog.vue'
 import Select from '~/components/Select.vue'
 import { getImageUrl } from '~/helpers/imageHelper'
+import EventCardSkeleton from '~/components/skeleton/EventCardSkeleton.vue'
 
 const eventStore = useEventStore()
 const ticketStore = useTicketStore()
@@ -119,7 +120,7 @@ const proceedToPayment = async () => {
     }
     
   } catch (err: any) {
-    paymentError.value = err.data?.message || 'Failed to create payment. Please try again.'
+    paymentError.value = err?.data?.message || err?.data?.error || 'Failed to create payment. Please try again.'
     error('Payment Error', paymentError.value)
   } finally {
     paymentLoading.value = false
@@ -174,8 +175,8 @@ const canBookTickets = (event: Event) => {
       </div>
 
       <!-- Loading State -->
-      <div v-if="eventStore.loading" class="flex justify-center items-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div v-if="eventStore.loading" class="py-6">
+        <EventCardSkeleton :count="6" />
       </div>
 
       <!-- Error State -->

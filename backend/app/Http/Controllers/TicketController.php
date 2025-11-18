@@ -23,7 +23,7 @@ class TicketController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $tickets = Ticket::with(['event', 'user'])
+        $tickets = Ticket::with(['event', 'user', 'purchase'])
             ->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -281,7 +281,6 @@ class TicketController extends Controller
             $payMongoService = new PayMongoService();
             $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
             $successUrl = $frontendUrl . '/checkout/success';
-            $cancelUrl = $frontendUrl . '/checkout/failed';
             
             $paymentResponse = $payMongoService->createCheckoutSession(
                 $totalPrice,
@@ -293,7 +292,7 @@ class TicketController extends Controller
                     'quantity' => $quantity
                 ],
                 $successUrl,
-                $cancelUrl
+                null
             );
 
             if (!$paymentResponse || !isset($paymentResponse['data']['attributes']['checkout_url'])) {
@@ -382,7 +381,6 @@ class TicketController extends Controller
                         $ticket->ticket_number = $ticket->generateTicketNumber();
                         $ticket->price = $purchase->event->ticket_price;
                         $ticket->status = 'confirmed';
-                        $ticket->qr_code = $ticket->generateQRCode();
                         $ticket->booked_at = now();
                         $ticket->save();
 

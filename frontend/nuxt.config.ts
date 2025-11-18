@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { resolve } from 'path';
 import tailwindcss from "@tailwindcss/vite";
+import { icons as mdi } from "@iconify-json/mdi";
 
 export default defineNuxtConfig({
   runtimeConfig: {

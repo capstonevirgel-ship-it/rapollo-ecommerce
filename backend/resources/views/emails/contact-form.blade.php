@@ -1,227 +1,113 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Contact Form Submission - Rapollo</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #18181b;
-            background-color: #f4f4f5;
-            padding: 20px;
-        }
-        
-        .email-container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-        }
-        
-        .logo {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
-        }
-        
-        .header-subtitle {
-            font-size: 16px;
-            color: #a1a1aa;
-            font-weight: 400;
-        }
-        
-        .content {
-            padding: 40px 30px;
-        }
-        
-        .message {
-            font-size: 16px;
-            color: #52525b;
-            margin-bottom: 32px;
-            line-height: 1.7;
-        }
-        
-        .info-section {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 24px;
-        }
-        
-        .info-row {
-            margin-bottom: 16px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        
-        .info-row:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        
-        .info-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #71717a;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-        }
-        
-        .info-value {
-            font-size: 16px;
-            color: #18181b;
-            font-weight: 500;
-        }
-        
-        .info-value a {
-            color: #18181b;
-            text-decoration: none;
-        }
-        
-        .info-value a:hover {
-            text-decoration: underline;
-        }
-        
-        .message-section {
-            background-color: #ffffff;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 24px;
-        }
-        
-        .message-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #71717a;
-            margin-bottom: 12px;
-        }
-        
-        .message-content {
-            font-size: 16px;
-            color: #18181b;
-            line-height: 1.8;
-            white-space: pre-wrap;
-        }
-        
-        .footer {
-            background-color: #f8fafc;
-            padding: 32px 30px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-        }
-        
-        .footer p {
-            color: #71717a;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-        
-        .footer strong {
-            color: #18181b;
-            font-weight: 600;
-        }
-        
-        @media (max-width: 600px) {
-            body {
-                padding: 10px;
-            }
-            
-            .header, .content, .footer {
-                padding: 24px 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="email-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo">Rapollo</div>
-            <div class="header-subtitle">New Contact Form Submission</div>
-        </div>
+@extends('emails.layouts.base')
 
-        <!-- Content -->
-        <div class="content">
-            <div class="message">
-                You have received a new message from the contact form on your website.
-            </div>
+@section('title', 'New Contact Form Submission - Rapollo')
 
-            <!-- Contact Information -->
-            <div class="info-section">
-                <div class="info-row">
-                    <div class="info-label">Name</div>
-                    <div class="info-value">{{ $formData['firstName'] }} {{ $formData['lastName'] }}</div>
-                </div>
-                
-                <div class="info-row">
-                    <div class="info-label">Email</div>
-                    <div class="info-value">
-                        <a href="mailto:{{ $formData['email'] }}">{{ $formData['email'] }}</a>
-                    </div>
-                </div>
-                
-                @if(!empty($formData['phone']))
-                <div class="info-row">
-                    <div class="info-label">Phone</div>
-                    <div class="info-value">
-                        <a href="tel:{{ $formData['phone'] }}">{{ $formData['phone'] }}</a>
-                    </div>
-                </div>
-                @endif
-                
-                <div class="info-row">
-                    <div class="info-label">Subject</div>
-                    <div class="info-value">
-                        @php
-                            $subjectLabels = [
-                                'general' => 'General Inquiry',
-                                'order' => 'Order Support',
-                                'return' => 'Returns & Exchanges',
-                                'technical' => 'Technical Support',
-                                'partnership' => 'Partnership',
-                                'other' => 'Other'
-                            ];
-                            echo $subjectLabels[$formData['subject']] ?? 'General Inquiry';
-                        @endphp
-                    </div>
-                </div>
-            </div>
+@section('header')
+    <div style="font-size:30px; font-weight:800; text-transform:uppercase; letter-spacing:0.18em; color:#f4f4f5;">RAPOLLO</div>
+    <div style="margin-top:12px; font-size:15px; font-weight:500; color:#d4d4d8; letter-spacing:0.04em;">New Contact Form Submission</div>
+@endsection
 
-            <!-- Message -->
-            <div class="message-section">
-                <div class="message-label">Message:</div>
-                <div class="message-content">{{ $formData['message'] }}</div>
-            </div>
-        </div>
+@section('content')
+    <p style="margin:0 0 24px 0; font-size:15px; color:#4b5563;">
+        You have received a new message from the contact form on your website.
+    </p>
 
-        <!-- Footer -->
-        <div class="footer">
-            <p><strong>Rapollo E-commerce</strong></p>
-            <p>This is an automated notification from your website contact form.</p>
-        </div>
+    <table role="presentation" width="100%" style="margin-bottom:24px; border:1px solid #e5e7eb; border-radius:14px;">
+        <tr>
+            <td style="padding:24px 28px; background-color:#ffffff;">
+                <table role="presentation" width="100%">
+                    <tr>
+                        <td style="text-transform:uppercase; letter-spacing:0.1em; font-weight:700; color:#18181b; font-size:16px; padding-bottom:14px;">
+                            Contact Information
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:14px 0; border-top:1px solid #e5e7eb;">
+                            <table role="presentation" width="100%">
+                                <tr>
+                                    <td style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.16em; color:#6b7280;">Name</td>
+                                    <td align="right" style="font-size:15px; font-weight:600; color:#18181b;">
+                                        {{ $formData['firstName'] }} {{ $formData['lastName'] }}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:14px 0; border-top:1px solid #e5e7eb;">
+                            <table role="presentation" width="100%">
+                                <tr>
+                                    <td style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.16em; color:#6b7280;">Email</td>
+                                    <td align="right" style="font-size:15px; font-weight:600;">
+                                        <a href="mailto:{{ $formData['email'] }}" style="color:#18181b; font-weight:700; text-decoration:none;">{{ $formData['email'] }}</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    @if(!empty($formData['phone']))
+                        <tr>
+                            <td style="padding:14px 0; border-top:1px solid #e5e7eb;">
+                                <table role="presentation" width="100%">
+                                    <tr>
+                                        <td style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.16em; color:#6b7280;">Phone</td>
+                                        <td align="right" style="font-size:15px; font-weight:600;">
+                                            <a href="tel:{{ $formData['phone'] }}" style="color:#18181b; font-weight:700; text-decoration:none;">{{ $formData['phone'] }}</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    @endif
+                    <tr>
+                        <td style="padding:14px 0; border-top:1px solid #e5e7eb;">
+                            <table role="presentation" width="100%">
+                                <tr>
+                                    <td style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.16em; color:#6b7280;">Subject</td>
+                                    <td align="right" style="font-size:15px; font-weight:600; color:#18181b;">
+                                        @php
+                                            $subjectLabels = [
+                                                'general' => 'General Inquiry',
+                                                'order' => 'Order Support',
+                                                'return' => 'Returns & Exchanges',
+                                                'technical' => 'Technical Support',
+                                                'partnership' => 'Partnership',
+                                                'other' => 'Other'
+                                            ];
+                                            echo $subjectLabels[$formData['subject']] ?? 'General Inquiry';
+                                        @endphp
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <table role="presentation" width="100%" style="border:1px solid #e4e4e7; border-radius:14px; background-color:#f9fafb;">
+        <tr>
+            <td style="padding:24px 28px;">
+                <table role="presentation" width="100%">
+                    <tr>
+                        <td style="text-transform:uppercase; letter-spacing:0.1em; font-weight:700; color:#18181b; font-size:16px; padding-bottom:12px;">Message</td>
+                    </tr>
+                    <tr>
+                        <td style="font-size:15px; color:#1f2937; line-height:1.8; white-space:pre-wrap; font-weight:500;">
+                            {{ $formData['message'] }}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+@endsection
+
+@section('footer')
+    <div style="font-size:14px; font-weight:700; letter-spacing:0.12em;">Rapollo</div>
+    <div style="margin-top:10px; font-size:12px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; color:#52525b;">
+        This is an automated notification from your website contact form.
     </div>
-</body>
-</html>
+@endsection
 

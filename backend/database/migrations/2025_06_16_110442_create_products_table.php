@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('subcategory_id')->constrained()->cascadeOnDelete();
             $table->foreignId('brand_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('default_color_id')->nullable()->constrained('colors')->nullOnDelete();
             $table->string('name', 100);
             $table->string('slug', 100)->unique();
             $table->text('description')->nullable();

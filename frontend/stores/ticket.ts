@@ -13,13 +13,15 @@ export const useTicketStore = defineStore('ticket', () => {
     error.value = null
     try {
       console.log('Fetching tickets...')
-      const response = await useCustomFetch<PaginatedResponse<Ticket>>('/api/tickets')
+      const response = await useCustomFetch<any>('/api/tickets')
       console.log('Tickets API response:', response)
-      tickets.value = response.data || []
+      // Handle Laravel paginated response - data might be directly in response or response.data
+      tickets.value = Array.isArray(response) ? response : (response.data || [])
       console.log('Tickets loaded:', tickets.value.length)
     } catch (err: any) {
-      error.value = err.data?.message || 'Failed to fetch tickets'
+      error.value = err?.data?.message || err?.data?.error || 'Failed to fetch tickets'
       console.error('Error fetching tickets:', err)
+      tickets.value = []
     } finally {
       loading.value = false
     }
@@ -43,7 +45,7 @@ export const useTicketStore = defineStore('ticket', () => {
       
       return response
     } catch (err: any) {
-      error.value = err.data?.message || 'Failed to book tickets'
+      error.value = err?.data?.message || err?.data?.error || 'Failed to book tickets'
       console.error('Error booking tickets:', err)
       throw err
     } finally {
@@ -73,7 +75,7 @@ export const useTicketStore = defineStore('ticket', () => {
       
       return response
     } catch (err: any) {
-      error.value = err.data?.message || 'Failed to create payment intent'
+      error.value = err?.data?.message || err?.data?.error || 'Failed to create payment intent'
       console.error('Error creating payment intent:', err)
       throw err
     } finally {
@@ -100,7 +102,7 @@ export const useTicketStore = defineStore('ticket', () => {
       
       return response
     } catch (err: any) {
-      error.value = err.data?.message || 'Failed to confirm payment'
+      error.value = err?.data?.message || err?.data?.error || 'Failed to confirm payment'
       console.error('Error confirming payment:', err)
       throw err
     } finally {
@@ -125,7 +127,7 @@ export const useTicketStore = defineStore('ticket', () => {
       
       return response
     } catch (err: any) {
-      error.value = err.data?.message || 'Failed to cancel ticket'
+      error.value = err?.data?.message || err?.data?.error || 'Failed to cancel ticket'
       console.error('Error cancelling ticket:', err)
       throw err
     } finally {

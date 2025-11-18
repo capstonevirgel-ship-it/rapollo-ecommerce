@@ -82,12 +82,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div class="space-y-8 sm:space-y-10">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Order Details</h1>
-        <p class="text-gray-600 mt-1">Order #{{ orderId }}</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Order Details</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Order #{{ orderId }}</p>
       </div>
       <button 
         @click="goBack" 
@@ -119,11 +119,11 @@ onMounted(() => {
     </div>
 
     <!-- Order Details -->
-    <div v-else class="space-y-6">
+    <div v-else class="space-y-8 sm:space-y-10">
       <!-- Order Summary -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <p class="text-sm text-gray-500">Order ID</p>
             <p class="font-medium">#{{ order.id }}</p>
@@ -178,7 +178,7 @@ onMounted(() => {
       <!-- Order Items -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Order Items</h2>
-        <div v-if="order.items && order.items.length > 0" class="space-y-4">
+        <div v-if="order.items && order.items.length > 0" class="space-y-6">
           <div v-for="item in order.items" :key="item.id" class="border border-gray-200 rounded-lg p-4">
             <div class="flex items-start space-x-4">
               <!-- Product Image -->
@@ -229,7 +229,7 @@ onMounted(() => {
       <!-- Payment Information -->
       <div v-if="order.payment" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Payment Information</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <p class="text-sm text-gray-500">Payment Method</p>
             <div class="flex flex-col items-start">

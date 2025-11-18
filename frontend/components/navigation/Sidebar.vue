@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 
 const emit = defineEmits(['width-change']);
@@ -10,7 +10,6 @@ const isCollapsed = ref(false);
 const isMobile = ref(false);
 const mobileMenuOpen = ref(false);
 const openDropdowns = ref<Record<string, boolean>>({});
-
 
 // Menu items
 const menuItems = ref([
@@ -46,8 +45,22 @@ const toggleDropdown = (label: string) => {
   openDropdowns.value[label] = !openDropdowns.value[label];
 };
 
+const closeMobileMenu = () => {
+  mobileMenuOpen.value = false;
+};
+
+const handleClickOutside = (event: MouseEvent) => {
+  if (!mobileMenuOpen.value) return;
+  
+  const target = event.target as HTMLElement;
+  if (!target.closest('.mobile-menu') && !target.closest('.mobile-menu-button')) {
+    closeMobileMenu();
+  }
+};
+
 const handleResize = () => {
-  isMobile.value = window.innerWidth <= 768;
+  const width = window.innerWidth;
+  isMobile.value = width < 1024;
   if (isMobile.value) {
     emit('width-change', '0');
     mobileMenuOpen.value = false;
@@ -60,11 +73,24 @@ const handleLogout = () => {
   authStore.logout();
 };
 
+// Watch for mobile menu open/close to add/remove click listener
+watch(mobileMenuOpen, (isOpen) => {
+  if (process.client) {
+    if (isOpen) {
+      // Use nextTick to ensure the menu is rendered before adding listener
+      nextTick(() => {
+        document.addEventListener('click', handleClickOutside);
+      });
+    } else {
+      document.removeEventListener('click', handleClickOutside);
+    }
+  }
+});
 
 // Initialize sidebar state from localStorage
 onMounted(() => {
-  // Check if mobile
-  isMobile.value = window.innerWidth <= 768;
+  // Check if mobile (using 1024px breakpoint for desktop)
+  isMobile.value = window.innerWidth < 1024;
   
   // Load collapsed state from localStorage
   const savedState = localStorage.getItem('sidebarCollapsed');
@@ -81,11 +107,15 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
+  document.removeEventListener('click', handleClickOutside);
 });
 
 defineExpose({
   isCollapsed,
-  width: sidebarWidth
+  width: sidebarWidth,
+  toggleMobileMenu: () => { mobileMenuOpen.value = !mobileMenuOpen.value; },
+  closeMobileMenu,
+  mobileMenuOpen
 });
 </script>
 
@@ -180,26 +210,19 @@ defineExpose({
       </aside>
     </div>
 
-    <!-- Mobile Header -->
-    <div 
-      v-else
-      class="w-full bg-gray-800 text-white px-4 py-3 flex justify-between items-center shadow fixed top-0 left-0 z-50"
-    >
-      <h2 class="text-lg font-semibold">Admin Panel</h2>
-      <div class="flex items-center gap-2">
-        <button 
-          @click="mobileMenuOpen = !mobileMenuOpen"
-          class="p-1 rounded-md hover:bg-gray-700 transition-colors duration-200"
-        >
-          <Icon :name="mobileMenuOpen ? 'mdi:close' : 'mdi:menu'" class="text-2xl" />
-        </button>
-      </div>
-    </div>
+    <!-- Mobile Menu Backdrop -->
+    <div
+      v-if="isMobile && mobileMenuOpen"
+      class="fixed inset-0 bg-black/50 z-[55]"
+      :style="{ top: '48px' }"
+      @click="closeMobileMenu"
+    ></div>
 
     <!-- Mobile Dropdown Menu -->
     <div 
       v-if="isMobile && mobileMenuOpen" 
-      class="bg-gray-800 text-white shadow px-4 py-2 fixed top-16 left-0 right-0 z-40 max-h-[calc(100vh-50px)] overflow-y-auto sidebar-scrollbar border-t border-gray-700"
+      class="mobile-menu bg-gray-800 text-white shadow-lg px-4 py-2 fixed left-0 right-0 z-[55] max-h-[calc(100vh-48px)] overflow-y-auto sidebar-scrollbar border-t border-gray-700"
+      :style="{ top: '64px' }"
     >
       <nav>
         <ul class="flex flex-col gap-3 pb-2">

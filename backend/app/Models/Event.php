@@ -10,7 +10,7 @@ class Event extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['admin_id', 'title', 'description', 'date', 'location', 'poster_url', 'ticket_price', 'max_tickets', 'available_tickets'];
+    protected $fillable = ['admin_id', 'title', 'description', 'date', 'location', 'poster_url', 'base_ticket_price', 'ticket_price', 'max_tickets', 'available_tickets'];
     
     protected $appends = ['booked_tickets_count', 'remaining_tickets'];
 
@@ -72,5 +72,29 @@ class Event extends Model
     public function isLowOnTickets(int $threshold = 10): bool
     {
         return $this->remaining_tickets > 0 && $this->remaining_tickets <= $threshold;
+    }
+
+    /**
+     * Calculate and set final ticket price from base price and taxes
+     */
+    public function calculateFinalPrice(): void
+    {
+        if ($this->base_ticket_price !== null) {
+            $this->ticket_price = \App\Models\TaxPrice::calculateFinalPrice($this->base_ticket_price);
+        }
+    }
+
+    /**
+     * Boot method to auto-calculate price on save
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($event) {
+            if ($event->base_ticket_price !== null && $event->isDirty('base_ticket_price')) {
+                $event->calculateFinalPrice();
+            }
+        });
     }
 }

@@ -62,7 +62,7 @@ class EventController extends Controller
         $event->description = $request->description;
         $event->date = $request->date;
         $event->location = $request->location;
-        $event->ticket_price = $request->ticket_price;
+        $event->base_ticket_price = $request->base_ticket_price;
         $event->max_tickets = $request->max_tickets;
         $event->available_tickets = $request->max_tickets;
 
@@ -96,7 +96,7 @@ class EventController extends Controller
             'location' => 'nullable|string|max:100',
             'poster_url' => 'nullable|string|max:255',
             'poster_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,svg|max:5120',
-            'ticket_price' => 'nullable|numeric|min:0',
+            'base_ticket_price' => 'nullable|numeric|min:0',
             'max_tickets' => 'nullable|integer|min:1'
         ]);
 
@@ -115,7 +115,7 @@ class EventController extends Controller
 
         $event->update($request->only([
             'title', 'description', 'date', 'location', 
-            'ticket_price', 'max_tickets'
+            'base_ticket_price', 'max_tickets'
         ]));
 
         return response()->json([

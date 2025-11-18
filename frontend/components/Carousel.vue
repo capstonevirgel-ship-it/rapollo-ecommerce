@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 
 interface CarouselItem {
   id: number
@@ -194,6 +194,11 @@ const touchStart = (e: TouchEvent | MouseEvent) => {
   prevTranslate.value = -currentIndex.value * itemWidth.value
   currentTranslate.value = 0
 
+  // Prevent default for mouse events to avoid text selection
+  if (e.type === 'mousedown') {
+    e.preventDefault()
+  }
+
   if (carouselTrackRef.value) {
     carouselTrackRef.value.style.cursor = 'grabbing'
     carouselTrackRef.value.style.transition = 'none'
@@ -203,6 +208,10 @@ const touchStart = (e: TouchEvent | MouseEvent) => {
 
 const touchMove = (e: TouchEvent | MouseEvent) => {
   if (!isDragging.value) return
+  
+  // Prevent default to stop scrolling during drag
+  e.preventDefault()
+  
   const currentPosition = getPositionX(e)
   currentTranslate.value = currentPosition - startPos.value
   if (carouselTrackRef.value) {
@@ -221,10 +230,37 @@ const touchEnd = () => {
   }
 
   const movedBy = currentTranslate.value
-  if (movedBy < -50 && currentIndex.value < clonedItems.value.length - responsiveItemsToShow.value) {
-    currentIndex.value += props.itemsToScroll
-  } else if (movedBy > 50 && currentIndex.value > 0) {
-    currentIndex.value -= props.itemsToScroll
+  const threshold = 50
+  
+  if (Math.abs(movedBy) > threshold) {
+    if (movedBy < -threshold) {
+      // Swiped left - go to next
+      currentIndex.value += props.itemsToScroll
+    } else if (movedBy > threshold) {
+      // Swiped right - go to previous
+      currentIndex.value -= props.itemsToScroll
+    }
+    
+    // Handle infinite scroll wrap-around
+    if (currentIndex.value >= props.items.length * 2) {
+      setTimeout(() => {
+        if (!carouselTrackRef.value) return
+        carouselTrackRef.value.style.transition = 'none'
+        currentIndex.value = props.items.length
+        updateTransform()
+        void carouselTrackRef.value.offsetHeight
+        carouselTrackRef.value.style.transition = transitionStyle.value
+      }, props.transitionDuration)
+    } else if (currentIndex.value < props.items.length) {
+      setTimeout(() => {
+        if (!carouselTrackRef.value) return
+        carouselTrackRef.value.style.transition = 'none'
+        currentIndex.value = props.items.length * 2 - 1
+        updateTransform()
+        void carouselTrackRef.value.offsetHeight
+        carouselTrackRef.value.style.transition = transitionStyle.value
+      }, props.transitionDuration)
+    }
   }
 
   currentTranslate.value = 0
@@ -251,23 +287,30 @@ onMounted(() => {
   windowWidth.value = window.innerWidth
   window.addEventListener('resize', handleResize)
   currentIndex.value = props.items.length
-  updateTransform()
-  startAutoplay()
+  
+  // Use nextTick to ensure refs are ready
+  nextTick(() => {
+    updateTransform()
+    startAutoplay()
 
-  if (carouselWrapperRef.value) {
-    carouselWrapperRef.value.addEventListener('mouseenter', onMouseEnter)
-    carouselWrapperRef.value.addEventListener('mouseleave', onMouseLeave)
-  }
+    if (carouselWrapperRef.value) {
+      carouselWrapperRef.value.addEventListener('mouseenter', onMouseEnter)
+      carouselWrapperRef.value.addEventListener('mouseleave', onMouseLeave)
+    }
 
-  if (carouselTrackRef.value) {
-    carouselTrackRef.value.addEventListener('touchstart', touchStart, { passive: true })
-    carouselTrackRef.value.addEventListener('mousedown', touchStart)
-    carouselTrackRef.value.addEventListener('touchmove', touchMove, { passive: false })
-    carouselTrackRef.value.addEventListener('mousemove', touchMove)
-    carouselTrackRef.value.addEventListener('touchend', touchEnd)
-    carouselTrackRef.value.addEventListener('mouseup', touchEnd)
-    carouselTrackRef.value.addEventListener('mouseleave', touchEnd)
-  }
+    if (carouselTrackRef.value) {
+      // Touch events - passive: false to allow preventDefault
+      carouselTrackRef.value.addEventListener('touchstart', touchStart, { passive: false })
+      carouselTrackRef.value.addEventListener('touchmove', touchMove, { passive: false })
+      carouselTrackRef.value.addEventListener('touchend', touchEnd)
+      
+      // Mouse events - need preventDefault
+      carouselTrackRef.value.addEventListener('mousedown', touchStart)
+      carouselTrackRef.value.addEventListener('mousemove', touchMove)
+      carouselTrackRef.value.addEventListener('mouseup', touchEnd)
+      carouselTrackRef.value.addEventListener('mouseleave', touchEnd)
+    }
+  })
 })
 
 onUnmounted(() => {

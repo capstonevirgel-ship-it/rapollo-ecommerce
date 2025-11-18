@@ -9,7 +9,7 @@ class ProductVariant extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['product_id', 'color_id', 'size_id', 'price', 'stock', 'sku'];
+    protected $fillable = ['product_id', 'color_id', 'size_id', 'base_price', 'price', 'stock', 'sku'];
 
     public function product()
     {
@@ -47,8 +47,33 @@ class ProductVariant extends Model
     }
 
     protected $casts = [
+        'base_price' => 'float',
         'price' => 'float',
     ];
+
+    /**
+     * Calculate and set final price from base price and taxes
+     */
+    public function calculateFinalPrice(): void
+    {
+        if ($this->base_price !== null) {
+            $this->price = \App\Models\TaxPrice::calculateFinalPrice($this->base_price);
+        }
+    }
+
+    /**
+     * Boot method to auto-calculate price on save
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($variant) {
+            if ($variant->base_price !== null && $variant->isDirty('base_price')) {
+                $variant->calculateFinalPrice();
+            }
+        });
+    }
 
     /**
      * Check if variant has sufficient stock

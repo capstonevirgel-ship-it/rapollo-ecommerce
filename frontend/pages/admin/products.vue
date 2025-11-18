@@ -97,9 +97,12 @@ const deleteProduct = async (slug: string, name: string) => {
 </script>
 
 <template>
-  <div class="p-4">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold">Products</h1>
+  <div class="space-y-8 sm:space-y-10">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Products</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Manage all products in your store</p>
+      </div>
       <AdminAddButton text="Add Product" @click="navigateTo('/admin/add-product')" />
     </div>
 

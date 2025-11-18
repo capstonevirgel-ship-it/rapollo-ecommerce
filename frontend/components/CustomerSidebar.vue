@@ -43,12 +43,6 @@ const navigationItems = [
     href: '/my-reviews',
     icon: 'star',
     current: route.path === '/my-reviews'
-  },
-  {
-    name: 'Settings',
-    href: '/settings',
-    icon: 'cog',
-    current: route.path === '/settings'
   }
 ]
 

@@ -1,306 +1,219 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Confirmation - Rapollo</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #18181b;
-            background-color: #f4f4f5;
-            padding: 20px;
-        }
-        
-        .email-container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-        }
-        
-        .logo {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
-        }
-        
-        .header-subtitle {
-            font-size: 16px;
-            color: #a1a1aa;
-            font-weight: 400;
-        }
-        
-        .content {
-            padding: 40px 30px;
-        }
-        
-        .greeting {
-            font-size: 18px;
-            font-weight: 600;
-            color: #18181b;
-            margin-bottom: 16px;
-        }
-        
-        .message {
-            font-size: 16px;
-            color: #52525b;
-            margin-bottom: 32px;
-            line-height: 1.7;
-        }
-        
-        .order-summary {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 32px;
-        }
-        
-        .order-number {
-            font-size: 20px;
-            font-weight: 700;
-            color: #18181b;
-            margin-bottom: 8px;
-        }
-        
-        .order-reference {
-            font-size: 14px;
-            color: #71717a;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            background-color: #f1f5f9;
-            padding: 8px 12px;
-            border-radius: 6px;
-            display: inline-block;
-            margin-bottom: 16px;
-        }
-        
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 8px 16px;
-            background-color: #dcfce7;
-            color: #166534;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-        
-        .status-badge::before {
-            content: "✓";
-            margin-right: 6px;
-            font-weight: bold;
-        }
-        
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #18181b;
-            margin-bottom: 20px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        
-        .product-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: 16px 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        
-        .product-item:last-child {
-            border-bottom: none;
-        }
-        
-        .product-details {
-            flex: 1;
-            margin-right: 20px;
-        }
-        
-        .product-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
-        }
-        
-        .product-name {
-            font-size: 16px;
-            font-weight: 600;
-            color: #18181b;
-            margin: 0;
-            flex: 1;
-        }
-        
-        .product-price {
-            font-size: 16px;
-            font-weight: 700;
-            color: #18181b;
-            white-space: nowrap;
-            margin-left: 20px;
-        }
-        
-        .product-variant {
-            font-size: 14px;
-            color: #71717a;
-            margin-bottom: 4px;
-        }
-        
-        .product-quantity {
-            font-size: 14px;
-            color: #71717a;
-        }
-        
-        .total-section {
-            background-color: #18181b;
-            color: white;
-            padding: 24px;
-            border-radius: 8px;
-            margin: 24px 0;
-        }
-        
-        .total-label {
-            font-size: 16px;
-            color: #a1a1aa;
-            margin-bottom: 8px;
-        }
-        
-        .total-amount {
-            font-size: 28px;
-            font-weight: 700;
-            color: white;
-        }
-        
-        
-        .footer {
-            background-color: #f8fafc;
-            padding: 32px 30px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-        }
-        
-        .footer p {
-            color: #71717a;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-        
-        .footer strong {
-            color: #18181b;
-            font-weight: 600;
-        }
-        
-        .contact-info {
-            color: #71717a;
-            font-size: 14px;
-            margin-top: 16px;
-        }
-        
-        @media (max-width: 600px) {
-            body {
-                padding: 10px;
+@extends('emails.layouts.base')
+
+@section('title', 'Order Confirmation - Rapollo')
+
+@section('header')
+    <div style="font-size:30px; font-weight:800; text-transform:uppercase; letter-spacing:0.18em; color:#f4f4f5;">RAPOLLO</div>
+    <div style="margin-top:12px; font-size:15px; font-weight:500; color:#d4d4d8; letter-spacing:0.04em;">Order Confirmation</div>
+@endsection
+
+@section('content')
+    @php
+        $items = collect($purchase->items ?? $purchase->purchaseItems ?? []);
+        $computedLineTotals = $items->map(function ($item) {
+            $unitCandidates = [
+                $item->final_unit_price ?? null,
+                $item->finalUnitPrice ?? null,
+                $item->unit_price ?? null,
+                $item->unitPrice ?? null,
+                $item->price ?? null,
+            ];
+
+            $unit = 0.0;
+            foreach ($unitCandidates as $candidate) {
+                if ($candidate !== null) {
+                    $numeric = is_string($candidate) ? (float) preg_replace('/[^\d.\-]/', '', $candidate) : (float) $candidate;
+                    if (is_finite($numeric)) {
+                        $unit = $numeric;
+                        break;
+                    }
+                }
             }
-            
-            .header, .content, .footer {
-                padding: 24px 20px;
+
+            $quantity = (int) ($item->quantity ?? 0);
+
+            $totalCandidates = [
+                $item->final_total_price ?? null,
+                $item->finalTotalPrice ?? null,
+                $item->total_price ?? null,
+                $item->totalPrice ?? null,
+            ];
+
+            $computedTotal = null;
+            foreach ($totalCandidates as $candidate) {
+                if ($candidate !== null) {
+                    $numeric = is_string($candidate) ? (float) preg_replace('/[^\d.\-]/', '', $candidate) : (float) $candidate;
+                    if (is_finite($numeric)) {
+                        $computedTotal = $numeric;
+                        break;
+                    }
+                }
             }
-            
-            .product-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
+
+            if ($computedTotal === null) {
+                $computedTotal = $unit * max($quantity, 0);
             }
-            
-            .product-price {
-                margin-left: 0;
-                align-self: flex-end;
+
+            return [
+                'unit' => $unit,
+                'total' => $computedTotal,
+                'quantity' => max($quantity, 0),
+            ];
+        });
+
+        $calculatedSum = $computedLineTotals->sum('total');
+
+        $overallTotal = $calculatedSum > 0 ? $calculatedSum : 0.0;
+
+        if ($overallTotal <= 0) {
+            $totalCandidateValues = [
+                $purchase->total ?? null,
+                $purchase->total_amount ?? null,
+            ];
+
+            foreach ($totalCandidateValues as $candidate) {
+                if ($candidate !== null) {
+                    $numeric = is_string($candidate) ? (float) preg_replace('/[^\d.\-]/', '', $candidate) : (float) $candidate;
+                    if (is_finite($numeric) && $numeric > 0) {
+                        $overallTotal = $numeric;
+                        break;
+                    }
+                }
             }
         }
-    </style>
-</head>
-<body>
-    <div class="email-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo">Rapollo</div>
-            <div class="header-subtitle">Order Confirmation</div>
-        </div>
 
-        <!-- Content -->
-        <div class="content">
-            <div class="greeting">Hello {{ $user->user_name }},</div>
-            
-            <div class="message">
-                Thank you for your purchase! We're excited to confirm that your order has been successfully placed and payment has been processed.
-            </div>
+        $formatCurrency = fn ($value) => number_format((float) $value, 2);
+    @endphp
 
-            <!-- Order Summary -->
-            <div class="order-summary">
-                <div class="order-number">Order Summary</div>
-                <div class="order-reference">{{ $purchase->reference_number }}</div>
-                <div>
-                    <span class="status-badge">Payment Confirmed</span>
-                </div>
-            </div>
+    <div style="font-size:18px; font-weight:600; color:#18181b; margin-bottom:16px;">Hello {{ $user->user_name }},</div>
+    <p style="margin:0 0 28px 0; font-size:15px; color:#4b5563;">
+        Thank you for your purchase! We're excited to confirm that your order has been successfully placed and payment has been processed.
+    </p>
 
-            <!-- Order Details -->
-            <div class="section-title">Order Details</div>
-            @foreach($purchase->items as $item)
-                <div class="product-item">
-                    <div class="product-details">
-                        <div class="product-header">
-                            <div class="product-name">{{ $item->variant->product->name ?? 'Product' }}</div>
-                            <div class="product-price">₱{{ number_format($item->price * $item->quantity, 2) }}</div>
-                        </div>
-                        @if($item->variant)
-                            <div class="product-variant">
-                                @if($item->variant->color)
-                                    Color: {{ $item->variant->color->name }}
-                                @endif
-                                @if($item->variant->size)
-                                    @if($item->variant->color) - @endif
-                                    Size: {{ $item->variant->size->name }}
-                                @endif
-                            </div>
-                        @endif
-                        <div class="product-quantity">Quantity: {{ $item->quantity }}</div>
-                    </div>
-                </div>
-            @endforeach
+    <table role="presentation" width="100%" style="margin-bottom:28px; border:1px solid #e4e4e7; border-radius:16px; overflow:hidden;">
+        <tr>
+            <td style="padding:24px 28px; background-color:#f9fafb;">
+                <table role="presentation" width="100%">
+                    <tr>
+                        <td style="text-transform:uppercase; letter-spacing:0.1em; font-weight:700; color:#18181b; font-size:16px; padding-bottom:12px;">Order Summary</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0; border-top:1px solid #e4e4e7;">
+                            <table role="presentation" width="100%">
+                                <tr>
+                                    <td style="font-size:12px; text-transform:uppercase; letter-spacing:0.2em; color:#6b7280; font-weight:600;">Reference</td>
+                                    <td align="right" style="font-size:14px; font-weight:600; color:#111827; font-family:'Courier New', Courier, monospace;">
+                                        {{ $purchase->reference_number }}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0; border-top:1px solid #e4e4e7;">
+                            <table role="presentation" width="100%">
+                                <tr>
+                                    <td style="font-size:12px; text-transform:uppercase; letter-spacing:0.2em; color:#6b7280; font-weight:600;">Status</td>
+                                    <td align="right">
+                                        <span style="display:inline-block; background-color:#dcfce7; color:#166534; padding:6px 16px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">
+                                            Payment Confirmed
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 
-            <!-- Total -->
-            <div class="total-section">
-                <div class="total-label">Total Amount</div>
-                <div class="total-amount">₱{{ number_format($purchase->total_amount, 2) }}</div>
-            </div>
-        </div>
+    @if($items->isNotEmpty())
+        <table role="presentation" width="100%" style="margin-bottom:28px; border:1px solid #e5e7eb; border-radius:14px;">
+            <tr>
+                <td style="padding:24px 28px;">
+                    <table role="presentation" width="100%">
+                        <tr>
+                            <td style="text-transform:uppercase; letter-spacing:0.1em; font-weight:700; color:#18181b; font-size:16px; padding-bottom:16px;">Order Details</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <table role="presentation" width="100%" style="border-collapse:separate; border-spacing:0;">
+                                    <tr style="border-bottom:1px solid #e5e7eb;">
+                                        <td style="padding:12px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:#6b7280; font-weight:700;">Item</td>
+                                        <td style="padding:12px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:#6b7280; font-weight:700;" align="center">Qty</td>
+                                        <td style="padding:12px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:#6b7280; font-weight:700;" align="right">Line Total</td>
+                                    </tr>
+                                    @foreach($items as $index => $item)
+                                        @php
+                                            $line = $computedLineTotals[$index] ?? ['unit' => 0, 'total' => 0, 'quantity' => 0];
+                                            $unitFormatted = $formatCurrency($line['unit']);
+                                            $totalFormatted = $formatCurrency($line['total']);
+                                            $variantParts = [];
+                                            if ($item->variant?->color?->name) {
+                                                $variantParts[] = 'Color: ' . $item->variant->color->name;
+                                            }
+                                            if ($item->variant?->size?->name) {
+                                                $variantParts[] = 'Size: ' . $item->variant->size->name;
+                                            }
+                                            $variantText = implode(' · ', $variantParts);
+                                        @endphp
+                                        <tr style="border-bottom:1px solid #f3f4f6;">
+                                            <td style="padding:16px 0;">
+                                                <div style="font-size:15px; font-weight:600; color:#18181b;">
+                                                    {{ $item->variant->product->name ?? 'Product' }}
+                                                </div>
+                                                <div style="margin-top:6px; font-size:13px; color:#6b7280;">
+                                                    ₱{{ $unitFormatted }} each
+                                                    @if($variantText)
+                                                        <span style="margin-left:8px; color:#9ca3af;">| {{ $variantText }}</span>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td align="center" style="padding:16px 0; font-size:14px; font-weight:700; color:#18181b;">
+                                                {{ $line['quantity'] }}
+                                            </td>
+                                            <td align="right" style="padding:16px 0; font-size:15px; font-weight:700; color:#18181b;">
+                                                ₱{{ $totalFormatted }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    @endif
 
-        <!-- Footer -->
-        <div class="footer">
-            <p><strong>Rapollo E-commerce</strong></p>
-            <p>Thank you for choosing us for your fashion needs!</p>
-            <div class="contact-info">
-                <p>Need help? Contact our customer service team at support@rapollo.com</p>
-            </div>
-        </div>
+    <table role="presentation" width="100%" style="margin-top:32px; border-radius:16px; overflow:hidden;">
+        <tr>
+            <td style="background:linear-gradient(135deg, #18181b 0%, #111827 100%); padding:26px 28px;">
+                <table role="presentation" width="100%">
+                    <tr>
+                        <td style="font-size:13px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:rgba(244,244,245,0.8);">
+                            Total Amount
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top:10px; font-size:30px; font-weight:800; letter-spacing:-0.01em; color:#f9fafb;">
+                            ₱{{ $formatCurrency($overallTotal) }}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+@endsection
+
+@section('footer')
+    <div style="font-size:14px; font-weight:700; letter-spacing:0.12em;">Rapollo</div>
+    <div style="margin-top:10px; font-size:12px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; color:#52525b;">
+        Thank you for choosing us for your fashion needs!
     </div>
-</body>
-</html>
+    <div style="margin-top:18px; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#4b5563;">
+        Need help? Contact our customer service team at
+        <a href="mailto:support@rapollo.com" style="color:#18181b; font-weight:700; text-decoration:none;">support@rapollo.com</a>
+    </div>
+@endsection

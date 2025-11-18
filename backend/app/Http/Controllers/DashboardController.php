@@ -23,14 +23,14 @@ class DashboardController extends Controller
             $totalTickets = Ticket::count();
             $totalOrders = Purchase::count();
 
-            // Revenue calculations with fallbacks
-            $totalRevenue = Purchase::where('status', 'completed')->sum('total') ?? 0;
-            $monthlyRevenue = Purchase::where('status', 'completed')
+            // Revenue calculations - include all non-cancelled and non-failed purchases
+            $totalRevenue = Purchase::whereNotIn('status', ['cancelled', 'failed'])->sum('total') ?? 0;
+            $monthlyRevenue = Purchase::whereNotIn('status', ['cancelled', 'failed'])
                 ->whereMonth('created_at', Carbon::now()->month)
                 ->whereYear('created_at', Carbon::now()->year)
                 ->sum('total') ?? 0;
 
-            $lastMonthRevenue = Purchase::where('status', 'completed')
+            $lastMonthRevenue = Purchase::whereNotIn('status', ['cancelled', 'failed'])
                 ->whereMonth('created_at', Carbon::now()->subMonth()->month)
                 ->whereYear('created_at', Carbon::now()->subMonth()->year)
                 ->sum('total') ?? 0;
@@ -88,7 +88,7 @@ class DashboardController extends Controller
                 $date = Carbon::now()->subMonths($i);
                 $months[] = $date->format('M');
                 
-                $revenue = Purchase::where('status', 'completed')
+                $revenue = Purchase::whereNotIn('status', ['cancelled', 'failed'])
                     ->whereMonth('created_at', $date->month)
                     ->whereYear('created_at', $date->year)
                     ->sum('total') ?? 0;
@@ -109,6 +109,54 @@ class DashboardController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to fetch revenue chart data',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function ticketSalesChart()
+    {
+        try {
+            $months = [];
+            $salesData = [];
+            $revenueData = [];
+
+            // Get last 12 months
+            for ($i = 11; $i >= 0; $i--) {
+                $date = Carbon::now()->subMonths($i);
+                $months[] = $date->format('M');
+                
+                // Get ticket purchases (type = 'ticket') that are not cancelled or failed
+                $ticketPurchases = Purchase::where('type', 'ticket')
+                    ->whereNotIn('status', ['cancelled', 'failed'])
+                    ->whereMonth('created_at', $date->month)
+                    ->whereYear('created_at', $date->year)
+                    ->get();
+
+                // Calculate ticket sales count (sum of quantities from purchase_items)
+                $sales = DB::table('purchase_items')
+                    ->join('purchases', 'purchase_items.purchase_id', '=', 'purchases.id')
+                    ->where('purchases.type', 'ticket')
+                    ->whereNotIn('purchases.status', ['cancelled', 'failed'])
+                    ->whereMonth('purchases.created_at', $date->month)
+                    ->whereYear('purchases.created_at', $date->year)
+                    ->sum('purchase_items.quantity') ?? 0;
+
+                // Calculate ticket revenue (sum of purchase totals)
+                $revenue = $ticketPurchases->sum('total') ?? 0;
+
+                $salesData[] = (int) $sales;
+                $revenueData[] = (float) $revenue;
+            }
+
+            return response()->json([
+                'labels' => $months,
+                'sales' => $salesData,
+                'revenue' => $revenueData
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch ticket sales chart data',
                 'message' => $e->getMessage()
             ], 500);
         }
@@ -167,18 +215,29 @@ class DashboardController extends Controller
     public function topProducts()
     {
         try {
-            // Simple approach - get products with their counts
-            $topProducts = Product::select('name', 'slug')
-                ->withCount('variants')
-                ->orderBy('variants_count', 'desc')
+            // Get top products with actual sales and revenue from purchase items
+            // Only count purchases that are not cancelled or failed
+            $topProducts = DB::table('products')
+                ->leftJoin('product_variants', 'products.id', '=', 'product_variants.product_id')
+                ->leftJoin('purchase_items', 'product_variants.id', '=', 'purchase_items.variant_id')
+                ->leftJoin('purchases', 'purchase_items.purchase_id', '=', 'purchases.id')
+                ->where(function($query) {
+                    $query->whereNotIn('purchases.status', ['cancelled', 'failed'])
+                          ->orWhereNull('purchases.id');
+                })
+                ->select('products.name', 'products.slug')
+                ->selectRaw('COALESCE(SUM(CASE WHEN purchases.status IS NOT NULL AND purchases.status NOT IN (\'cancelled\', \'failed\') THEN purchase_items.quantity ELSE 0 END), 0) as total_sales')
+                ->selectRaw('COALESCE(SUM(CASE WHEN purchases.status IS NOT NULL AND purchases.status NOT IN (\'cancelled\', \'failed\') THEN purchase_items.price * purchase_items.quantity ELSE 0 END), 0) as total_revenue')
+                ->groupBy('products.id', 'products.name', 'products.slug')
+                ->orderBy('total_sales', 'desc')
                 ->limit(5)
                 ->get()
                 ->map(function ($product) {
                     return [
                         'name' => $product->name,
                         'slug' => $product->slug,
-                        'total_sales' => $product->variants_count ?? 0,
-                        'total_revenue' => 0 // Simplified for now
+                        'total_sales' => (int) $product->total_sales,
+                        'total_revenue' => (float) $product->total_revenue
                     ];
                 });
 

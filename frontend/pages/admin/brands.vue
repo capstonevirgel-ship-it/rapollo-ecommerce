@@ -77,8 +77,6 @@ function handleBrandLogo(e: Event) {
   }
 }
 
-const selectedBrand = ref<any | null>(null);
-const isBrandLoading = ref(false);
 
 const addBrand = () => {
   newBrand.value = {
@@ -105,23 +103,18 @@ const saveBrand = async () => {
   await brandStore.fetchBrands();
 };
 
-const handleRowClick = async (row: any) => {
-  isBrandLoading.value = true;
-  await brandStore.fetchBrand(row.id);
-  selectedBrand.value = brandStore.brand;
-  isBrandLoading.value = false;
-};
 
 const selectedIds = ref<number[]>([]);
 </script>
 
 <template>
-  <div class="p-4">
+  <div class="space-y-8 sm:space-y-10">
     <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold flex items-center gap-2">
-        <Icon name="mdi:tag-multiple" /> Brands
-      </h1>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Brands</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Manage product brands and manufacturers</p>
+      </div>
       <AdminAddButton text="Add Brand" @click="addBrand" />
     </div>
 
@@ -131,7 +124,6 @@ const selectedIds = ref<number[]>([]);
       :rows="brands"
       v-model:selected="selectedIds"
       :rows-per-page="10"
-      @row-click="handleRowClick"
       class="cursor-pointer"
     >
       <!-- Logo Slot -->
@@ -162,42 +154,6 @@ const selectedIds = ref<number[]>([]);
       </template>
     </DataTable>
 
-    <!-- SEO Preview -->
-    <div class="p-4 bg-white shadow border-0 mt-6">
-      <h1 class="text-2xl font-bold mb-4">SEO Preview</h1>
-
-      <!-- Skeleton -->
-      <div
-        v-if="isBrandLoading"
-        class="border rounded-lg p-4 bg-white shadow-sm max-w-2xl animate-pulse"
-      >
-        <div class="h-4 bg-gray-200 rounded w-24 mb-3"></div>
-        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-        <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-        <div class="h-4 bg-gray-200 rounded w-full"></div>
-      </div>
-
-      <!-- Preview content -->
-      <div
-        v-else-if="selectedBrand"
-        class="border rounded-lg p-4 bg-white shadow-sm max-w-2xl"
-      >
-        <p class="text-sm text-gray-500 mb-2">SEO Preview</p>
-        <p class="text-blue-800 text-lg font-medium leading-snug truncate">
-          {{ selectedBrand.meta_title || selectedBrand.name }}
-        </p>
-        <p class="text-green-700 text-sm truncate">
-          https://yourdomain.com/brands/{{ selectedBrand.slug }}
-        </p>
-        <p class="text-gray-700 text-sm mt-1 line-clamp-2">
-          {{ selectedBrand.meta_description || "No meta description provided." }}
-        </p>
-      </div>
-
-      <div v-else class="text-gray-500 italic">
-        Select a brand to see the SEO preview.
-      </div>
-    </div>
 
     <!-- Dialog -->
     <Dialog v-model="isDialogOpen" title="Add Brand">

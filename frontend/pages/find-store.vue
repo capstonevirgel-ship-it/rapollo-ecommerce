@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 
 // Set page title
@@ -16,8 +17,12 @@ onMounted(async () => {
   await settingsStore.fetchSettings()
 })
 
-// Google Maps URL for directions
-const googleMapsUrl = 'https://www.google.com/maps/place/Apollo+Sports+Bar/@10.3495858,123.9487349,17z/data=!3m1!4b1!4m6!3m5!1s0x33a999da5b97a80f:0xa12258794ff22b56!8m2!3d10.3495858!4d123.9487349!16s%2Fg%2F11c0q8q8q8'
+// Dynamic map links from settings with fallbacks
+const defaultIframe = 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d245.30648046083556!2d123.94873493250614!3d10.349585840747995!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33a999da5b97a80f%3A0xa12258794ff22b56!2sApollo%20Sports%20Bar!5e0!3m2!1sen!2sph!4v1761154289778!5m2!1sen!2sph'
+const defaultGmap = 'https://www.google.com/maps/place/Apollo+Sports+Bar/@10.3495858,123.9487349,17z/data=!3m1!4b1!4m6!3m5!1s0x33a999da5b97a80f:0xa12258794ff22b56!8m2!3d10.3495858!4d123.9487349!16s%2Fg%2F11c0q8q8q8'
+
+const iframeSrc = computed(() => settingsStore.settings?.store?.iframe_link || defaultIframe)
+const googleMapsUrl = computed(() => settingsStore.settings?.store?.gmap_link || defaultGmap)
 </script>
 
 <template>
@@ -42,7 +47,7 @@ const googleMapsUrl = 'https://www.google.com/maps/place/Apollo+Sports+Bar/@10.3
           </div>
           <div class="relative">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d245.30648046083556!2d123.94873493250614!3d10.349585840747995!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33a999da5b97a80f%3A0xa12258794ff22b56!2sApollo%20Sports%20Bar!5e0!3m2!1sen!2sph!4v1761154289778!5m2!1sen!2sph"
+              :src="iframeSrc"
               width="100%"
               height="450"
               style="border:0;"

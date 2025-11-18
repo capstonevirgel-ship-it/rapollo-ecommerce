@@ -89,19 +89,23 @@ const breadcrumbs = computed(() => {
   return crumbs
 })
 
-// Show skeleton loading when we're fetching data
+// Show skeleton only while loading AND corresponding data not yet available
 const shouldShowSkeleton = computed(() => {
   console.log('Breadcrumbs: Checking skeleton state:', {
     categoryLoading: categoryStore.loading,
     subcategoryLoading: subcategoryStore.loading,
+    hasCategory: !!category.value,
+    hasSubcategory: !!subcategory.value,
     path: route.path
   })
-  
+
   // Don't show skeleton on main shop page
   if (route.path === '/shop') return false
-  
-  // Show skeleton if we're loading category or subcategory data
-  return categoryStore.loading || subcategoryStore.loading
+
+  const loadingCategory = !!route.params.category && categoryStore.loading && !category.value
+  const loadingSubcategory = !!route.params.sub_category && subcategoryStore.loading && !subcategory.value
+
+  return loadingCategory || loadingSubcategory
 })
 </script>
 

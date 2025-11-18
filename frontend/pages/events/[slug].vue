@@ -117,7 +117,7 @@ const proceedToPayment = async () => {
     }
     
   } catch (err: any) {
-    paymentError.value = err.data?.message || 'Failed to create payment. Please try again.'
+    paymentError.value = err?.data?.message || err?.data?.error || 'Failed to create payment. Please try again.'
     error('Payment Error', paymentError.value)
   } finally {
     paymentLoading.value = false
@@ -286,7 +286,7 @@ watch(event, (newEvent) => {
       </div>
     </div>
 
-    <!-- Event Details - Ticket Design -->
+    <!-- Event Details -->
     <div v-else-if="event" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Back Button -->
       <div class="mb-6">
@@ -301,114 +301,168 @@ watch(event, (newEvent) => {
         </NuxtLink>
       </div>
 
-      <!-- Main Ticket Container -->
+      <!-- Ticket Layout -->
       <div class="relative">
-        <!-- Ticket Background with Perforated Edges -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden relative">
-          <!-- Perforated Edge Effect -->
-          <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-          <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-          
-          <!-- Ticket Header with Event Image -->
-          <div class="relative h-64 md:h-96 bg-gradient-to-r from-zinc-900 to-zinc-700">
-            <!-- Background Pattern -->
-            <div class="absolute inset-0 opacity-10">
-              <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
-            </div>
-            
-            <!-- Event Image Overlay -->
-            <div v-if="event.poster_url" class="absolute inset-0">
-          <img 
-            :src="getImageUrl(event.poster_url)" 
-            :alt="event.title" 
-                class="h-full w-full object-cover opacity-80"
-            @error="($event.target as HTMLImageElement).src = '/placeholder.png'"
-          >
-        </div>
-            
-            <!-- Event Title Overlay -->
-            <div class="absolute inset-0 bg-black/40 flex items-center justify-center p-6">
-              <div class="text-center">
-                <h1 class="text-3xl md:text-5xl font-winner-extra-bold text-white mb-4 drop-shadow-lg">
-                  {{ event.title }}
-                </h1>
-                <div class="text-lg text-white/90 font-medium">
-                  {{ formatDate(event.date) }} • {{ formatTime(event.date) }}
-                </div>
-                <div v-if="event.location" class="text-sm text-white/80 mt-2">
-                  📍 {{ event.location }}
+        <div class="bg-white border border-gray-200 rounded-lg shadow overflow-visible">
+          <div class="flex flex-col lg:flex-row">
+            <!-- Ticket Hero -->
+            <div class="relative lg:w-2/5">
+              <div class="h-56 lg:h-80">
+                <img
+                  v-if="event.poster_url"
+                  :src="getImageUrl(event.poster_url)"
+                  :alt="event.title"
+                  class="h-full w-full object-cover"
+                  @error="($event.target as HTMLImageElement).src = '/placeholder.png'"
+                >
+                <div v-else class="h-full w-full bg-gradient-to-br from-zinc-900 to-zinc-700 flex items-center justify-center">
+                  <Icon name="mdi:ticket-confirmation" class="text-white/80 w-16 h-16" />
                 </div>
               </div>
-            </div>
-            
-            <!-- Ticket Corner Decorations -->
-            <div class="absolute top-4 left-4 w-8 h-8 border-2 border-white/30 rounded-full"></div>
-            <div class="absolute top-4 right-4 w-8 h-8 border-2 border-white/30 rounded-full"></div>
-            <div class="absolute bottom-4 left-4 w-8 h-8 border-2 border-white/30 rounded-full"></div>
-            <div class="absolute bottom-4 right-4 w-8 h-8 border-2 border-white/30 rounded-full"></div>
-          </div>
-
-          <!-- Ticket Body -->
-          <div class="p-6 md:p-8">
-            <!-- Event Description -->
-            <div v-if="event.description" class="mb-8">
-              <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-4">About This Event</h2>
-              <div class="prose max-w-none text-gray-600 leading-relaxed">
-                {{ event.description }}
-              </div>
+              <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-black/10 to-transparent"></div>
             </div>
 
-            <!-- Ticket Information Card -->
-            <div class="bg-gray-50 rounded-lg p-6 mb-8 border border-gray-200">
-              <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-                <div class="mb-4 md:mb-0">
-                  <div class="text-4xl font-bold text-gray-900 mb-2">
-                    ₱{{ typeof event.ticket_price === 'string' ? parseFloat(event.ticket_price).toFixed(2) : event.ticket_price.toFixed(2) }}
+            <!-- Ticket Details -->
+            <div class="flex-1 p-6 lg:p-8 flex flex-col gap-6">
+              <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                <div class="space-y-2">
+                  <h1 class="text-2xl md:text-3xl font-winner-extra-bold text-gray-900 leading-tight">
+                    {{ event.title }}
+                  </h1>
+                  <div v-if="event.location" class="text-sm font-medium text-gray-600 lg:hidden">
+                    {{ event.location }}
                   </div>
-                  <div class="text-sm text-gray-600">Per ticket</div>
                 </div>
-                
-                <!-- Availability Badge -->
-                <div v-if="event.max_tickets" class="mb-4 md:mb-0">
-                  <span :class="['text-sm font-medium px-4 py-2 rounded-full', getTicketAvailabilityStatus(event).class]">
-                    <Icon v-if="getTicketAvailabilityStatus(event).status === 'sold-out'" name="mdi:close-circle" class="inline-block mr-1" />
-                    <Icon v-else-if="getTicketAvailabilityStatus(event).status === 'low'" name="mdi:alert-circle" class="inline-block mr-1" />
-                    <Icon v-else name="mdi:check-circle" class="inline-block mr-1" />
+                <div class="hidden lg:block text-right">
+                  <div v-if="event.location" class="text-sm font-medium text-gray-700">{{ event.location }}</div>
+                </div>
+              </div>
+              <div class="mt-4">
+                <div class="flex flex-wrap gap-3">
+                  <div class="px-5 py-2 rounded-full border border-zinc-900 text-sm font-semibold text-zinc-900 uppercase tracking-wide">
+                    {{ formatDate(event.date) }}
+                  </div>
+                  <div class="px-5 py-2 rounded-full border border-zinc-900 text-sm font-semibold text-zinc-900 uppercase tracking-wide">
+                    {{ formatTime(event.date) }}
+                  </div>
+                  <div class="px-5 py-2 rounded-full border border-zinc-900 text-sm font-semibold text-zinc-900 uppercase tracking-wide">
+                    Price: ₱{{ typeof event.ticket_price === 'string' ? parseFloat(event.ticket_price).toFixed(2) : event.ticket_price?.toFixed(2) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ticket Stub -->
+            <div class="relative lg:w-56 bg-gray-50 flex flex-col items-center px-6 py-6 border-dashed border-gray-300 lg:border-l-2 lg:border-t-0 border-t-2 lg:border-t-transparent">
+              <!-- Tear Notches - Desktop -->
+              <div class="absolute top-0 left-0 hidden lg:flex -translate-x-1/2 -translate-y-1/2">
+                <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(22px_0_0_0)]"></div>
+              </div>
+              <div class="absolute bottom-0 left-0 hidden lg:flex -translate-x-1/2 translate-y-1/2">
+                <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_0_20px_0)]"></div>
+              </div>
+              <!-- Tear Notches - Mobile -->
+              <div class="absolute lg:hidden left-0 top-0 -translate-x-1/2 -translate-y-1/2">
+                <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_0_0_22px)]"></div>
+              </div>
+              <div class="absolute lg:hidden right-0 top-0 translate-x-1/2 -translate-y-1/2">
+                <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_22px_0_0)]"></div>
+              </div>
+              <div class="flex flex-col items-center justify-center h-full w-full">
+                <span class="text-xs font-winner-extra-bold tracking-[0.45em] text-gray-900 uppercase text-center whitespace-nowrap lg:-rotate-90 lg:origin-center lg:translate-y-[3.75rem]">
+                  YOUR TICKET NUMBER
+                </span>
+                <div class="mt-4 w-full h-px bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)] lg:h-24 lg:w-12 lg:bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)] lg:mt-6"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Details & Booking -->
+      <div class="mt-10 grid gap-6 lg:grid-cols-3">
+        <div class="lg:col-span-2">
+          <div v-if="event.description" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-4">About This Event</h2>
+            <div class="prose max-w-none text-gray-600 leading-relaxed">
+              {{ event.description }}
+            </div>
+          </div>
+          <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-4">About This Event</h2>
+            <p class="text-gray-600 leading-relaxed">
+              Stay tuned for more details about this event. Check back soon for the full experience breakdown.
+            </p>
+          </div>
+        </div>
+        <div class="lg:col-span-1">
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 space-y-6">
+            <div>
+              <div class="text-sm uppercase tracking-[0.4em] text-gray-500 font-semibold">Ticket Summary</div>
+              <div class="mt-4 text-4xl font-bold text-gray-900">
+                ₱{{ typeof event.ticket_price === 'string' ? parseFloat(event.ticket_price).toFixed(2) : event.ticket_price?.toFixed(2) }}
+              </div>
+              <div class="text-sm text-gray-500">Per ticket</div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between text-sm text-gray-600">
+                <span>Remaining tickets</span>
+                <div v-if="event.max_tickets" class="flex items-center">
+                  <span
+                    :class="[
+                      'inline-flex items-center gap-1 text-xs font-medium px-3 py-1 rounded-full',
+                      getTicketAvailabilityStatus(event).class
+                    ]"
+                  >
+                    <Icon
+                      v-if="getTicketAvailabilityStatus(event).status === 'sold-out'"
+                      name="mdi:close-circle"
+                      class="h-4 w-4"
+                    />
+                    <Icon
+                      v-else-if="getTicketAvailabilityStatus(event).status === 'low'"
+                      name="mdi:alert-circle"
+                      class="h-4 w-4"
+                    />
+                    <Icon
+                      v-else
+                      name="mdi:check-circle"
+                      class="h-4 w-4"
+                    />
                     {{ getTicketAvailabilityStatus(event).label }}
                   </span>
                 </div>
+              </div>
             </div>
-          </div>
-
-          <!-- Action Buttons -->
-            <div class="flex justify-end mb-8">
-            <button
-              v-if="canBookTickets(event)"
-              @click="openBookingModal"
-                class="bg-zinc-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 transition-colors"
-            >
-              Book Tickets Now
-            </button>
-            <button
-              v-else-if="isEventFullyBooked(event)"
-              disabled
-                class="bg-gray-300 text-gray-500 px-6 py-3 rounded-lg font-semibold cursor-not-allowed"
-            >
-              Sold Out
-            </button>
-            <button
-              v-else
-              disabled
-                class="bg-gray-300 text-gray-500 px-6 py-3 rounded-lg font-semibold cursor-not-allowed"
-            >
-              No Tickets Available
-            </button>
+            <div>
+              <button
+                v-if="canBookTickets(event)"
+                @click="openBookingModal"
+                class="w-full bg-zinc-900 text-white px-6 py-3 rounded-xl font-semibold hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 transition-colors"
+              >
+                Book Tickets
+              </button>
+              <button
+                v-else-if="isEventFullyBooked(event)"
+                disabled
+                class="w-full bg-gray-300 text-gray-500 px-6 py-3 rounded-xl font-semibold cursor-not-allowed"
+              >
+                Sold Out
+              </button>
+              <button
+                v-else
+                disabled
+                class="w-full bg-gray-300 text-gray-500 px-6 py-3 rounded-xl font-semibold cursor-not-allowed"
+              >
+                No Tickets Available
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Comments Section -->
-        <div class="mt-12 bg-white rounded-lg shadow-sm p-8">
+      <!-- Comments Section -->
+      <div class="mt-12 bg-white rounded-lg shadow-sm p-8">
           <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-6">Comments</h2>
           
           <!-- Add Comment Form (Authenticated Users Only) -->
@@ -537,7 +591,6 @@ watch(event, (newEvent) => {
             <h3 class="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
             <p class="text-gray-500">Be the first to share your thoughts about this event!</p>
           </div>
-        </div>
       </div>
     </div>
 

@@ -32,11 +32,16 @@ const relatedProducts = ref<any[]>([])
 // Fetch product data on component mount
 onMounted(async () => {
   try {
-    await productStore.fetchProduct(productSlug as string)
+    await (productStore as any).fetchProduct(productSlug as string)
+    
+    // Auto-select default color if available
+    if ((product.value as any)?.default_color) {
+      selectedColor.value = 'default'
+    }
     
     // Related products from same subcategory
     if (product.value?.subcategory_id) {
-      await subcategoryStore.fetchSubcategoryById(product.value.subcategory_id)
+      await (subcategoryStore as any).fetchSubcategoryById(product.value.subcategory_id)
       relatedProducts.value = subcategoryStore.subcategory?.products
         ?.filter(p => p.slug !== productSlug)
         .map((p, index) => ({ ...p, id: index })) || []
@@ -84,27 +89,42 @@ onMounted(() => {
 
 // Computed properties for variant management
 const availableColors = computed(() => {
-  if (!product.value?.variants) return []
+  const colors: Array<{ id: string; name: string; hex: string; variant?: any; isDefault?: boolean }> = []
   
-  const colors = new Map()
-  product.value.variants.forEach(variant => {
-    if (variant.color) {
-      colors.set(variant.color.id, {
-        id: variant.color.id,
-        name: variant.color.name,
-        hex: variant.color.hex_code,
-        variant: variant
-      })
-    }
-  })
-  return Array.from(colors.values())
+  // Add default/main product color if available
+  if ((product.value as any)?.default_color) {
+    colors.push({
+      id: 'default',
+      name: (product.value as any).default_color.name || 'Default',
+      hex: (product.value as any).default_color.hex_code || '#000000',
+      isDefault: true
+    })
+  }
+  
+  // Add variant colors
+  if (product.value?.variants) {
+    const variantColors = new Map()
+    product.value.variants.forEach(variant => {
+      if (variant.color) {
+        variantColors.set(variant.color.id, {
+          id: variant.color.id.toString(),
+          name: variant.color.name,
+          hex: variant.color.hex_code,
+          variant: variant
+        })
+      }
+    })
+    colors.push(...Array.from(variantColors.values()))
+  }
+  
+  return colors
 })
 
 const availableSizes = computed(() => {
   if (!product.value?.variants) return []
   
-  // If no color is selected, show all sizes
-  if (!selectedColor.value) {
+  // If default color is selected or no color is selected, show all sizes
+  if (!selectedColor.value || selectedColor.value === 'default') {
     const sizes = new Map()
     product.value.variants.forEach(variant => {
       if (variant.size) {
@@ -119,7 +139,7 @@ const availableSizes = computed(() => {
     return Array.from(sizes.values())
   }
   
-  // Filter sizes by selected color
+  // Filter sizes by selected variant color
   const sizes = new Map()
   product.value.variants
     .filter(variant => variant.color?.id.toString() === selectedColor.value)
@@ -139,15 +159,44 @@ const availableSizes = computed(() => {
 const currentVariant = computed(() => {
   if (!product.value?.variants) return null
   
+  // If default color is selected
+  if (selectedColor.value === 'default') {
+    // If sizes are available, require size selection
+    if (availableSizes.value.length > 0) {
+      if (!selectedSize.value) {
+        return null // No variant selected until size is chosen
+      }
+      // Find variant with the selected size (any color since default shows all sizes)
+      return product.value.variants.find(variant => 
+        variant.size?.id === selectedSize.value
+      ) || null
+    }
+    // If no sizes available, return first variant
+    return product.value.variants[0] || null
+  }
+  
+  // If a specific variant color is selected
   if (selectedColor.value && selectedSize.value) {
     return product.value.variants.find(variant => 
       variant.color?.id.toString() === selectedColor.value &&
       variant.size?.id === selectedSize.value
     )
   } else if (selectedColor.value) {
-    return product.value.variants.find(variant => 
+    // No size selected but color is selected - only return variant if it has no size requirement
+    const variantWithColor = product.value.variants.find(variant => 
       variant.color?.id.toString() === selectedColor.value && !variant.size
     )
+    if (variantWithColor) {
+      return variantWithColor
+    }
+    // If sizes are available for this color, require size selection
+    const colorSizes = availableSizes.value.length > 0
+    return colorSizes ? null : product.value.variants[0] || null
+  }
+  
+  // No color selected - if sizes are available, require selection
+  if (availableSizes.value.length > 0 && !selectedSize.value) {
+    return null
   }
   
   return product.value.variants[0] || null
@@ -156,35 +205,40 @@ const currentVariant = computed(() => {
 const currentImages = computed(() => {
   if (!product.value?.images) return []
   
-  // If a specific variant is selected, filter images by color
+  // If default color is selected, show ONLY main/default product images
+  if (selectedColor.value === 'default') {
+    const mainImages = product.value.images.filter(image => !image.variant_id)
+    return mainImages.length > 0 ? mainImages : []
+  }
+  
+  // If a specific variant color is selected, show ONLY variant images for that color
   if (selectedColor.value) {
-    // Filter images that belong to variants with the selected color
-    const variantImages = product.value.variants
+    // Get all variant images for the selected color
+    const variantImages = (product.value!.variants)
       ?.filter(variant => variant.color?.id.toString() === selectedColor.value)
       ?.flatMap(variant => variant.images || []) || []
     
-    // Also include general product images that might be color-specific
-    const generalImages = product.value.images.filter(image => {
-      // If image has variant_id, check if it belongs to selected color variant
+    // Also check if any images in product.images belong to variants with the selected color
+    const productImagesForColor = (product.value!.images).filter(image => {
       if (image.variant_id) {
-        const variant = product.value.variants?.find(v => v.id === image.variant_id)
+        const variant = product.value!.variants?.find(v => v.id === image.variant_id)
         return variant?.color?.id.toString() === selectedColor.value
       }
-      // If no variant_id, include it (general product images)
-      return true
+      return false // Don't include main product images when color is selected
     })
     
     // Combine and deduplicate images
-    const allImages = [...variantImages, ...generalImages]
-    const uniqueImages = allImages.filter((image, index, self) => 
+    const allColorImages = [...variantImages, ...productImagesForColor]
+    const uniqueImages = allColorImages.filter((image, index, self) => 
       index === self.findIndex(img => img.id === image.id)
     )
     
-    return uniqueImages.length > 0 ? uniqueImages : product.value.images
+    return uniqueImages.length > 0 ? uniqueImages : []
   }
   
-  // If no color selected, show all images
-  return product.value.images || []
+  // If no color selected, show ONLY main/default product images (images without variant_id)
+  const mainImages = product.value.images.filter(image => !image.variant_id)
+  return mainImages.length > 0 ? mainImages : product.value.images || []
 })
 
 const stockStatus = computed(() => {
@@ -243,7 +297,16 @@ const validateQuantity = () => {
 }
 
 const addToCart = async () => {
-  if (!product.value || !currentVariant.value) return
+  if (!product.value || !currentVariant.value) {
+    // Show warning if size selection is required
+    if (availableSizes.value.length > 0 && !selectedSize.value) {
+      warning(
+        "Size Required",
+        "Please select a size before adding to cart."
+      )
+    }
+    return
+  }
 
   // Check stock before adding
   if (currentVariant.value.stock === 0) {
@@ -272,12 +335,26 @@ const addToCart = async () => {
     return
   }
 
+  // Compute color-matched images if the variant has none
+  const getColorMatchedImages = (prod: any, variant: any) => {
+    if (!prod?.images?.length || !prod?.variants?.length) return []
+    const variantColorId = variant?.color_id ?? variant?.color?.id
+    if (!variantColorId) return []
+    const sameColorVariantIds = prod.variants
+      .filter((v: any) => (v?.color_id ?? v?.color?.id) === variantColorId)
+      .map((v: any) => v.id)
+    return (prod.images || []).filter((img: any) => img?.variant_id && sameColorVariantIds.includes(img.variant_id))
+  }
+
   try {
     if (authStore.isAuthenticated) {
       // Logged in: use store method directly
       await cartStore.store({ variant_id: currentVariant.value.id, quantity: selectedQuantity.value })
     } else {
       // Guest: create proper guest item and use addToCart
+      const images = (currentVariant.value.images && currentVariant.value.images.length > 0)
+        ? currentVariant.value.images
+        : getColorMatchedImages(product.value, currentVariant.value)
       const guestItem = {
         id: 0,
         user_id: 0,
@@ -298,7 +375,7 @@ const addToCart = async () => {
           product: product.value,
           color: currentVariant.value.color,
           size: currentVariant.value.size,
-          images: currentVariant.value.images || []
+          images
         }
       }
       await cartStore.addToCart({ variant_id: currentVariant.value.id, quantity: selectedQuantity.value }, false, guestItem as any)
@@ -313,7 +390,7 @@ const addToCart = async () => {
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto p-6">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <Breadcrumbs />
 
     <!-- Loading skeleton -->
@@ -341,20 +418,24 @@ const addToCart = async () => {
           </div>
           
           <!-- Image Thumbnails -->
-          <div v-if="currentImages.length > 1" class="flex gap-2 overflow-x-auto">
-            <img
+          <div v-if="currentImages.length > 1" class="flex gap-2 overflow-x-auto py-1">
+            <div
               v-for="(image, index) in currentImages"
               :key="index"
-              :src="getImageUrl(image.url)"
-              :alt="product.name"
               :class="[
-                'w-16 h-16 object-cover rounded cursor-pointer border-2 transition-all duration-200',
+                'w-20 h-20 rounded overflow-hidden cursor-pointer border-2 flex-shrink-0 transition-all duration-200',
                 currentImageIndex === index 
                   ? 'border-gray-800 scale-105' 
                   : 'border-transparent hover:border-gray-300'
               ]"
               @click="selectImage(index)"
-            />
+            >
+              <img
+                :src="getImageUrl(image.url)"
+                :alt="product.name"
+                class="w-full h-full object-cover block"
+              />
+            </div>
           </div>
         </div>
 
@@ -438,7 +519,7 @@ const addToCart = async () => {
                 type="number"
                 min="1"
                 :max="isClient ? maxAvailableQuantity : currentVariant?.stock || 1"
-                class="w-16 text-center border border-gray-300 rounded px-2 py-1"
+                class="w-24 text-center border border-gray-300 rounded px-2 py-1 appearance-none"
                 @input="validateQuantity"
               />
               <button
@@ -490,22 +571,23 @@ const addToCart = async () => {
           :show-arrows="true"
         >
           <template #item="{ item }">
-            <NuxtLink
-              :to="`/shop/${category}/${subSlug}/${item.slug}`"
-              class="block rounded shadow transition"
-            >
-              <img
-                :src="getImageUrl(item.images?.[0]?.url)"
-                :alt="item.name"
-                class="w-full h-48 object-cover rounded-t mb-3"
-              />
-              <div class="p-4">
-                <h3 class="font-medium text-gray-900">{{ item.name }}</h3>
-                <p class="text-primary-600 font-semibold">
-                  ₱{{ item.price?.toFixed(2) ?? item.variants?.[0]?.price?.toFixed(2) }}
-                </p>
-              </div>
-            </NuxtLink>
+            <div class="block rounded shadow transition">
+              <NuxtLink
+                :to="`/shop/${category}/${subSlug}/${item.slug}`"
+              >
+                <img
+                  :src="getImageUrl(item.images?.[0]?.url)"
+                  :alt="item.name"
+                  class="w-full h-48 object-cover rounded-t mb-3"
+                />
+              </NuxtLink>
+                <div class="p-4">
+                  <h3 class="font-medium text-gray-900">{{ item.name }}</h3>
+                  <p class="text-primary-600 font-semibold">
+                    ₱{{ item.price?.toFixed(2) ?? item.variants?.[0]?.price?.toFixed(2) }}
+                  </p>
+                </div>
+            </div>
           </template>
         </Carousel>
       </div>
@@ -515,3 +597,19 @@ const addToCart = async () => {
     <p v-else class="text-red-500">Product not found.</p>
   </div>
 </template>
+
+<style>
+/* Hide number input spinners (Chrome, Safari, Edge) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+/* Hide number input spinners (Firefox) */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+</style>

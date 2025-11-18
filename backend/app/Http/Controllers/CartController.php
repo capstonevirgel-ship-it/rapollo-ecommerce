@@ -11,9 +11,33 @@ class CartController extends Controller
 {
     public function index()
     {
-        $items = Cart::with('variant.product', 'variant.color', 'variant.size', 'variant.images')
+        $items = Cart::with('variant.product', 'variant.product.images', 'variant.color', 'variant.size', 'variant.images')
             ->where('user_id', Auth::id())
             ->get();
+
+        // Ensure variant images are populated: if a variant has no images, use product images for the same color
+        foreach ($items as $item) {
+            if ($item->variant && $item->variant->images && $item->variant->images->isEmpty()) {
+                $variant = $item->variant;
+                $product = $variant->product;
+                if ($product && $variant->color_id) {
+                    // Find variant ids of the same color for this product
+                    $variantIdsSameColor = ProductVariant::where('product_id', $product->id)
+                        ->where('color_id', $variant->color_id)
+                        ->pluck('id');
+
+                    // Filter product images that belong to variants of the same color
+                    $colorImages = collect($product->images)->filter(function ($img) use ($variantIdsSameColor) {
+                        return $img->variant_id && $variantIdsSameColor->contains($img->variant_id);
+                    })->values();
+
+                    if ($colorImages->isNotEmpty()) {
+                        // Override the variant images relation with color-matched images
+                        $variant->setRelation('images', $colorImages);
+                    }
+                }
+            }
+        }
 
         return response()->json($items);
     }
@@ -68,8 +92,25 @@ class CartController extends Controller
             ]);
         }
 
-        // Load the relationships for the response
-        $cartItem->load('variant.product', 'variant.color', 'variant.size', 'variant.images');
+        // Load the relationships for the response (include product images for color-based fallback)
+        $cartItem->load('variant.product', 'variant.product.images', 'variant.color', 'variant.size', 'variant.images');
+
+        // If the variant has no images, use product images for the same color
+        if ($cartItem->variant && $cartItem->variant->images && $cartItem->variant->images->isEmpty()) {
+            $variant = $cartItem->variant;
+            $product = $variant->product;
+            if ($product && $variant->color_id) {
+                $variantIdsSameColor = ProductVariant::where('product_id', $product->id)
+                    ->where('color_id', $variant->color_id)
+                    ->pluck('id');
+                $colorImages = collect($product->images)->filter(function ($img) use ($variantIdsSameColor) {
+                    return $img->variant_id && $variantIdsSameColor->contains($img->variant_id);
+                })->values();
+                if ($colorImages->isNotEmpty()) {
+                    $variant->setRelation('images', $colorImages);
+                }
+            }
+        }
 
         return response()->json($cartItem, 201);
     }
@@ -96,8 +137,25 @@ class CartController extends Controller
 
         $cart->update($data);
 
-        // Load the relationships for the response
-        $cart->load('variant.product', 'variant.color', 'variant.size', 'variant.images');
+        // Load the relationships for the response (include product images for fallback)
+        $cart->load('variant.product', 'variant.product.images', 'variant.color', 'variant.size', 'variant.images');
+
+        // If the variant has no images, use product images for the same color
+        if ($cart->variant && $cart->variant->images && $cart->variant->images->isEmpty()) {
+            $variant = $cart->variant;
+            $product = $variant->product;
+            if ($product && $variant->color_id) {
+                $variantIdsSameColor = ProductVariant::where('product_id', $product->id)
+                    ->where('color_id', $variant->color_id)
+                    ->pluck('id');
+                $colorImages = collect($product->images)->filter(function ($img) use ($variantIdsSameColor) {
+                    return $img->variant_id && $variantIdsSameColor->contains($img->variant_id);
+                })->values();
+                if ($colorImages->isNotEmpty()) {
+                    $variant->setRelation('images', $colorImages);
+                }
+            }
+        }
 
         return response()->json($cart);
     }

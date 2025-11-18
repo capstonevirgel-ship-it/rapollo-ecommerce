@@ -12,15 +12,19 @@ export const useSubcategoryStore = defineStore("subcategory", {
 
   actions: {
     async fetchSubcategories() {
-      if (this.loading) return;
-      
       this.loading = true;
       this.error = null;
       try {
+        console.log('Fetching subcategories...');
         const data = await useCustomFetch<Subcategory[]>("/api/subcategories");
-        this.subcategories = data;
+        console.log('Subcategories API response:', data);
+        // Backend returns array directly, handle both array and wrapped responses
+        this.subcategories = Array.isArray(data) ? data : (data as any).data || (data as any).value || [];
+        console.log('Subcategories loaded:', this.subcategories.length);
       } catch (error: any) {
+        console.error('Error fetching subcategories:', error);
         this.error = error.data?.message || error.message || "Failed to load subcategories";
+        this.subcategories = [];
       } finally {
         this.loading = false;
       }

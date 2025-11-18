@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useCartStore } from '~/stores/cart'
 
 export interface Purchase {
   id: number
@@ -63,12 +64,22 @@ export const usePurchaseStore = defineStore('purchase', () => {
   const error = ref<string | null>(null)
 
   const createPurchase = async (cartItems: any[]) => {
-    // Map cart items to the format expected by the backend
-    const items = cartItems.map(item => ({
-      variant_id: item.variant_id,
-      quantity: item.quantity,
-      price: item.variant.price // Extract price from variant
-    }))
+    const cartStore = useCartStore()
+    // Map cart items to the format expected by the backend (robust to item shapes)
+    const items = cartItems.map((item: any) => {
+      // Try multiple sources and fallbacks, including lookup in current cart by cart item id
+      const fromStoreByCartId = item.id ? cartStore.cart.find((ci: any) => ci.id === item.id) : undefined
+      const variantId = item.variant_id
+        ?? item.variant?.id
+        ?? item.variantId
+        ?? fromStoreByCartId?.variant_id
+        ?? fromStoreByCartId?.variant?.id
+      // Use base_price (before tax) to avoid double taxation on backend
+      // The backend will calculate tax on top of this base price
+      const price = item.variant?.base_price ?? item.variant?.price ?? item.price ?? fromStoreByCartId?.variant?.base_price ?? fromStoreByCartId?.variant?.price ?? 0
+      const quantity = item.quantity ?? 1
+      return { variant_id: variantId, quantity, price }
+    })
 
     const response = await $fetch('/api/purchases', {
       method: 'POST',

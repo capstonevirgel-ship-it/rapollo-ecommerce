@@ -235,8 +235,26 @@ class WebhookController extends Controller
                             $this->createEventOrderNotifications($purchase);
                         }
                         
-                        // Clear user's cart
-                        Cart::where('user_id', $purchase->user_id)->delete();
+                        // Clear only purchased items from user's cart (preserve other items)
+                        try {
+                            $purchasedVariantIds = $purchase->purchaseItems()
+                                ->pluck('variant_id')
+                                ->filter()
+                                ->all();
+                            if (!empty($purchasedVariantIds)) {
+                                Cart::where('user_id', $purchase->user_id)
+                                    ->whereIn('variant_id', $purchasedVariantIds)
+                                    ->delete();
+                            }
+                        } catch (\Exception $e) {
+                            // If anything goes wrong, fallback to clearing entire cart to avoid inconsistencies
+                            Log::warning('Selective cart clear failed, falling back to full clear', [
+                                'purchase_id' => $purchase->id,
+                                'user_id' => $purchase->user_id,
+                                'error' => $e->getMessage(),
+                            ]);
+                            Cart::where('user_id', $purchase->user_id)->delete();
+                        }
                         
                         DB::commit();
                         
@@ -419,16 +437,16 @@ class WebhookController extends Controller
                 
                 $paymentRecord->update($updateData);
 
-                // Update purchase status to cancelled
+                // Update purchase status to failed
                 $purchase = $paymentRecord->purchase;
                 if ($purchase) {
                     $oldStatus = $purchase->status;
-                    $purchase->update(['status' => 'cancelled']);
+                    $purchase->update(['status' => 'failed']);
                     
-                    Log::info('Updated purchase status to cancelled', [
+                    Log::info('Updated purchase status to failed', [
                         'purchase_id' => $purchase->id,
                         'old_status' => $oldStatus,
-                        'new_status' => 'cancelled'
+                        'new_status' => 'failed'
                     ]);
                     
                     // Create cancelled tickets for failed payment so user can see what they tried to purchase
@@ -504,19 +522,15 @@ class WebhookController extends Controller
                 }
             }
 
-            $redirectUrl = config('app.frontend_url', 'http://localhost:3000') . '/checkout/failed';
-            
             Log::info('Payment failure webhook completed successfully', [
                 'payment_intent_id' => $paymentIntentId,
-                'redirect_url' => $redirectUrl,
                 'payment_record_id' => $paymentRecord ? $paymentRecord->id : null,
                 'purchase_id' => $paymentRecord ? $paymentRecord->purchase_id : null
             ]);
 
             return response()->json([
                 'message' => 'Payment failure processed',
-                'payment_intent_id' => $paymentIntentId,
-                'redirect_url' => $redirectUrl
+                'payment_intent_id' => $paymentIntentId
             ]);
 
         } catch (\Exception $e) {
@@ -570,7 +584,6 @@ class WebhookController extends Controller
                 $ticket->status = 'confirmed';
                 $ticket->ticket_number = $ticket->generateTicketNumber();
                 $ticket->price = $event->ticket_price;
-                $ticket->qr_code = $ticket->generateQRCode();
                 $ticket->booked_at = now();
                 $ticket->save();
             }
@@ -614,15 +627,14 @@ class WebhookController extends Controller
                 $ticket->purchase_id = $purchase->id;
                 $ticket->event_id = $event->id;
                 $ticket->user_id = $purchase->user_id;
-                $ticket->status = 'cancelled'; // Set status to cancelled
+                $ticket->status = 'failed';
                 $ticket->ticket_number = $ticket->generateTicketNumber();
                 $ticket->price = $event->ticket_price;
-                $ticket->qr_code = $ticket->generateQRCode();
                 $ticket->booked_at = now();
                 $ticket->save();
             }
 
-            Log::info('Created cancelled tickets for failed purchase', [
+            Log::info('Created failed tickets for failed purchase', [
                 'purchase_id' => $purchase->id,
                 'quantity' => $quantity,
                 'event_id' => $event->id

@@ -42,35 +42,47 @@ const formatPrice = (price: any) => {
   return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
 }
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return 'bg-green-100 text-green-800'
-    case 'processing':
-      return 'bg-yellow-100 text-yellow-800'
-    case 'pending':
-      return 'bg-blue-100 text-blue-800'
-    case 'cancelled':
-      return 'bg-red-100 text-red-800'
-    default:
-      return 'bg-gray-100 text-gray-800'
+const getItemUnitPriceValue = (item: any) => {
+  const candidates = [
+    item?.final_unit_price,
+    item?.finalUnitPrice,
+    item?.unit_price,
+    item?.unitPrice,
+    item?.price,
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null) continue
+    const numeric = typeof candidate === 'string' ? parseFloat(candidate) : Number(candidate)
+    if (!Number.isNaN(numeric)) {
+      return numeric
+    }
   }
+
+  return 0
 }
 
-const getPaymentStatusColor = (status: string) => {
-  switch (status) {
-    case 'paid':
-      return 'bg-green-100 text-green-800'
-    case 'pending':
-      return 'bg-yellow-100 text-yellow-800'
-    case 'failed':
-      return 'bg-red-100 text-red-800'
-    case 'refunded':
-      return 'bg-purple-100 text-purple-800'
-    default:
-      return 'bg-gray-100 text-gray-800'
+const getItemTotalPriceValue = (item: any) => {
+  const candidates = [
+    item?.final_total_price,
+    item?.finalTotalPrice,
+    item?.total_price,
+    item?.totalPrice,
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null) continue
+    const numeric = typeof candidate === 'string' ? parseFloat(candidate) : Number(candidate)
+    if (!Number.isNaN(numeric)) {
+      return numeric
+    }
   }
+
+  const unitPrice = getItemUnitPriceValue(item)
+  const quantity = typeof item?.quantity === 'number' ? item.quantity : parseInt(item?.quantity ?? 0, 10)
+  return unitPrice * (Number.isNaN(quantity) ? 0 : quantity)
 }
+
 
 const isVariantReviewed = (variantId: number) => {
   return reviewedVariants.value.has(variantId)
@@ -86,11 +98,15 @@ const navigateToProduct = (item: any) => {
   }
 }
 
+const navigateToOrderDetails = (orderId: number) => {
+  navigateTo(`/my-orders/${orderId}`)
+}
+
 onMounted(async () => {
   isLoading.value = true
   try {
     // Fetch real orders from the API
-    const response = await $fetch('/api/purchases')
+    const response = await $fetch('/api/purchases') as { data: any[] }
     orders.value = response.data || []
     
     // Fetch reviewed products to check which variants have been reviewed
@@ -150,7 +166,7 @@ onMounted(async () => {
             <div class="mt-6">
               <NuxtLink
                 to="/shop"
-                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-zinc-900 hover:bg-zinc-800"
               >
                 <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -174,12 +190,7 @@ onMounted(async () => {
                     <p class="text-sm text-gray-600 mt-1">Placed on {{ formatDate(order.created_at) }}</p>
                   </div>
                   <div class="text-right">
-                    <span :class="[
-                      'inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold',
-                      getStatusColor(order.status)
-                    ]">
-                      {{ order.status }}
-                    </span>
+                    <StatusBadge :status="order.status" type="purchase" />
                     <p class="text-2xl font-bold text-gray-900 mt-2">₱{{ formatPrice(order.total) }}</p>
                   </div>
                 </div>
@@ -198,7 +209,7 @@ onMounted(async () => {
                         :src="getImageUrl(item.variant?.images?.[0]?.url || item.variant?.product?.images?.[0]?.url || '')"
                         :alt="item.variant?.product?.name || 'Product'"
                         class="w-20 h-20 object-cover rounded-lg shadow-sm border border-gray-200"
-                        @error="$event.target.src = getImageUrl('', 'product')"
+                        @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.src = getImageUrl('', 'product') }"
                       />
                     </div>
                     <div class="flex-1 min-w-0">
@@ -217,9 +228,9 @@ onMounted(async () => {
                     </div>
                     <div class="text-right">
                       <p class="text-lg font-bold text-gray-900">
-                        ₱{{ formatPrice((item.price || 0) * (item.quantity || 0)) }}
+                        ₱{{ formatPrice(getItemTotalPriceValue(item)) }}
                       </p>
-                      <p class="text-sm text-gray-500">₱{{ formatPrice(item.price) }} each</p>
+                      <p class="text-sm text-gray-500">₱{{ formatPrice(getItemUnitPriceValue(item)) }} each</p>
                       
                       <!-- Review Button for Completed Orders -->
                       <div v-if="order.status === 'completed' && item.variant?.id" class="mt-3">
@@ -252,15 +263,11 @@ onMounted(async () => {
                     <div class="text-sm text-gray-500">
                       <p>Payment Status:</p>
                     </div>
-                    <span :class="[
-                      'inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold',
-                      getPaymentStatusColor(order.payment?.status)
-                    ]">
-                      {{ order.payment?.status || 'Pending' }}
-                    </span>
+                    <StatusBadge :status="order.payment?.status || 'pending'" type="payment" />
                   </div>
                   <div class="flex space-x-3">
                     <button
+                      @click="navigateToOrderDetails(order.id)"
                       class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                     >
                       View Details
@@ -281,3 +288,4 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+

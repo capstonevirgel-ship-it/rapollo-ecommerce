@@ -32,6 +32,7 @@ const isOpen = ref(false)
 const selectRef = ref<HTMLDivElement>()
 const dropdownRef = ref<HTMLDivElement>()
 const searchQuery = ref('')
+const positionTrigger = ref(0) // Reactive trigger to force dropdownStyle recalculation
 
 // Computed properties
 const selectedOption = computed(() => {
@@ -75,39 +76,75 @@ const disabledClasses = computed(() => {
 })
 
 const dropdownStyle = computed(() => {
+  // Access positionTrigger to ensure reactivity
+  positionTrigger.value
+  
   if (!selectRef.value || !isOpen.value) return {}
   
-  const rect = selectRef.value.getBoundingClientRect()
-  const viewportHeight = window.innerHeight
-  const dropdownHeight = 200 // Estimated max height
+  // Get the main select button element (the first button, which is the main select)
+  const buttonElement = selectRef.value.querySelector('button:first-of-type') as HTMLElement
+  if (!buttonElement) return {}
   
-  // Calculate if dropdown should open above or below
+  // Use the button's bounding rect for accurate positioning
+  const rect = buttonElement.getBoundingClientRect()
+  const viewportHeight = window.innerHeight
+  const viewportWidth = window.innerWidth
+  
+  // Estimate dropdown height based on number of options
+  // Each option is approximately 40px, plus padding
+  const estimatedOptionHeight = 40
+  const searchHeight = props.options.length > 10 ? 50 : 0
+  const estimatedDropdownHeight = Math.min(
+    (props.options.length * estimatedOptionHeight) + searchHeight + 16,
+    200
+  )
+  
+  // Calculate available space
   const spaceBelow = viewportHeight - rect.bottom
   const spaceAbove = rect.top
   
-  let top = rect.height + 4 // Default: below the select (relative to select element)
+  // Use fixed positioning to escape overflow constraints
+  // Match the exact width of the button
+  let top = rect.bottom + 4 // Default: below the select
+  let left = rect.left
+  let width = rect.width
   let maxHeight = '200px'
+  let position = 'fixed' // Use fixed to escape table overflow
   
-  // If not enough space below, open above
-  if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-    top = -dropdownHeight - 4 // Above the select (relative to select element)
-  }
-  
-  // If not enough space above either, use available space
-  if (spaceAbove < dropdownHeight && spaceBelow < dropdownHeight) {
-    if (spaceBelow > spaceAbove) {
-      top = rect.height + 4
-      maxHeight = `${spaceBelow - 8}px`
-    } else {
-      top = -spaceAbove + 4
-      maxHeight = `${spaceAbove - 8}px`
+  // Always default to opening below unless there's really not enough space
+  // Only open above if there's less than 100px below AND significantly more space above
+  const minSpaceBelow = 100
+  if (spaceBelow < minSpaceBelow && spaceAbove > spaceBelow + 100) {
+    // Open above - calculate position from top of button
+    top = rect.top - estimatedDropdownHeight - 4
+    // Ensure it doesn't go above viewport
+    if (top < 8) {
+      top = 8
+      maxHeight = `${rect.top - 12}px`
+    }
+  } else {
+    // Open below (default) - always prefer this
+    top = rect.bottom + 4
+    // If not enough space below, limit max height but still open below
+    if (spaceBelow < estimatedDropdownHeight) {
+      maxHeight = `${Math.max(spaceBelow - 8, 100)}px` // At least 100px height
     }
   }
   
+  // Ensure dropdown doesn't go off screen horizontally
+  if (left + width > viewportWidth) {
+    left = viewportWidth - width - 8
+  }
+  if (left < 8) {
+    left = 8
+  }
+  
   return {
+    position,
     top: `${top}px`,
-    left: '0px', // Relative to the select element
-    width: '100%', // Full width of the select element
+    left: `${left}px`,
+    width: `${width}px`,
+    minWidth: `${width}px`, // Ensure minimum width matches
     maxHeight
   }
 })
@@ -166,9 +203,15 @@ const handleKeydown = (event: KeyboardEvent) => {
   }
 }
 
-// Click outside to close
+// Click outside to close (works with Teleport)
 const handleClickOutside = (event: MouseEvent) => {
-  if (selectRef.value && !selectRef.value.contains(event.target as Node)) {
+  const target = event.target as Node
+  if (
+    selectRef.value && 
+    !selectRef.value.contains(target) &&
+    dropdownRef.value &&
+    !dropdownRef.value.contains(target)
+  ) {
     isOpen.value = false
     searchQuery.value = ''
   }
@@ -189,16 +232,77 @@ watch(() => props.modelValue, () => {
   searchQuery.value = ''
 })
 
-// Watch for dropdown open/close to recalculate position
+// Update position on scroll when dropdown is open (for fixed positioning)
+const updatePosition = () => {
+  if (isOpen.value) {
+    // Trigger reactivity by updating positionTrigger
+    positionTrigger.value = Date.now()
+  }
+}
+
+// Watch for dropdown open/close to recalculate position and handle scroll/resize
 watch(isOpen, (newValue) => {
   if (newValue) {
-    // Force recalculation on next tick
+    // Force recalculation after DOM updates
+    // Use multiple nextTick calls to ensure Teleport has completed
     nextTick(() => {
-      // Trigger reactivity for dropdownStyle
-      if (selectRef.value) {
-        selectRef.value.getBoundingClientRect()
-      }
+      nextTick(() => {
+        // Small delay to ensure button position is stable and dropdown is rendered
+        setTimeout(() => {
+          updatePosition()
+          // One more update after a brief moment to catch any layout shifts
+          setTimeout(() => {
+            updatePosition()
+          }, 50)
+        }, 10)
+      })
     })
+    // Add scroll and resize listeners for fixed positioning
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+    // Also listen to scroll on parent containers (like DataTable)
+    if (selectRef.value) {
+      let parent = selectRef.value.parentElement
+      while (parent && parent !== document.body) {
+        parent.addEventListener('scroll', updatePosition, true)
+        parent = parent.parentElement
+      }
+    }
+  } else {
+    // Remove listeners when closed
+    window.removeEventListener('scroll', updatePosition, true)
+    window.removeEventListener('resize', updatePosition)
+    // Remove parent scroll listeners
+    if (selectRef.value) {
+      let parent = selectRef.value.parentElement
+      while (parent && parent !== document.body) {
+        parent.removeEventListener('scroll', updatePosition, true)
+        parent = parent.parentElement
+      }
+    }
+  }
+})
+
+// Also watch dropdownRef to recalculate when it's actually rendered
+watch(() => dropdownRef.value, (newValue) => {
+  if (newValue && isOpen.value) {
+    // Dropdown just rendered, recalculate position
+    nextTick(() => {
+      updatePosition()
+    })
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', updatePosition, true)
+  window.removeEventListener('resize', updatePosition)
+  // Clean up parent scroll listeners
+  if (selectRef.value) {
+    let parent = selectRef.value.parentElement
+    while (parent && parent !== document.body) {
+      parent.removeEventListener('scroll', updatePosition, true)
+      parent = parent.parentElement
+    }
   }
 })
 </script>
@@ -261,12 +365,13 @@ watch(isOpen, (newValue) => {
       leave-from-class="transform scale-100 opacity-100"
       leave-to-class="transform scale-95 opacity-0"
     >
-    <div
-      v-if="isOpen"
-      ref="dropdownRef"
-      class="absolute z-[9999] mt-1 w-full bg-white shadow-lg rounded-md py-1 text-base border border-gray-200 focus:outline-none"
-      :style="dropdownStyle"
-    >
+    <Teleport to="body">
+      <div
+        v-if="isOpen"
+        ref="dropdownRef"
+        class="fixed z-[9999] bg-white shadow-lg rounded-md py-1 text-base border border-gray-200 focus:outline-none overflow-hidden"
+        :style="dropdownStyle"
+      >
         <!-- Search input (if many options) -->
         <div v-if="options.length > 10" class="px-3 py-2 border-b border-gray-100">
           <input
@@ -284,7 +389,7 @@ watch(isOpen, (newValue) => {
             v-for="option in filteredOptions"
             :key="option.value"
             :class="[
-              'relative cursor-pointer select-none py-2 pl-3 pr-9',
+              'relative cursor-pointer select-none py-2 pl-3 pr-9 leading-snug',
               {
                 'text-blue-900 bg-blue-50': option.value === modelValue,
                 'text-gray-900 hover:bg-gray-50': option.value !== modelValue && !option.disabled,
@@ -295,7 +400,7 @@ watch(isOpen, (newValue) => {
           >
             <!-- Custom option slot -->
             <slot name="option" :option="option" :selected="option.value === modelValue">
-              <span class="block truncate font-normal">
+              <span class="block font-normal whitespace-normal break-words pr-2">
                 {{ option.label }}
               </span>
             </slot>
@@ -317,6 +422,7 @@ watch(isOpen, (newValue) => {
           No options found
         </div>
       </div>
+      </Teleport>
     </Transition>
   </div>
 </template>

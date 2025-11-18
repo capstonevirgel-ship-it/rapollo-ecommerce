@@ -1,511 +1,263 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Ticket Confirmation - Rapollo</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #18181b;
-            background-color: #f4f4f5;
-            padding: 20px;
-        }
-        
-        .email-container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-        }
-        
-        .logo {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
-        }
-        
-        .header-subtitle {
-            font-size: 16px;
-            color: #a1a1aa;
-            font-weight: 400;
-        }
-        
-        .content {
-            padding: 40px 30px;
-        }
-        
-        .greeting {
-            font-size: 18px;
-            font-weight: 600;
-            color: #18181b;
-            margin-bottom: 16px;
-        }
-        
-        .message {
-            font-size: 16px;
-            color: #52525b;
-            margin-bottom: 32px;
-            line-height: 1.7;
-        }
-        
-        .ticket-summary {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 32px;
-        }
-        
-        .ticket-number {
-            font-size: 20px;
-            font-weight: 700;
-            color: #18181b;
-            margin-bottom: 8px;
-        }
-        
-        .ticket-reference {
-            font-size: 14px;
-            color: #71717a;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            background-color: #f1f5f9;
-            padding: 8px 12px;
-            border-radius: 6px;
-            display: inline-block;
-            margin-bottom: 16px;
-        }
-        
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 8px 16px;
-            background-color: #dcfce7;
-            color: #166534;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-        
-        .status-badge::before {
-            content: "✓";
-            margin-right: 6px;
-            font-weight: bold;
-        }
-        
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #18181b;
-            margin-bottom: 20px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        
-        .event-details {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 32px;
-        }
-        
-        .event-info {
-            display: grid;
-            gap: 12px;
-        }
-        
-        .info-item {
-            display: flex;
-            align-items: center;
-        }
-        
-        .info-label {
-            font-weight: 600;
-            color: #374151;
-            min-width: 80px;
-            margin-right: 12px;
-        }
-        
-        .info-value {
-            color: #52525b;
-            flex: 1;
-        }
-        
-        /* Ticket Design */
-        .ticket-container {
-            margin-bottom: 32px;
-        }
-        
-        .ticket {
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            border: 2px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 0;
-            margin-bottom: 20px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        
-        .ticket::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 6px;
-            background: linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%);
-        }
-        
-        .ticket-header {
-            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
-            color: white;
-            padding: 20px 24px;
-            text-align: center;
-            position: relative;
-        }
-        
-        .ticket-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-        
-        .ticket-subtitle {
-            font-size: 14px;
-            color: #a1a1aa;
-            font-weight: 400;
-        }
-        
-        .ticket-body {
-            padding: 24px;
-        }
-        
-        .ticket-info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-        
-        .ticket-info-item {
-            text-align: center;
-            padding: 12px;
-            background-color: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-        }
-        
-        .ticket-info-label {
-            font-size: 12px;
-            color: #71717a;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-        }
-        
-        .ticket-info-value {
-            font-size: 16px;
-            font-weight: 700;
-            color: #18181b;
-        }
-        
-        .ticket-number-display {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .ticket-number-label {
-            font-size: 12px;
-            color: #71717a;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-        
-        .ticket-number-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: #18181b;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            background-color: #f1f5f9;
-            padding: 12px 20px;
-            border-radius: 8px;
-            display: inline-block;
-            border: 2px dashed #cbd5e1;
-        }
-        
-        .qr-section {
-            text-align: center;
-            margin-top: 20px;
-        }
-        
-        .qr-placeholder {
-            width: 120px;
-            height: 120px;
-            background-color: #f1f5f9;
-            border: 3px dashed #cbd5e1;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 12px;
-            color: #94a3b8;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        
-        .qr-label {
-            font-size: 12px;
-            color: #71717a;
-            font-weight: 500;
-        }
-        
-        .total-section {
-            background-color: #18181b;
-            color: white;
-            padding: 24px;
-            border-radius: 8px;
-            margin: 24px 0;
-        }
-        
-        .total-label {
-            font-size: 16px;
-            color: #a1a1aa;
-            margin-bottom: 8px;
-        }
-        
-        .total-amount {
-            font-size: 28px;
-            font-weight: 700;
-            color: white;
-        }
-        
-        .important-info {
-            background-color: #fef3c7;
-            border: 1px solid #f59e0b;
-            border-radius: 8px;
-            padding: 24px;
-            margin: 32px 0;
-        }
-        
-        .important-info h3 {
-            color: #92400e;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 16px;
-        }
-        
-        .important-info ul {
-            list-style: none;
-            padding: 0;
-        }
-        
-        .important-info li {
-            color: #92400e;
-            font-size: 14px;
-            margin-bottom: 8px;
-            padding-left: 20px;
-            position: relative;
-        }
-        
-        .important-info li::before {
-            content: "⚠";
-            position: absolute;
-            left: 0;
-            color: #f59e0b;
-            font-weight: bold;
-        }
-        
-        .footer {
-            background-color: #f8fafc;
-            padding: 32px 30px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-        }
-        
-        .footer p {
-            color: #71717a;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-        
-        .footer strong {
-            color: #18181b;
-            font-weight: 600;
-        }
-        
-        .contact-info {
-            color: #71717a;
-            font-size: 14px;
-            margin-top: 16px;
-        }
-        
-        @media (max-width: 600px) {
-            body {
-                padding: 10px;
+@extends('emails.layouts.base')
+
+@section('title', 'Event Ticket Confirmation - Rapollo')
+
+@section('header')
+    <div style="font-size:30px; font-weight:800; text-transform:uppercase; letter-spacing:0.18em; color:#f4f4f5;">RAPOLLO</div>
+    <div style="margin-top:12px; font-size:15px; font-weight:500; color:#d4d4d8; text-transform:none; letter-spacing:0;">Event Ticket Confirmation</div>
+@endsection
+
+@section('content')
+    @php
+        $event = $purchase->event;
+        $tickets = collect($purchase->tickets ?? []);
+        $formatCurrency = fn ($value) => number_format((float) $value, 2);
+
+        $ticketTotals = $tickets->map(function ($ticket) {
+            $priceCandidates = [
+                $ticket->final_price ?? null,
+                $ticket->price ?? null,
+            ];
+
+            $price = 0.0;
+            foreach ($priceCandidates as $candidate) {
+                if ($candidate !== null) {
+                    $numeric = is_string($candidate) ? (float) preg_replace('/[^\d.\-]/', '', $candidate) : (float) $candidate;
+                    if (is_finite($numeric)) {
+                        $price = $numeric;
+                        break;
+                    }
+                }
             }
-            
-            .header, .content, .footer {
-                padding: 24px 20px;
-            }
-            
-            .ticket-info-grid {
-                grid-template-columns: 1fr;
-                gap: 12px;
-            }
-            
-            .ticket-number-value {
-                font-size: 20px;
-                padding: 10px 16px;
+
+            $quantity = (int) ($ticket->quantity ?? 1);
+            $quantity = max($quantity, 1);
+
+            return [
+                'price' => $price,
+                'quantity' => $quantity,
+                'total' => $price * $quantity,
+            ];
+        });
+
+        $calculatedTotal = $ticketTotals->sum('total');
+
+        $overallTotal = $calculatedTotal > 0 ? $calculatedTotal : 0.0;
+
+        if ($overallTotal <= 0) {
+            $totalCandidateValues = [
+                $purchase->total ?? null,
+                $purchase->total_amount ?? null,
+            ];
+
+            foreach ($totalCandidateValues as $candidate) {
+                if ($candidate !== null) {
+                    $numeric = is_string($candidate) ? (float) preg_replace('/[^\d.\-]/', '', $candidate) : (float) $candidate;
+                    if (is_finite($numeric) && $numeric > 0) {
+                        $overallTotal = $numeric;
+                        break;
+                    }
+                }
             }
         }
-    </style>
-</head>
-<body>
-    <div class="email-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo">Rapollo</div>
-            <div class="header-subtitle">Event Ticket Confirmation</div>
-        </div>
 
-        <!-- Content -->
-        <div class="content">
-            <div class="greeting">Hello {{ $user->user_name }},</div>
-            
-            <div class="message">
-                Thank you for purchasing event tickets! Your tickets have been successfully confirmed and payment has been processed.
-            </div>
+        $formattedEventDate = null;
+        $formattedEventTime = null;
+        if ($event?->date) {
+            $eventDate = \Carbon\Carbon::parse($event->date);
+            $formattedEventDate = $eventDate->format('F j, Y');
+            $formattedEventTime = $eventDate->format('g:i A');
+        }
+    @endphp
 
-            <!-- Ticket Summary -->
-            <div class="ticket-summary">
-                <div class="ticket-number">Ticket Confirmation</div>
-                <div class="ticket-reference">{{ $purchase->reference_number }}</div>
-                <div>
-                    <span class="status-badge">Tickets Confirmed</span>
-                </div>
-            </div>
+    <div style="font-size:18px; font-weight:600; color:#18181b; margin-bottom:16px;">Hello {{ $user->user_name }},</div>
+    <p style="margin:0 0 28px 0; font-size:15px; color:#4b5563;">
+        Thank you for purchasing event tickets! Your tickets have been successfully confirmed and payment has been processed.
+    </p>
 
-            @if($purchase->event)
-            <!-- Event Information -->
-            <div class="event-details">
-                <div class="section-title">Event Information</div>
-                <div class="event-info">
-                    <div class="info-item">
-                        <div class="info-label">Event:</div>
-                        <div class="info-value">{{ $purchase->event->title }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Date:</div>
-                        <div class="info-value">{{ \Carbon\Carbon::parse($purchase->event->date)->format('F j, Y \a\t g:i A') }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Location:</div>
-                        <div class="info-value">{{ $purchase->event->location }}</div>
-                    </div>
-                    @if($purchase->event->description)
-                    <div class="info-item">
-                        <div class="info-label">About:</div>
-                        <div class="info-value">{{ $purchase->event->description }}</div>
-                    </div>
-                    @endif
-                </div>
-            </div>
-            @endif
+    <table role="presentation" width="100%" style="margin-bottom:28px; border:1px solid #e4e4e7; border-radius:16px; overflow:hidden;">
+        <tr>
+            <td style="padding:24px 28px; background-color:#f9fafb;">
+                <table role="presentation" width="100%" style="font-size:14px; color:#4b5563;">
+                    <tr>
+                        <td style="text-transform:uppercase; letter-spacing:0.08em; font-weight:700; color:#18181b; font-size:16px; padding-bottom:12px;">Ticket Confirmation</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0; border-top:1px solid #e4e4e7;">
+                            <table role="presentation" width="100%">
+                                <tr>
+                                    <td style="font-size:12px; text-transform:uppercase; letter-spacing:0.2em; color:#6b7280; font-weight:600;">Reference</td>
+                                    <td align="right" style="font-size:14px; font-weight:600; color:#111827; font-family:'Courier New', Courier, monospace;">{{ $purchase->reference_number }}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0; border-top:1px solid #e4e4e7;">
+                            <table role="presentation" width="100%">
+                                <tr>
+                                    <td style="font-size:12px; text-transform:uppercase; letter-spacing:0.2em; color:#6b7280; font-weight:600;">Status</td>
+                                    <td align="right">
+                                        <span style="display:inline-block; background-color:#dcfce7; color:#166534; padding:6px 16px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:0.08em;">
+                                            Confirmed
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 
-            <!-- Tickets -->
-            <div class="section-title">Your Tickets</div>
-            <div class="ticket-container">
-                @foreach($purchase->tickets as $ticket)
-                    <div class="ticket">
-                        <div class="ticket-header">
-                            <div class="ticket-title">EVENT TICKET</div>
-                            <div class="ticket-subtitle">{{ $purchase->event->title ?? 'Event' }}</div>
-                        </div>
-                        
-                        <div class="ticket-body">
-                            <div class="ticket-info-grid">
-                                <div class="ticket-info-item">
-                                    <div class="ticket-info-label">Date</div>
-                                    <div class="ticket-info-value">{{ \Carbon\Carbon::parse($purchase->event->date)->format('M j, Y') }}</div>
-                                </div>
-                                <div class="ticket-info-item">
-                                    <div class="ticket-info-label">Time</div>
-                                    <div class="ticket-info-value">{{ \Carbon\Carbon::parse($purchase->event->date)->format('g:i A') }}</div>
-                                </div>
-                                <div class="ticket-info-item">
-                                    <div class="ticket-info-label">Location</div>
-                                    <div class="ticket-info-value">{{ $purchase->event->location ?? 'TBA' }}</div>
-                                </div>
-                                <div class="ticket-info-item">
-                                    <div class="ticket-info-label">Price</div>
-                                    <div class="ticket-info-value">₱{{ number_format($ticket->price, 2) }}</div>
-                                </div>
-                            </div>
-                            
-                            <div class="ticket-number-display">
-                                <div class="ticket-number-label">Ticket Number</div>
-                                <div class="ticket-number-value">#{{ $ticket->ticket_number }}</div>
-                            </div>
-                            
-                            <div class="qr-section">
-                                <div class="qr-placeholder">
-                                    QR Code
-                                </div>
-                                <div class="qr-label">Present this QR code at the entrance</div>
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
+    @if($event)
+        <table role="presentation" width="100%" style="margin-bottom:28px; border:1px solid #e5e7eb; border-radius:14px;">
+            <tr>
+                <td style="padding:22px 26px; background-color:#ffffff;">
+                    <table role="presentation" width="100%" style="font-size:14px; color:#4b5563;">
+                        <tr>
+                            <td style="text-transform:uppercase; letter-spacing:0.1em; font-weight:700; color:#18181b; font-size:16px; padding-bottom:14px;">Event Information</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:14px 0; border-top:1px solid #e5e7eb;">
+                                <table role="presentation" width="100%">
+                                    <tr>
+                                        <td style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.18em; color:#6b7280;">Event</td>
+                                        <td align="right" style="font-size:15px; font-weight:600; color:#18181b;">{{ $event->title }}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        @if($formattedEventDate)
+                            <tr>
+                                <td style="padding:14px 0; border-top:1px solid #e5e7eb;">
+                                    <table role="presentation" width="100%">
+                                        <tr>
+                                            <td style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.18em; color:#6b7280;">Date</td>
+                                            <td align="right" style="font-size:15px; font-weight:600; color:#18181b;">{{ $formattedEventDate }}</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        @endif
+                        @if($formattedEventTime)
+                            <tr>
+                                <td style="padding:14px 0; border-top:1px solid #e5e7eb;">
+                                    <table role="presentation" width="100%">
+                                        <tr>
+                                            <td style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.18em; color:#6b7280;">Time</td>
+                                            <td align="right" style="font-size:15px; font-weight:600; color:#18181b;">{{ $formattedEventTime }}</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        @endif
+                        @if($event->location)
+                            <tr>
+                                <td style="padding:14px 0; border-top:1px solid #e5e7eb;">
+                                    <table role="presentation" width="100%">
+                                        <tr>
+                                            <td style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.18em; color:#6b7280;">Location</td>
+                                            <td align="right" style="font-size:15px; font-weight:600; color:#18181b;">{{ $event->location }}</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        @endif
+                    </table>
+                </td>
+            </tr>
+        </table>
+    @endif
 
-            <!-- Total -->
-            <div class="total-section">
-                <div class="total-label">Total Paid</div>
-                <div class="total-amount">₱{{ number_format($purchase->total_amount, 2) }}</div>
-            </div>
+    <div style="text-transform:uppercase; letter-spacing:0.08em; font-size:16px; font-weight:700; color:#18181b; margin-bottom:18px;">Your Tickets</div>
 
-            <!-- Important Information -->
-            <div class="important-info">
-                <h3>Important Information</h3>
-                <ul>
-                    <li>Please arrive 30 minutes before the event starts</li>
-                    <li>Bring a valid ID for ticket verification</li>
-                    <li>Tickets are non-refundable but transferable</li>
-                    <li>Keep this confirmation email for your records</li>
-                    <li>Show this email or the QR code at the entrance</li>
-                </ul>
-            </div>
-        </div>
+    @foreach($tickets as $index => $ticket)
+        @php
+            $line = $ticketTotals[$index] ?? ['price' => 0, 'quantity' => 1, 'total' => 0];
+            $ticketNumber = $ticket->ticket_number ?? ($purchase->reference_number . '-' . ($index + 1));
+        @endphp
+        <table role="presentation" width="100%" style="margin-bottom:24px; border:1px solid #d1d5db; border-radius:18px; overflow:hidden;">
+            <tr>
+                <td style="background-color:#0f172a; padding:28px 26px;">
+                    <table role="presentation" width="100%">
+                        <tr>
+                            <td style="color:#f8fafc; font-size:18px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase;">
+                                {{ $event->title ?? 'Event Ticket' }}
+                            </td>
+                        </tr>
+                        @if($event?->location)
+                            <tr>
+                                <td style="padding-top:10px; color:#e2e8f0; font-size:12px; font-weight:600; letter-spacing:0.22em; text-transform:uppercase;">
+                                    {{ $event->location }}
+                                </td>
+                            </tr>
+                        @endif
+                        <tr>
+                            <td style="padding-top:18px;">
+                                <table role="presentation" width="100%">
+                                    <tr>
+                                        @if($formattedEventDate)
+                                            <td class="stack-column" style="padding:6px 0; color:#f8fafc; font-size:12px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase;">
+                                                {{ $formattedEventDate }}
+                                            </td>
+                                        @endif
+                                        @if($formattedEventTime)
+                                            <td class="stack-column" style="padding:6px 0; color:#f8fafc; font-size:12px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase;">
+                                                {{ $formattedEventTime }}
+                                            </td>
+                                        @endif
+                                        <td class="stack-column" style="padding:6px 0; color:#f8fafc; font-size:12px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase;" align="right">
+                                            Price: ₱{{ $formatCurrency($line['price']) }}
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td style="background-color:#f8fafc; border-top:1px dashed #cbd5e1; padding:22px 26px;">
+                    <table role="presentation" width="100%">
+                        <tr>
+                            <td style="text-transform:uppercase; letter-spacing:0.18em; font-size:11px; font-weight:600; color:#6b7280;">Ticket Number</td>
+                            <td align="right" style="font-size:20px; font-weight:800; color:#0f172a; letter-spacing:0.22em;">{{ strtoupper($ticketNumber) }}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    @endforeach
 
-        <!-- Footer -->
-        <div class="footer">
-            <p><strong>Rapollo</strong></p>
-            <p>Thank you for choosing us for your entertainment needs!</p>
-            <div class="contact-info">
-                <p>Need help? Contact our events team at events@rapollo.com</p>
-            </div>
-        </div>
+    <table role="presentation" width="100%" style="margin-top:32px; border-radius:16px; overflow:hidden;">
+        <tr>
+            <td style="background:linear-gradient(135deg, #18181b 0%, #111827 100%); padding:26px 28px;">
+                <table role="presentation" width="100%">
+                    <tr>
+                        <td style="font-size:13px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:rgba(244,244,245,0.8);">
+                            Total Paid
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top:10px; font-size:30px; font-weight:800; letter-spacing:-0.01em; color:#f9fafb;">
+                            ₱{{ $formatCurrency($overallTotal) }}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+@endsection
+
+@section('footer')
+    <div style="font-size:14px; font-weight:700; letter-spacing:0.12em;">Rapollo</div>
+    <div style="margin-top:10px; font-size:12px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; color:#52525b;">
+        Thank you for choosing us for your entertainment needs!
     </div>
-</body>
-</html>
+    <div style="margin-top:18px; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#4b5563;">
+        Need help? Contact our events team at
+        <a href="mailto:events@rapollo.com" style="color:#18181b; font-weight:700; text-decoration:none;">events@rapollo.com</a>
+    </div>
+@endsection

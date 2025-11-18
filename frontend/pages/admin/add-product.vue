@@ -4,6 +4,7 @@ import { useProductStore } from "~/stores/product";
 import { useBrandStore } from "~/stores/brand";
 import { useSubcategoryStore } from "~/stores/subcategory";
 import { useSizeStore } from "~/stores/size";
+import { useTaxStore } from "~/stores/tax";
 import { useAlert } from "~/composables/useAlert";
 
 definePageMeta({
@@ -22,6 +23,7 @@ const productStore = useProductStore();
 const brandStore = useBrandStore();
 const subcategoryStore = useSubcategoryStore();
 const sizeStore = useSizeStore();
+const taxStore = useTaxStore();
 const { success, error, info } = useAlert();
 
 // Accordion state
@@ -40,9 +42,22 @@ const metaDescription = ref("");
 const metaKeywords = ref("");
 const images = ref<File[]>([]);
 
-// Master price and stock
-const masterPrice = ref<number>(0);
+// Default color
+const defaultColorId = ref<number | null>(null);
+const defaultColorName = ref("");
+const defaultColorHex = ref("#000000");
+const defaultColorMode = ref<'select' | 'custom'>('select');
+
+// Master base price and stock
+const masterBasePrice = ref<number>(0);
 const masterStock = ref<number>(10);
+
+// Computed final price with tax
+const masterFinalPrice = computed(() => {
+  if (masterBasePrice.value <= 0) return 0
+  const totalTaxRate = taxStore.totalTaxRate
+  return masterBasePrice.value * (1 + totalTaxRate / 100)
+})
 
 // Size selection
 const selectedSizes = ref<number[]>([]);
@@ -63,7 +78,7 @@ type Variant = {
   color_name: string;
   color_hex: string;
   size_id: number | null;
-  price: number;
+  base_price: number;
   stock: number;
   sku: string;
   images: File[];
@@ -76,7 +91,7 @@ const variants = ref<Variant[]>([
     color_name: "Black",
     color_hex: "#000000",
     size_id: null,
-    price: 0,
+    base_price: 0,
     stock: 10,
     sku: "",
     images: [],
@@ -84,6 +99,13 @@ const variants = ref<Variant[]>([
     size_stocks: {},
   },
 ]);
+
+// Computed function to calculate final price for a variant
+const getVariantFinalPrice = (basePrice: number) => {
+  if (basePrice <= 0) return 0
+  const totalTaxRate = taxStore.totalTaxRate
+  return basePrice * (1 + totalTaxRate / 100)
+}
 
 // Example sizes/colors (frontend only for picker) - Only black and white for better hex capture
 const availableColors = ref([
@@ -143,11 +165,11 @@ const accordionSections = [
 const isAccordionComplete = (sectionId: string) => {
   switch (sectionId) {
     case 'basic':
-      return name.value.trim() !== '' && subcategoryId.value !== null && masterPrice.value > 0 && masterStock.value >= 0;
+      return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterStock.value >= 0;
     case 'media':
       return images.value.length > 0;
     case 'variants':
-      return variants.value.length > 0 && variants.value.every(v => v.price > 0);
+      return variants.value.length > 0 && variants.value.every(v => v.base_price > 0);
     case 'inventory':
       return true; // Optional section
     case 'seo':
@@ -181,17 +203,22 @@ onMounted(async () => {
   await brandStore.fetchBrands();
   await subcategoryStore.fetchSubcategories();
   await sizeStore.fetchSizes();
+  try {
+    await taxStore.fetchTaxPrices();
+  } catch (err) {
+    console.error('Failed to fetch tax prices:', err);
+  }
   
   // Initialize selected sizes from variants
   initializeSelectedSizes();
 });
 
-// Watch master price and sync with variants (only if variant price hasn't been manually changed)
-watch(masterPrice, (newPrice, oldPrice) => {
+// Watch master base price and sync with variants (only if variant base_price hasn't been manually changed)
+watch(masterBasePrice, (newPrice, oldPrice) => {
   variants.value.forEach(variant => {
-    // Only sync if variant price is 0 or matches the old master price (meaning it was synced)
-    if (variant.price === 0 || variant.price === oldPrice) {
-      variant.price = newPrice;
+    // Only sync if variant base_price is 0 or matches the old master base price (meaning it was synced)
+    if (variant.base_price === 0 || variant.base_price === oldPrice) {
+      variant.base_price = newPrice;
     }
   });
 });
@@ -324,11 +351,14 @@ async function submitProduct() {
       robots: seoRobots.value,
       images: images.value,
       sizes: selectedSizes.value,
+      default_color_id: defaultColorId.value || undefined,
+      default_color_name: defaultColorMode === 'custom' && defaultColorName.value ? defaultColorName.value : undefined,
+      default_color_hex: defaultColorMode === 'custom' && defaultColorHex.value ? defaultColorHex.value : undefined,
       variants: variants.value.map((v) => ({
         color_name: v.color_name,
         color_hex: v.color_hex,
         available_sizes: v.available_sizes,
-        price: v.price,
+        base_price: v.base_price,
         stock: v.stock,
         sku: v.sku,
         images: v.images,
@@ -347,13 +377,19 @@ async function submitProduct() {
     metaKeywords.value = "";
     images.value = [];
     selectedSizes.value = [];
-    masterPrice.value = 0;
+    masterBasePrice.value = 0;
     masterStock.value = 10;
     variants.value = [
-      { color_name: "Black", color_hex: "#000000", size_id: null, price: 0, stock: 10, sku: "", images: [], available_sizes: [], size_stocks: {} },
+      { color_name: "Black", color_hex: "#000000", size_id: null, base_price: 0, stock: 10, sku: "", images: [], available_sizes: [], size_stocks: {} },
     ];
     newBrandMode.value = false;
     newBrandName.value = "";
+    
+    // Reset default color
+    defaultColorId.value = null;
+    defaultColorName.value = "";
+    defaultColorHex.value = "#000000";
+    defaultColorMode.value = 'select';
     
     // Reset SEO
     seoTitle.value = "";
@@ -376,7 +412,7 @@ async function submitProduct() {
     <div class="bg-white border-b border-gray-200 px-6 py-4">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Add Product</h1>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Add Product</h1>
           <p class="text-sm text-gray-600 mt-1">Create a new product for your store</p>
         </div>
         <div class="flex items-center space-x-3">
@@ -525,6 +561,47 @@ async function submitProduct() {
                 </div>
       </div>
 
+              <!-- Default/Main Product Color -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Default Product Color</label>
+                <p class="text-xs text-gray-500 mb-3">This color will be used for the main/default product images. Users can select this to view the default product view.</p>
+                <div class="flex items-center gap-2">
+                  <Select
+                    v-if="defaultColorMode === 'select'"
+                    :model-value="defaultColorName || null"
+                    @update:model-value="(val) => { 
+                      if (val) { 
+                        const color = availableColors.find(c => c.name === val); 
+                        if (color) { defaultColorName = color.name; defaultColorHex = color.hex; }
+                      }
+                    }"
+                    :options="availableColors.map(c => ({ value: c.name, label: c.name }))"
+                    placeholder="Select default color (optional)"
+                    class="flex-1"
+                  />
+                  <div v-else class="flex items-center gap-2 flex-1">
+                    <input 
+                      v-model="defaultColorName" 
+                      type="text" 
+                      placeholder="Color name"
+                      class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                    />
+                    <input 
+                      type="color" 
+                      v-model="defaultColorHex"
+                      class="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                    />
+                  </div>
+                  <button
+                    @click="defaultColorMode = defaultColorMode === 'select' ? 'custom' : 'select'"
+                    class="px-3 py-2 text-sm text-gray-600 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    {{ defaultColorMode === 'select' ? 'Custom' : 'Select' }}
+                  </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Choose a default color for the main product, or leave empty if no default color is needed.</p>
+              </div>
+
               <!-- Available Sizes -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Available Sizes</label>
@@ -538,20 +615,20 @@ async function submitProduct() {
 
               <!-- Price and Stock -->
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Master Price -->
+                <!-- Master Base Price -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Default Price *</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Base Price (Before Tax) *</label>
                   <div class="relative">
                     <span class="absolute left-3 top-2 text-gray-500">₱</span>
                     <input 
-                      v-model="masterPrice" 
+                      v-model="masterBasePrice" 
                       type="number" 
                       step="0.01" 
                       placeholder="0.00"
                       class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                     />
                   </div>
-                  <p class="text-xs text-gray-500 mt-1">Default price for all variants (can be overridden per variant)</p>
+                  <p class="text-xs text-gray-500 mt-1">Base price before tax. Final price: <span class="font-semibold text-zinc-900">₱{{ masterFinalPrice.toFixed(2) }}</span></p>
                 </div>
 
                 <!-- Master Stock -->
@@ -720,20 +797,20 @@ async function submitProduct() {
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <!-- Price -->
+                  <!-- Base Price -->
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Price *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Base Price (Before Tax) *</label>
                     <div class="relative">
                       <span class="absolute left-3 top-2 text-gray-500">₱</span>
                       <input 
-                        v-model="variant.price" 
+                        v-model="variant.base_price" 
                         type="number" 
                         step="0.01" 
                         placeholder="0.00"
                         class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                       />
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">Override default price if needed</p>
+                    <p class="text-xs text-gray-500 mt-1">Base price before tax. Final price: <span class="font-semibold text-zinc-900">₱{{ getVariantFinalPrice(variant.base_price).toFixed(2) }}</span></p>
                   </div>
 
                   <!-- SKU -->
@@ -920,7 +997,7 @@ async function submitProduct() {
                           {{ name || 'Product Name' }}
                         </h3>
                         <p class="text-sm font-semibold text-gray-900 mb-2">
-                          {{ variants.length > 0 && variants[0].price > 0 ? `₱${variants[0].price.toFixed(2)}` : 'Price not set' }}
+                          {{ variants.length > 0 && variants[0].base_price > 0 ? `₱${getVariantFinalPrice(variants[0].base_price).toFixed(2)}` : 'Price not set' }}
                         </p>
                         
                         <!-- Brand/Seller -->

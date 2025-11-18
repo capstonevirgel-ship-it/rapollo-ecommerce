@@ -4,6 +4,7 @@ import { useProductStore } from "~/stores/product";
 import { useBrandStore } from "~/stores/brand";
 import { useSubcategoryStore } from "~/stores/subcategory";
 import { useSizeStore } from "~/stores/size";
+import { useTaxStore } from "~/stores/tax";
 import { useAlert } from "~/composables/useAlert";
 import { useRoute, useRouter } from "vue-router";
 
@@ -27,6 +28,7 @@ const productStore = useProductStore();
 const brandStore = useBrandStore();
 const subcategoryStore = useSubcategoryStore();
 const sizeStore = useSizeStore();
+const taxStore = useTaxStore();
 const { success, error } = useAlert();
 
 // Loading state
@@ -59,7 +61,7 @@ type Variant = {
   color_name: string;
   color_hex: string;
   size_id: number | null;
-  price: number;
+  base_price: number;
   stock: number;
   sku: string;
   images: File[];
@@ -67,6 +69,13 @@ type Variant = {
   available_sizes: number[];
   size_stocks: { [sizeId: number]: number };
 };
+
+// Computed function to calculate final price for a variant
+const getVariantFinalPrice = (basePrice: number) => {
+  if (basePrice <= 0) return 0
+  const totalTaxRate = taxStore.totalTaxRate
+  return basePrice * (1 + totalTaxRate / 100)
+}
 
 const variants = ref<Variant[]>([]);
 
@@ -136,7 +145,7 @@ onMounted(async () => {
           color_name: first.color?.name || 'Unknown',
           color_hex: first.color?.hex_code || '#000000',
           size_id: null,
-          price: first.price,
+          base_price: first.base_price ?? first.price, // Use base_price if available, fallback to price for old products
           stock: first.stock,
           sku: first.sku.replace(/-\d+$/, ''), // Remove size suffix
           images: [],
@@ -196,7 +205,7 @@ function toggleAccordion(sectionId: string) {
     <div class="bg-white border-b border-gray-200 px-6 py-4">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Edit Product</h1>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Edit Product</h1>
           <p class="text-sm text-gray-600 mt-1">Update product information</p>
         </div>
         <div class="flex items-center space-x-3">

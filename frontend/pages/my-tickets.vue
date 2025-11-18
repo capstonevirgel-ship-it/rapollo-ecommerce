@@ -34,35 +34,6 @@ onMounted(() => {
   ticketStore.fetchTickets()
 })
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'confirmed':
-      return 'text-green-600 bg-green-100'
-    case 'pending':
-      return 'text-yellow-600 bg-yellow-100'
-    case 'cancelled':
-      return 'text-red-600 bg-red-100'
-    case 'used':
-      return 'text-blue-600 bg-blue-100'
-    default:
-      return 'text-gray-600 bg-gray-100'
-  }
-}
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'confirmed':
-      return 'Confirmed'
-    case 'pending':
-      return 'Pending'
-    case 'cancelled':
-      return 'Cancelled'
-    case 'used':
-      return 'Used'
-    default:
-      return status
-  }
-}
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -167,16 +138,13 @@ const cancelTicket = async (ticketId: number) => {
                       <p class="text-lg font-semibold text-gray-900">₱{{ formatPrice(ticket.price) }}</p>
                       <p class="text-sm text-gray-500">Ticket #{{ ticket.ticket_number }}</p>
                     </div>
-                    <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(ticket.status)]">
-                      {{ getStatusText(ticket.status) }}
-                    </span>
+                    <StatusBadge :status="ticket.status" type="ticket" />
                   </div>
                 </div>
                 
                 <div class="mt-4 flex items-center justify-between">
                   <div class="text-sm text-gray-500">
                     <p>Booked on: {{ formatDate(ticket.booked_at) }}</p>
-                    <p v-if="ticket.qr_code">QR Code: {{ ticket.qr_code }}</p>
                   </div>
                   
                   <div class="flex space-x-2">

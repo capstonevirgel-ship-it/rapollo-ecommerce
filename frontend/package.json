@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@iconify-json/mdi": "^1.2.3",
     "@nuxt/icon": "^1.13.0",
     "@pinia/nuxt": "^0.11.1",
     "@tailwindcss/postcss": "^4.1.10",
@@ -25,7 +26,6 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
-    "@iconify-json/mdi": "^1.2.3",
     "@nuxt/types": "^2.18.1",
     "@primevue/nuxt-module": "^4.3.5"
   }

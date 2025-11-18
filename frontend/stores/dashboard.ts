@@ -21,6 +21,12 @@ interface RevenueChartData {
   orders: number[]
 }
 
+interface TicketSalesChartData {
+  labels: string[]
+  sales: number[]
+  revenue: number[]
+}
+
 interface OrderStatusData {
   pending: number
   processing: number
@@ -55,6 +61,7 @@ export const useDashboardStore = defineStore('dashboard', {
   state: () => ({
     stats: null as DashboardStats | null,
     revenueChart: null as RevenueChartData | null,
+    ticketSalesChart: null as TicketSalesChartData | null,
     orderStatus: null as OrderStatusData | null,
     categoryData: null as CategoryData | null,
     topProducts: [] as TopProduct[],
@@ -67,6 +74,7 @@ export const useDashboardStore = defineStore('dashboard', {
     isDataLoaded: (state) => {
       return state.stats && 
              state.revenueChart && 
+             state.ticketSalesChart &&
              state.orderStatus && 
              state.categoryData &&
              Array.isArray(state.topProducts) &&
@@ -101,6 +109,22 @@ export const useDashboardStore = defineStore('dashboard', {
         return revenueChart
       } catch (error: any) {
         this.error = error.message || 'Failed to fetch revenue chart data'
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchTicketSalesChart() {
+      this.loading = true
+      this.error = null
+      
+      try {
+        const ticketSalesChart = await useCustomFetch<TicketSalesChartData>('/api/dashboard/ticket-sales-chart')
+        this.ticketSalesChart = ticketSalesChart
+        return ticketSalesChart
+      } catch (error: any) {
+        this.error = error.message || 'Failed to fetch ticket sales chart data'
         throw error
       } finally {
         this.loading = false
@@ -180,6 +204,7 @@ export const useDashboardStore = defineStore('dashboard', {
         await Promise.all([
           this.fetchStatistics(),
           this.fetchRevenueChart(),
+          this.fetchTicketSalesChart(),
           this.fetchOrderStatusChart(),
           this.fetchCategoryChart(),
           this.fetchTopProducts(),

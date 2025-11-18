@@ -108,21 +108,27 @@ class PayMongoService
                 ];
             }
             
+            $attributes = [
+                'line_items' => $lineItems,
+                'payment_method_types' => [
+                    'card',
+                    'paymaya',
+                    'gcash',
+                    'grab_pay'
+                ],
+                'success_url' => $successUrl,
+                'metadata' => $flattenedMetadata
+            ];
+            
+            // Only include cancel_url if provided
+            if ($cancelUrl !== null) {
+                $attributes['cancel_url'] = $cancelUrl;
+            }
+            
             $response = Http::withBasicAuth($this->secretKey, '')
                 ->post("{$this->baseUrl}/checkout_sessions", [
                     'data' => [
-                        'attributes' => [
-                            'line_items' => $lineItems,
-                            'payment_method_types' => [
-                                'card',
-                                'paymaya',
-                                'gcash',
-                                'grab_pay'
-                            ],
-                            'success_url' => $successUrl,
-                            'cancel_url' => $cancelUrl,
-                            'metadata' => $flattenedMetadata
-                        ]
+                        'attributes' => $attributes
                     ]
                 ]);
 

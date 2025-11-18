@@ -1,11 +1,10 @@
 export const useAlert = () => {
-  // Check if alert service is available
+  // Always resolve the alert service at call time to avoid SSR/no-op capture
   const getAlertService = () => {
-    if (typeof window !== 'undefined' && window.$alert) {
-      return window.$alert
+    if (typeof window !== 'undefined' && (window as any).$alert) {
+      return (window as any).$alert
     }
-    
-    // Fallback for SSR or if not available
+    // Fallback for SSR or if not available yet
     return {
       show: () => {},
       success: () => {},
@@ -16,33 +15,37 @@ export const useAlert = () => {
     }
   }
 
-  const alert = getAlertService()
-
   return {
     // Main alert function
     show: (type: 'success' | 'error' | 'info' | 'warning', title: string, message?: string, duration?: number) => {
+      const alert = getAlertService()
       return alert.show({ type, title, message, duration })
     },
     
     // Convenience methods
     success: (title: string, message?: string, duration?: number) => {
+      const alert = getAlertService()
       return alert.success(title, message, duration)
     },
     
     error: (title: string, message?: string, duration?: number) => {
+      const alert = getAlertService()
       return alert.error(title, message, duration)
     },
     
     info: (title: string, message?: string, duration?: number) => {
+      const alert = getAlertService()
       return alert.info(title, message, duration)
     },
     
     warning: (title: string, message?: string, duration?: number) => {
+      const alert = getAlertService()
       return alert.warning(title, message, duration)
     },
     
     // Remove specific alert
     remove: (id: string) => {
+      const alert = getAlertService()
       alert.remove(id)
     }
   }

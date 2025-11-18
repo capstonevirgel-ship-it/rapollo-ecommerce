@@ -16,8 +16,8 @@ class DatabaseSeeder extends Seeder
     {
         // Create default user
         $user = User::create([
-            'user_name' => 'testuser',
-            'email' => 'test@example.com',
+            'user_name' => 'virgel24',
+            'email' => '24virgel@gmail.com',
             'password' => Hash::make('password'),
             'role' => 'user',
             'email_verified_at' => now(),
@@ -26,9 +26,15 @@ class DatabaseSeeder extends Seeder
         // Create profile for user
         Profile::create([
             'user_id' => $user->id,
-            'full_name' => 'Test User',
+            'full_name' => 'Virgel Galleto',
             'phone' => '+1234567890',
-            'address' => '123 Test Street, Test City, TC 12345',
+            'street' => 'n/a',
+            'barangay' => 'Poblacion',
+            'city' => 'Cordova',
+            'province' => 'Cebu',
+            'zipcode' => '6000',
+            'complete_address' => 'n/a, Poblacion, Cordova, Cebu, 6000',
+            'country' => 'Philippines',
             'avatar_url' => null,
         ]);
 
@@ -43,15 +49,18 @@ class DatabaseSeeder extends Seeder
 
         // Run seeders in correct order
         $this->call([
+            SettingsSeeder::class,
             BrandSeeder::class,
             ColorSeeder::class,
             SizeSeeder::class,
             CategorySeeder::class,
             SubcategorySeeder::class,
+            TaxPriceSeeder::class,
             ProductSeeder::class,
             ProductVariantSeeder::class,
             ProductImageSeeder::class,
             EventSeeder::class,
+            ShippingPriceSeeder::class,
         ]);
     }
 }

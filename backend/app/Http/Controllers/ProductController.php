@@ -16,6 +16,7 @@ class ProductController extends Controller
     {
         $query = Product::with([
             'brand',
+            'defaultColor',
             'subcategory.category', 
             'variants.color',
             'variants.size',
@@ -42,7 +43,6 @@ class ProductController extends Controller
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
                   ->orWhereHas('brand', function ($brandQuery) use ($search) {
                       $brandQuery->where('name', 'like', "%{$search}%");
                   });
@@ -108,6 +108,7 @@ class ProductController extends Controller
     {
         $product = Product::with([
             'brand',
+            'defaultColor',
             'subcategory.category', 
             'variants.color',
             'variants.size',
@@ -146,6 +147,11 @@ class ProductController extends Controller
             'is_hot'            => 'boolean',
             'is_new'            => 'boolean',
             
+            // Default color
+            'default_color_id'   => 'nullable|integer|exists:colors,id',
+            'default_color_name' => 'nullable|string|max:100',
+            'default_color_hex'  => 'nullable|string|max:7',
+            
             // Sizes
             'sizes'             => 'nullable|array',
             'sizes.*'           => 'integer|exists:sizes,id',
@@ -156,7 +162,7 @@ class ProductController extends Controller
             'variants.*.color_hex'      => 'required|string|max:7', // "#RRGGBB"
             'variants.*.available_sizes' => 'nullable|array',
             'variants.*.available_sizes.*' => 'integer|exists:sizes,id',
-            'variants.*.price'          => 'required|numeric|min:0',
+            'variants.*.base_price'     => 'required|numeric|min:0',
             'variants.*.stock'          => 'required|integer|min:0',
             'variants.*.sku'            => 'required|string|max:100',
             'variants.*.size_stocks'    => 'nullable|array',
@@ -189,10 +195,25 @@ class ProductController extends Controller
                 ], 422);
             }
 
+            // Handle default color
+            $defaultColorId = null;
+            if (!empty($validated['default_color_id'])) {
+                $defaultColorId = $validated['default_color_id'];
+            } elseif (!empty($validated['default_color_name']) && !empty($validated['default_color_hex'])) {
+                $color = Color::firstOrCreate(
+                    [
+                        'name' => $validated['default_color_name'],
+                        'hex_code' => $validated['default_color_hex']
+                    ]
+                );
+                $defaultColorId = $color->id;
+            }
+
             // Create product
             $product = Product::create([
                 'subcategory_id'   => $validated['subcategory_id'],
                 'brand_id'         => $brandId,
+                'default_color_id' => $defaultColorId,
                 'name'             => $validated['name'],
                 'slug'             => Str::slug($validated['name']),
                 'description'      => $validated['description'] ?? null,
@@ -247,11 +268,11 @@ class ProductController extends Controller
                         $stock = $variantData['size_stocks'][$sizeId] ?? $variantData['stock'];
                         
                         $variant = $product->variants()->create([
-                            'color_id' => $colorId,
-                            'size_id'  => $sizeId,
-                            'price'    => $variantData['price'],
-                            'stock'    => $stock,
-                            'sku'      => $variantData['sku'] . '-' . $sizeId, // Unique SKU per size
+                            'color_id'  => $colorId,
+                            'size_id'   => $sizeId,
+                            'base_price' => $variantData['base_price'],
+                            'stock'     => $stock,
+                            'sku'       => $variantData['sku'] . '-' . $sizeId, // Unique SKU per size
                         ]);
 
                         // Variant images for this specific size variant
@@ -270,11 +291,11 @@ class ProductController extends Controller
                 } else {
                     // Create a single variant without size when no sizes are selected
                     $variant = $product->variants()->create([
-                        'color_id' => $colorId,
-                        'size_id'  => null, // No size specified
-                        'price'    => $variantData['price'],
-                        'stock'    => $variantData['stock'],
-                        'sku'      => $variantData['sku'],
+                        'color_id'   => $colorId,
+                        'size_id'    => null, // No size specified
+                        'base_price' => $variantData['base_price'],
+                        'stock'      => $variantData['stock'],
+                        'sku'        => $variantData['sku'],
                     ]);
 
                     // Variant images for this variant

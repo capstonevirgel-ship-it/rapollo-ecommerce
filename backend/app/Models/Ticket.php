@@ -16,7 +16,6 @@ class Ticket extends Model
         'ticket_number',
         'price',
         'status',
-        'qr_code',
         'booked_at'
     ];
 
@@ -43,11 +42,5 @@ class Ticket extends Model
     public function generateTicketNumber()
     {
         return 'TKT-' . strtoupper(uniqid());
-    }
-
-    public function generateQRCode()
-    {
-        // Simple QR code generation - in production, use a proper QR library
-        return 'QR-' . $this->ticket_number . '-' . time();
     }
 }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { usePurchaseStore } from '~/stores/purchase'
+import { useOrderStore } from '~/stores/order'
 import { useAlert } from '~/composables/useAlert'
 import Select from '@/components/Select.vue'
 import AdminActionButton from '@/components/AdminActionButton.vue'
+import DataTable from '@/components/DataTable.vue'
 import { useRouter } from 'vue-router'
 
 definePageMeta({
@@ -20,9 +21,9 @@ useHead({
 })
 
 // Stores
-const purchaseStore = usePurchaseStore()
+const orderStore = useOrderStore()
 const { success, error } = useAlert()
-const { purchases, pagination, loading, error: storeError } = storeToRefs(purchaseStore)
+const { orders, pagination, loading, error: storeError } = storeToRefs(orderStore)
 const router = useRouter()
 
 // State
@@ -30,6 +31,7 @@ const selectedStatus = ref('all')
 const searchQuery = ref('')
 const currentPage = ref(1)
 const perPage = ref(20)
+const selectedIds = ref<number[]>([])
 
 // Options
 const statusOptions = [
@@ -45,17 +47,37 @@ const statusUpdateOptions = [
   { value: 'delivered', label: 'Delivered' }
 ]
 
-// Computed
-const orders = computed(() => purchases.value)
+// Columns for DataTable
+const columns = [
+  { label: 'Order', key: 'order_id' },
+  { label: 'Customer', key: 'customer' },
+  { label: 'Amount', key: 'amount' },
+  { label: 'Status', key: 'status' },
+  { label: 'Date', key: 'date' },
+  { label: 'Actions', key: 'actions' }
+]
+
+// Computed - transform orders for DataTable
+const orderRows = computed(() => {
+  return orders.value.map(order => ({
+    id: order.id,
+    order_id: getOrderId(order),
+    customer: getCustomerName(order),
+    customer_email: getCustomerEmail(order),
+    amount: formatCurrency(order.total),
+    status: order.status,
+    date: formatDate(order.created_at),
+    raw_order: order // Keep reference to original order object
+  }))
+})
 
 const filteredOrders = computed(() => {
-  if (selectedStatus.value === 'all') {
-    return orders.value
+  // Filter by status if needed (orders are already filtered to products only by the API)
+  if (selectedStatus.value !== 'all') {
+    return orderRows.value.filter(row => row.status === selectedStatus.value)
   }
-  return orders.value.filter(order => {
-    const statusMatch = selectedStatus.value === 'all' || order.status === selectedStatus.value
-    return statusMatch
-  })
+  
+  return orderRows.value
 })
 
 // Methods
@@ -108,15 +130,7 @@ const downloadInvoice = (purchase: any) => {
 const updateOrderStatus = async (order: any, newStatus: string | number | null) => {
   if (!newStatus) return
   try {
-    // Update the order status in the backend
-    await $fetch(`/api/purchases/${order.id}/status`, {
-      method: 'PUT',
-      body: { status: newStatus }
-    })
-    
-    // Update the local state
-    order.status = newStatus
-    
+    await orderStore.updateOrderStatus(order.id, newStatus as string)
     success('Status Updated', `Order ${getOrderId(order)} status updated to ${newStatus}`)
   } catch (err) {
     console.error('Failed to update order status:', err)
@@ -127,9 +141,8 @@ const updateOrderStatus = async (order: any, newStatus: string | number | null) 
 // Fetch data
 const fetchOrders = async () => {
   try {
-    await purchaseStore.fetchAdminPurchases({
+    await orderStore.fetchOrders({
       status: selectedStatus.value !== 'all' ? selectedStatus.value : undefined,
-      type: 'product', // Only fetch product orders
       search: searchQuery.value || undefined,
       per_page: perPage.value
     })
@@ -161,12 +174,12 @@ onMounted(() => {
 
 <template>
   <ClientOnly>
-  <div class="p-6 space-y-6">
+  <div class="space-y-8 sm:space-y-10">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Orders</h1>
-        <p class="text-gray-600 mt-1">Manage and track all customer orders</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Orders</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Manage and track all customer orders</p>
       </div>
       <div class="flex items-center space-x-3">
         <button class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50">
@@ -179,62 +192,30 @@ onMounted(() => {
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Total Orders</p>
-            <p class="text-2xl font-bold text-gray-900">{{ orders.length }}</p>
-          </div>
-          <div class="p-3 bg-zinc-100 rounded-lg">
-            <svg class="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          </div>
-        </div>
-      </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
+      <StatCard
+        title="Total Orders"
+        :value="orders.length"
+        icon="mdi:clipboard-list"
+      />
 
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Completed</p>
-            <p class="text-2xl font-bold text-green-600">{{ orders.filter(o => o.status === 'completed').length }}</p>
-          </div>
-          <div class="p-3 bg-green-100 rounded-lg">
-            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+      <StatCard
+        title="Completed"
+        :value="orders.filter(o => o.status === 'completed').length"
+        icon="mdi:check-circle"
+      />
 
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Pending</p>
-            <p class="text-2xl font-bold text-yellow-600">{{ orders.filter(o => o.status === 'pending').length }}</p>
-          </div>
-          <div class="p-3 bg-yellow-100 rounded-lg">
-            <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+      <StatCard
+        title="Pending"
+        :value="orders.filter(o => o.status === 'pending').length"
+        icon="mdi:clock-outline"
+      />
 
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Total Revenue</p>
-            <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(orders.reduce((sum, order) => sum + order.total, 0)) }}</p>
-          </div>
-          <div class="p-3 bg-zinc-100 rounded-lg">
-            <svg class="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-            </svg>
-          </div>
-        </div>
-      </div>
+      <StatCard
+        title="Total Revenue"
+        :value="formatCurrency(orders.reduce((sum, order) => sum + order.total, 0))"
+        icon="mdi:currency-usd"
+      />
     </div>
 
     <!-- Filters -->
@@ -261,7 +242,7 @@ onMounted(() => {
           </div>
         </div>
         <div class="text-sm text-gray-500">
-          Showing {{ orders.length }} orders (Total: {{ pagination?.total || 0 }})
+          Showing {{ filteredOrders.length }} orders (Total: {{ pagination?.total || 0 }})
         </div>
       </div>
     </div>
@@ -283,95 +264,85 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div v-else-if="orders.length === 0" class="text-center py-12">
-      <div class="mx-auto h-24 w-24 text-gray-400">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-      </div>
-      <h3 class="mt-2 text-sm font-medium text-gray-900">No orders found</h3>
-      <p class="mt-1 text-sm text-gray-500">No orders match your current filters.</p>
-    </div>
+    <!-- DataTable -->
+    <DataTable
+      v-else
+      :columns="columns"
+      :rows="filteredOrders"
+      v-model:selected="selectedIds"
+      :rows-per-page="perPage"
+      title="Orders"
+      :show-checkboxes="false"
+    >
+      <!-- Order ID -->
+      <template #cell-order_id="{ row }">
+        <div class="text-sm font-medium text-gray-900">{{ row.order_id }}</div>
+      </template>
 
-    <!-- Orders Table -->
-    <div v-else class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div class="overflow-x-auto custom-scrollbar">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="order in filteredOrders" :key="order.id" class="hover:bg-gray-50">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium text-gray-900">{{ getOrderId(order) }}</div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div>
-                  <div class="text-sm font-medium text-gray-900">{{ getCustomerName(order) }}</div>
-                  <div class="text-sm text-gray-500">{{ getCustomerEmail(order) }}</div>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium text-gray-900">{{ formatCurrency(order.total) }}</div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="w-32">
-                  <Select
-                    :model-value="order.status"
-                    :options="statusUpdateOptions"
-                    @update:model-value="updateOrderStatus(order, $event)"
-                  >
-                    <!-- Custom selected value with badge -->
-                    <template #selected="{ option, placeholder }">
-                      <span v-if="option" :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(String(option.value))]">
-                        {{ option.label }}
-                      </span>
-                      <span v-else class="text-gray-500">{{ placeholder }}</span>
-                    </template>
-                    
-                    <!-- Custom option with badge -->
-                    <template #option="{ option, selected }">
-                      <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(String(option.value))]">
-                        {{ option.label }}
-                </span>
-                    </template>
-                  </Select>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ formatDate(order.created_at) }}
-              </td>
-                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                       <div class="flex items-center space-x-2">
-                         <AdminActionButton
-                           icon="mdi:eye"
-                           text="View"
-                           variant="primary"
-                           size="sm"
-                           @click="viewOrder(order)"
-                         />
-                         <AdminActionButton
-                           icon="mdi:download"
-                           text="Invoice"
-                           variant="success"
-                           size="sm"
-                           @click="downloadInvoice(order)"
-                         />
-                       </div>
-                     </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <!-- Customer -->
+      <template #cell-customer="{ row }">
+        <div>
+          <div class="text-sm font-medium text-gray-900">{{ row.customer }}</div>
+          <div class="text-sm text-gray-500">{{ row.customer_email }}</div>
+        </div>
+      </template>
+
+      <!-- Amount -->
+      <template #cell-amount="{ row }">
+        <div class="text-sm font-medium text-gray-900">{{ row.amount }}</div>
+      </template>
+
+      <!-- Status -->
+      <template #cell-status="{ row }">
+        <div class="w-32">
+          <Select
+            :model-value="row.status"
+            :options="statusUpdateOptions"
+            @update:model-value="updateOrderStatus(row.raw_order, $event)"
+          >
+            <!-- Custom selected value with badge -->
+            <template #selected="{ option, placeholder }">
+              <span v-if="option" :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(String(option.value))]">
+                {{ option.label }}
+              </span>
+              <span v-else class="text-gray-500">{{ placeholder }}</span>
+            </template>
+            
+            <!-- Custom option with badge -->
+            <template #option="{ option, selected }">
+              <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(String(option.value))]">
+                {{ option.label }}
+              </span>
+            </template>
+          </Select>
+        </div>
+      </template>
+
+      <!-- Date -->
+      <template #cell-date="{ row }">
+        <div class="text-sm text-gray-500">{{ row.date }}</div>
+      </template>
+
+      <!-- Actions -->
+      <template #cell-actions="{ row }">
+        <div class="flex items-center space-x-2" @click.stop>
+          <AdminActionButton
+            icon="mdi:eye"
+            text="View"
+            variant="primary"
+            size="sm"
+            @click="viewOrder(row.raw_order)"
+          />
+          <AdminActionButton
+            icon="mdi:download"
+            text="Invoice"
+            variant="success"
+            size="sm"
+            @click="downloadInvoice(row.raw_order)"
+          />
+        </div>
+      </template>
+    </DataTable>
   </div>
   <template #fallback>
     <div class="p-6 space-y-6">

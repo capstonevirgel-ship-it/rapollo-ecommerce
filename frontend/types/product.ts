@@ -16,6 +16,9 @@ export interface ProductPayload {
   subcategory_id: number
   brand_id?: number
   brand_name?: string
+  default_color_id?: number
+  default_color_name?: string
+  default_color_hex?: string
   name: string
   description?: string
   meta_title?: string
@@ -37,6 +40,7 @@ export interface Product {
   id: number
   subcategory_id: number
   brand_id: number
+  default_color_id?: number | null
   name: string
   slug: string
   description: string
@@ -105,4 +109,7 @@ export interface Product {
     url: string
     is_primary: boolean
   }[]
+
+  // Eager-loaded default color
+  default_color?: { id: number; name: string; hex_code: string } | null
 }

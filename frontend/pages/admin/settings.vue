@@ -35,12 +35,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-8 space-y-8">
+  <div class="space-y-8 sm:space-y-10">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Settings</h1>
-        <p class="text-gray-600 mt-1">Manage your store configuration and preferences</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Settings</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Manage your store configuration and preferences</p>
       </div>
       <div class="flex items-center gap-3">
           <button
@@ -136,7 +136,7 @@ onMounted(() => {
             ]"
           >
             <Icon name="mdi:truck" class="inline-block mr-2" />
-            Shipping Prices
+            Shipping & Tax
           </button>
         </nav>
             </div>

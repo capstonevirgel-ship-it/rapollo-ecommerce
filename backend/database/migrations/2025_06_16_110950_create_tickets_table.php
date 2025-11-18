@@ -18,8 +18,7 @@ return new class extends Migration
             $table->foreignId('purchase_id')->constrained()->cascadeOnDelete(); 
             $table->string('ticket_number')->unique();
             $table->decimal('price', 10, 2);
-            $table->enum('status', ['pending', 'confirmed', 'cancelled', 'used'])->default('pending');
-            $table->string('qr_code')->nullable();
+            $table->enum('status', ['pending', 'confirmed', 'cancelled', 'used', 'failed'])->default('pending');
             $table->timestamp('booked_at');
             $table->timestamps();
         });

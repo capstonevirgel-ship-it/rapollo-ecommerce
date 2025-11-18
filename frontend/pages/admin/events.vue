@@ -2,6 +2,7 @@
 import type { Event } from '~/types'
 import Dialog from '@/components/Dialog.vue'
 import { getImageUrl } from '~/helpers/imageHelper'
+import { useTaxStore } from '~/stores/tax'
 
 // Use admin layout
 definePageMeta({
@@ -18,6 +19,15 @@ useHead({
 
 const eventStore = useEventStore()
 const authStore = useAuthStore()
+const taxStore = useTaxStore()
+
+// Computed function to calculate final ticket price with tax
+const getFinalTicketPrice = (basePrice: number | string) => {
+  const price = typeof basePrice === 'string' ? parseFloat(basePrice) : basePrice
+  if (price <= 0) return 0
+  const totalTaxRate = taxStore.totalTaxRate
+  return price * (1 + totalTaxRate / 100)
+}
 
 // Redirect if not admin
 if (!authStore.isAuthenticated || authStore.user?.role !== 'admin') {
@@ -38,7 +48,7 @@ const formData = ref({
   date: '',
   location: '',
   poster_url: '',
-  ticket_price: '',
+  base_ticket_price: '',
   max_tickets: ''
 })
 
@@ -54,7 +64,7 @@ const resetForm = () => {
     date: '',
     location: '',
     poster_url: '',
-    ticket_price: '',
+    base_ticket_price: '',
     max_tickets: ''
   }
   posterFile.value = null
@@ -75,7 +85,7 @@ const openEditModal = (event: Event) => {
     date: event.date.split('T')[0], // Convert to date input format
     location: event.location || '',
     poster_url: event.poster_url || '',
-    ticket_price: event.ticket_price?.toString() || '',
+    base_ticket_price: event.base_ticket_price?.toString() || event.ticket_price?.toString() || '',
     max_tickets: event.max_tickets?.toString() || ''
   }
   // Reset image upload state
@@ -144,8 +154,8 @@ const createEvent = async () => {
       eventData.append('poster_url', formData.value.poster_url)
     }
     
-    if (formData.value.ticket_price) {
-      eventData.append('ticket_price', formData.value.ticket_price)
+    if (formData.value.base_ticket_price) {
+      eventData.append('base_ticket_price', formData.value.base_ticket_price)
     }
     if (formData.value.max_tickets) {
       eventData.append('max_tickets', formData.value.max_tickets)
@@ -178,8 +188,8 @@ const updateEvent = async () => {
       eventData.append('poster_url', formData.value.poster_url)
     }
     
-    if (formData.value.ticket_price) {
-      eventData.append('ticket_price', formData.value.ticket_price)
+    if (formData.value.base_ticket_price) {
+      eventData.append('base_ticket_price', formData.value.base_ticket_price)
     }
     if (formData.value.max_tickets) {
       eventData.append('max_tickets', formData.value.max_tickets)
@@ -221,24 +231,22 @@ const formatTime = (dateString: string) => {
 </script>
 
 <template>
-  <div class="p-4">
+  <div class="space-y-8 sm:space-y-10">
       <!-- Header -->
-      <div class="mb-8">
-        <div class="flex justify-between items-center">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">Manage Events</h1>
-            <p class="mt-2 text-gray-600">Create and manage events</p>
-          </div>
-          <button
-            @click="openCreateModal"
-            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
-          >
-            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Create Event
-          </button>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Manage Events</h1>
+          <p class="text-sm sm:text-base text-gray-600 mt-1">Create and manage events</p>
         </div>
+        <button
+          @click="openCreateModal"
+          class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
+        >
+          <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Create Event
+        </button>
       </div>
 
       <!-- Loading State -->
@@ -252,7 +260,7 @@ const formatTime = (dateString: string) => {
       </div>
 
       <!-- Error State -->
-      <div v-else-if="eventStore.error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+      <div v-else-if="eventStore.error" class="bg-red-50 border border-red-200 rounded-lg p-4">
         <div class="flex">
           <div class="ml-3">
             <h3 class="text-sm font-medium text-red-800">Error</h3>
@@ -272,7 +280,7 @@ const formatTime = (dateString: string) => {
         </div>
         <h3 class="mt-2 text-sm font-medium text-gray-900">No events found</h3>
         <p class="mt-1 text-sm text-gray-500">Get started by creating your first event.</p>
-        <div class="mt-6">
+        <div class="mt-8">
           <button
             @click="openCreateModal"
             class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-zinc-900 hover:bg-zinc-800"
@@ -320,7 +328,7 @@ const formatTime = (dateString: string) => {
             <!-- Ticket Information -->
             <div v-if="event.ticket_price" class="mb-4">
               <div class="flex items-center justify-between mb-2">
-                <span class="text-2xl font-bold text-gray-900">${{ typeof event.ticket_price === 'string' ? parseFloat(event.ticket_price).toFixed(2) : event.ticket_price.toFixed(2) }}</span>
+                <span class="text-2xl font-bold text-gray-900">₱{{ typeof event.ticket_price === 'string' ? parseFloat(event.ticket_price).toFixed(2) : event.ticket_price.toFixed(2) }}</span>
               </div>
               <!-- Stock Badge -->
               <div v-if="event.max_tickets" class="flex items-center gap-2">
@@ -462,9 +470,9 @@ const formatTime = (dateString: string) => {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Ticket Price ($)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Base Ticket Price (Before Tax) (₱)</label>
                 <input
-                  v-model="formData.ticket_price"
+                  v-model="formData.base_ticket_price"
                   type="number"
                   step="0.01"
                   min="0"
@@ -604,9 +612,9 @@ const formatTime = (dateString: string) => {
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Ticket Price ($)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Base Ticket Price (Before Tax) (₱)</label>
             <input
-              v-model="formData.ticket_price"
+              v-model="formData.base_ticket_price"
               type="number"
               step="0.01"
               min="0"
