@@ -41,6 +41,7 @@ const metaTitle = ref("");
 const metaDescription = ref("");
 const metaKeywords = ref("");
 const images = ref<File[]>([]);
+const primaryProductImageIndex = ref<number | null>(null);
 
 // Default color
 const defaultColorId = ref<number | null>(null);
@@ -408,6 +409,7 @@ async function submitProduct() {
     metaDescription.value = "";
     metaKeywords.value = "";
     images.value = [];
+    primaryProductImageIndex.value = null;
     selectedSizes.value = [];
     masterBasePrice.value = 0;
     masterStock.value = 10;
