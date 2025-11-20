@@ -93,6 +93,15 @@ const handleStarLeave = () => {
 }
 
 const submitReview = async () => {
+  // Prevent admins from submitting reviews
+  if (authStore.isAdmin) {
+    error(
+      'Admin Restriction',
+      'Administrators cannot write reviews. Please use a customer account to write reviews.'
+    )
+    return
+  }
+
   if (stars.value === 0) {
     error('Rating Required', 'Please select a star rating before submitting.')
     return
@@ -180,12 +189,18 @@ const cancelReview = () => {
     <div class="flex items-center justify-between mb-6">
       <h3 class="text-lg font-semibold text-gray-900">Customer Reviews</h3>
       <button
-        v-if="!hasUserRated && authStore.isAuthenticated"
+        v-if="!hasUserRated && authStore.isAuthenticated && !authStore.isAdmin"
         @click="ratingStore.clearError(); showReviewForm = true"
         class="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors"
       >
         Write a Review
       </button>
+      <div
+        v-else-if="!hasUserRated && authStore.isAuthenticated && authStore.isAdmin"
+        class="text-sm text-gray-500"
+      >
+        Administrators cannot write reviews
+      </div>
       <div
         v-else-if="!authStore.isAuthenticated"
         class="text-sm text-gray-500"
@@ -257,7 +272,7 @@ const cancelReview = () => {
             </div>
           </div>
         </div>
-        <div class="flex space-x-2">
+        <div v-if="!authStore.isAdmin" class="flex space-x-2">
           <button
             @click="editReview"
             class="text-sm text-blue-600 hover:text-blue-800 transition-colors"
@@ -279,7 +294,7 @@ const cancelReview = () => {
     </div>
 
     <!-- Review Form -->
-    <div v-if="showReviewForm" class="mb-6 p-4 bg-gray-50 rounded-lg">
+    <div v-if="showReviewForm && !authStore.isAdmin" class="mb-6 p-4 bg-gray-50 rounded-lg">
       <h4 class="font-medium text-gray-900 mb-4">
         {{ hasUserRated ? 'Edit Your Review' : 'Write a Review' }}
       </h4>

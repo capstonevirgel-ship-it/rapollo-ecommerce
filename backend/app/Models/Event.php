@@ -10,7 +10,7 @@ class Event extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['admin_id', 'title', 'description', 'date', 'location', 'poster_url', 'base_ticket_price', 'ticket_price', 'max_tickets', 'available_tickets'];
+    protected $fillable = ['admin_id', 'title', 'content', 'date', 'location', 'poster_url', 'base_ticket_price', 'ticket_price', 'max_tickets', 'available_tickets'];
     
     protected $appends = ['booked_tickets_count', 'remaining_tickets'];
 

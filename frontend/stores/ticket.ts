@@ -66,10 +66,10 @@ export const useTicketStore = defineStore('ticket', () => {
         }
       })
       
-      // Store purchase ID for success page
+      // Store purchase ID for success page (this is actually ticket_purchase_id)
       if (response.purchase_id) {
         if (import.meta.client) {
-          sessionStorage.setItem('last_purchase_id', response.purchase_id.toString())
+          sessionStorage.setItem('last_ticket_purchase_id', response.purchase_id.toString())
         }
       }
       
@@ -84,6 +84,7 @@ export const useTicketStore = defineStore('ticket', () => {
   }
 
   // Confirm ticket payment
+  // Note: purchaseId is actually ticket_purchase_id, but backend API expects 'purchase_id' in request
   const confirmTicketPayment = async (paymentIntentId: string, paymentMethodId: string, purchaseId: number) => {
     loading.value = true
     error.value = null
@@ -93,7 +94,7 @@ export const useTicketStore = defineStore('ticket', () => {
         body: {
           payment_intent_id: paymentIntentId,
           payment_method_id: paymentMethodId,
-          purchase_id: purchaseId
+          purchase_id: purchaseId // Backend expects this field name, but it's actually ticket_purchase_id
         }
       })
       

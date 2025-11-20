@@ -51,26 +51,38 @@ export interface PayMongoConfirmResponse {
 }
 
 export const usePayMongoStore = defineStore('paymongo', () => {
-  const createPaymentIntent = async (amount: number, purchaseId: number, metadata: any = {}): Promise<PayMongoPaymentResponse> => {
+  const createPaymentIntent = async (
+    amount: number, 
+    purchasableType: 'App\\Models\\ProductPurchase' | 'App\\Models\\TicketPurchase',
+    purchasableId: number, 
+    metadata: any = {}
+  ): Promise<PayMongoPaymentResponse> => {
     const response = await $fetch('/api/payments/paymongo/intent', {
       method: 'POST',
       body: {
         amount,
         currency: 'PHP',
-        purchase_id: purchaseId,
+        purchasable_type: purchasableType,
+        purchasable_id: purchasableId,
         metadata
       }
     })
     return response as PayMongoPaymentResponse
   }
 
-  const confirmPayment = async (paymentIntentId: string, paymentMethodId: string, purchaseId: number): Promise<PayMongoConfirmResponse> => {
+  const confirmPayment = async (
+    paymentIntentId: string, 
+    paymentMethodId: string, 
+    purchasableType: 'App\\Models\\ProductPurchase' | 'App\\Models\\TicketPurchase',
+    purchasableId: number
+  ): Promise<PayMongoConfirmResponse> => {
     const response = await $fetch('/api/payments/paymongo/confirm', {
       method: 'POST',
       body: {
         payment_intent_id: paymentIntentId,
         payment_method_id: paymentMethodId,
-        purchase_id: purchaseId
+        purchasable_type: purchasableType,
+        purchasable_id: purchasableId
       }
     })
     return response as PayMongoConfirmResponse

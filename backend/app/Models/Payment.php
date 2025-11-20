@@ -11,7 +11,8 @@ class Payment extends Model
 
     protected $fillable = [
         'user_id',
-        'purchase_id',
+        'purchasable_type',
+        'purchasable_id',
         'amount',
         'currency',
         'status',
@@ -37,8 +38,8 @@ class Payment extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function purchase()
+    public function purchasable()
     {
-        return $this->belongsTo(Purchase::class);
+        return $this->morphTo();
     }
 }

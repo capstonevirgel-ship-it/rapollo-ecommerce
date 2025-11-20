@@ -9,7 +9,7 @@ class ProductVariant extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['product_id', 'color_id', 'size_id', 'base_price', 'price', 'stock', 'sku'];
+    protected $fillable = ['product_id', 'color_id', 'size_id', 'stock', 'sku'];
 
     public function product()
     {
@@ -46,33 +46,20 @@ class ProductVariant extends Model
         return $this->hasMany(Rating::class);
     }
 
-    protected $casts = [
-        'base_price' => 'float',
-        'price' => 'float',
-    ];
-
     /**
-     * Calculate and set final price from base price and taxes
+     * Get the price from the product (accessor)
      */
-    public function calculateFinalPrice(): void
+    public function getPriceAttribute(): ?float
     {
-        if ($this->base_price !== null) {
-            $this->price = \App\Models\TaxPrice::calculateFinalPrice($this->base_price);
-        }
+        return $this->product?->price;
     }
 
     /**
-     * Boot method to auto-calculate price on save
+     * Get the base_price from the product (accessor)
      */
-    protected static function boot()
+    public function getBasePriceAttribute(): ?float
     {
-        parent::boot();
-
-        static::saving(function ($variant) {
-            if ($variant->base_price !== null && $variant->isDirty('base_price')) {
-                $variant->calculateFinalPrice();
-            }
-        });
+        return $this->product?->base_price;
     }
 
     /**

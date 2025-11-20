@@ -166,29 +166,6 @@ export const useSettingsStore = defineStore("settings", {
       }
     },
 
-    async toggleMaintenance(enabled: boolean, message: string) {
-      this.loading = true;
-      this.error = null;
-      try {
-        const response = await useCustomFetch<any>('/api/settings/toggle-maintenance', {
-          method: 'POST',
-          body: { enabled, message },
-        });
-        
-        // Update local settings
-        if (this.settings.maintenance) {
-          this.settings.maintenance.maintenance_mode = enabled;
-          this.settings.maintenance.maintenance_message = message;
-        }
-        
-        return response;
-      } catch (error: any) {
-        this.error = error.data?.message || error.message || 'Failed to toggle maintenance mode';
-        throw error;
-      } finally {
-        this.loading = false;
-      }
-    },
   },
 
   persist: true,

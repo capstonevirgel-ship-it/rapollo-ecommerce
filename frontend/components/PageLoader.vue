@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useSettingsStore } from '~/stores/settings'
 
 interface Props {
   progress: number // 0-100
@@ -8,11 +7,9 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const settingsStore = useSettingsStore()
 
 // Smooth progress animation
 const animatedProgress = ref(0)
-const isVisible = ref(true)
 const isMounted = ref(false)
 
 onMounted(() => {
@@ -45,18 +42,6 @@ watch(() => props.progress, (newProgress) => {
   requestAnimationFrame(animate)
 }, { immediate: true })
 
-// Hide loader with fade out animation when loading completes
-watch(() => props.isLoading, (loading) => {
-  if (!loading) {
-    setTimeout(() => {
-      isVisible.value = false
-    }, 500) // Wait for fade out animation
-  } else {
-    // Reset visibility when loading starts again
-    isVisible.value = true
-  }
-})
-
 const progressPercentage = computed(() => {
   return Math.min(Math.max(animatedProgress.value, 0), 100)
 })
@@ -65,26 +50,34 @@ const progressPercentage = computed(() => {
 <template>
   <Transition name="fade">
     <div 
-      v-if="isLoading && isVisible" 
+      v-if="isLoading" 
       class="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center"
     >
-      <!-- Logo or Brand Name -->
+      <!-- Logo -->
       <div class="mb-8">
-        <h1 class="text-4xl font-winner-extra-bold text-gray-900">
-          {{ settingsStore.siteName || 'RAPOLLO' }}
-        </h1>
+        <img 
+          src="/uploads/logo/loader.svg" 
+          alt="RAPOLLO" 
+          class="w-[12rem] h-auto"
+        />
       </div>
     </div>
   </Transition>
 </template>
 
 <style scoped>
-.fade-enter-active,
+.fade-enter-active {
+  transition: opacity 0.3s ease;
+}
+
 .fade-leave-active {
   transition: opacity 0.3s ease;
 }
 
-.fade-enter-from,
+.fade-enter-from {
+  opacity: 0;
+}
+
 .fade-leave-to {
   opacity: 0;
 }

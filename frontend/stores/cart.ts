@@ -1,6 +1,7 @@
 import { defineStore } from "pinia"
 import { useCustomFetch } from "~/composables/useCustomFetch"
 import { useAlert } from "~/composables/useAlert"
+import { useAuthStore } from "~/stores/auth"
 import type { Cart, CartPayload } from "~/types"
 
 const GUEST_CART_KEY = "guest_cart"
@@ -16,7 +17,7 @@ export const useCartStore = defineStore("cart", {
 
   getters: {
     cartCount: (state) => state.cart.reduce((sum, item) => sum + item.quantity, 0),
-    cartTotal: (state) => state.cart.reduce((sum, item) => sum + item.quantity * item.variant.price, 0),
+    cartTotal: (state) => state.cart.reduce((sum, item) => sum + item.quantity * (item.variant?.product?.price || item.variant?.price || 0), 0),
   },
 
   actions: {
@@ -127,6 +128,16 @@ export const useCartStore = defineStore("cart", {
     async addToCart(payload: CartPayload, isLoggedIn: boolean, guestItem?: Cart) {
       this.error = null
 
+      // Prevent admins from adding to cart
+      if (isLoggedIn) {
+        const authStore = useAuthStore()
+        if (authStore.isAdmin) {
+          const { error } = useAlert()
+          error('Admin Restriction', 'Administrators cannot add items to cart. Please use a customer account to make purchases.')
+          throw new Error('Administrators cannot add items to cart')
+        }
+      }
+
       try {
         if (isLoggedIn) {
           // 🔹 Delegate to REST-style store()
@@ -168,6 +179,14 @@ export const useCartStore = defineStore("cart", {
 
     // REST-style store(): add a cart item in backend
     async store(payload: CartPayload) {
+      // Prevent admins from adding to cart
+      const authStore = useAuthStore()
+      if (authStore.isAdmin) {
+        const { error } = useAlert()
+        error('Admin Restriction', 'Administrators cannot add items to cart. Please use a customer account to make purchases.')
+        throw new Error('Administrators cannot add items to cart')
+      }
+
       this.loading = true
       this.error = null
       

@@ -7,16 +7,23 @@ interface Product {
   id: number
   name: string
   slug: string
+  image?: string | null
+  price?: number
+  rating?: number
+  total_ratings?: number
+  category_slug?: string
+  subcategory_slug?: string
+  brand?: {
+    name: string
+  }
+  // Legacy support
   images?: Array<{ url: string }>
-  variants?: Array<{ price: number }>
+  variants?: Array<{}>
   subcategory?: {
     slug: string
     category?: {
       slug: string
     }
-  }
-  brand?: {
-    name: string
   }
 }
 
@@ -65,7 +72,9 @@ const formatPrice = (price: number | undefined) => {
 }
 
 const handleProductClick = (product: Product) => {
-  navigateTo(`/shop/${product.subcategory?.category?.slug}/${product.subcategory?.slug}/${product.slug}`)
+  const categorySlug = product.category_slug || product.subcategory?.category?.slug
+  const subcategorySlug = product.subcategory_slug || product.subcategory?.slug
+  navigateTo(`/shop/${categorySlug}/${subcategorySlug}/${product.slug}`)
 }
 
 // Watch for changes in products array
@@ -125,7 +134,7 @@ onUnmounted(() => {
         >
 
           <img
-            :src="getImageUrl(products[currentIndex].images?.[0]?.url || null)"
+            :src="getImageUrl(products[currentIndex].image || products[currentIndex].images?.[0]?.url || null)"
             :alt="products[currentIndex].name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -145,7 +154,7 @@ onUnmounted(() => {
             ]"
           >
             <img
-              :src="getImageUrl(product.images?.[0]?.url || null)"
+              :src="getImageUrl(product.image || product.images?.[0]?.url || null)"
               :alt="product.name"
               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -164,28 +173,28 @@ onUnmounted(() => {
         </div>
 
         <!-- Rating -->
-        <div class="flex items-center gap-2">
+        <div v-if="products[currentIndex].rating" class="flex items-center gap-2">
           <div class="flex items-center gap-1">
             <svg 
               v-for="star in 5" 
               :key="star"
               class="w-5 h-5"
-              :class="star <= 4 ? 'text-yellow-400' : 'text-gray-300'"
+              :class="star <= (products[currentIndex].rating || 0) ? 'text-yellow-400' : 'text-gray-300'"
               fill="currentColor" 
               viewBox="0 0 20 20"
             >
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
           </div>
-          <span class="text-gray-600 font-medium">4.8</span>
-          <span class="text-gray-400 text-sm">(256 reviews)</span>
+          <span class="text-gray-600 font-medium">{{ products[currentIndex].rating }}</span>
+          <span class="text-gray-400 text-sm">({{ products[currentIndex].total_ratings || 0 }} reviews)</span>
         </div>
 
         <!-- Price -->
         <div class="border-t border-b border-gray-200 py-4 w-full text-center lg:text-left">
           <div class="flex items-baseline gap-2 justify-center lg:justify-start">
             <span class="text-5xl font-winner-extra-bold text-gray-900">
-              {{ formatPrice(products[currentIndex].variants?.[0]?.price) }}
+              {{ formatPrice(products[currentIndex].price || 0) }}
             </span>
           </div>
         </div>

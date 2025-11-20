@@ -12,7 +12,8 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\ProductPurchaseController;
+use App\Http\Controllers\TicketPurchaseController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WebhookController;
@@ -64,6 +65,9 @@ Route::get('settings/{key}', [SettingsController::class, 'show']);
 
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{slug}', [ProductController::class, 'show']);
+Route::get('products/homepage/featured', [ProductController::class, 'getFeaturedProducts']);
+Route::get('products/homepage/trending', [ProductController::class, 'getTrendingProducts']);
+Route::get('products/homepage/new-arrivals', [ProductController::class, 'getNewArrivals']);
 
 Route::get('events', [EventController::class, 'index']);
 Route::get('events/{id}', [EventController::class, 'show']);
@@ -115,6 +119,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('products', [ProductController::class, 'store']);
     Route::put('products/{slug}', [ProductController::class, 'update']);
     Route::delete('products/{slug}', [ProductController::class, 'destroy']);
+    Route::patch('products/bulk-update-labels', [ProductController::class, 'bulkUpdateLabels']);
+    Route::patch('products/bulk-update-active-status', [ProductController::class, 'bulkUpdateActiveStatus']);
 
     // Brands
     Route::post('brands', [BrandController::class, 'store']);
@@ -154,14 +160,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('tickets/{id}/cancel', [TicketController::class, 'cancel']);
     Route::put('tickets/{id}/status', [TicketController::class, 'updateStatus']);
 
-    // Purchases
-    Route::get('purchases', [PurchaseController::class, 'index']);
-    Route::post('purchases', [PurchaseController::class, 'store']);
-    Route::get('purchases/{id}', [PurchaseController::class, 'show']);
-    Route::get('purchases/admin/all', [PurchaseController::class, 'adminIndex']);
+    // Product Purchases
+    Route::get('product-purchases', [ProductPurchaseController::class, 'index']);
+    Route::post('product-purchases', [ProductPurchaseController::class, 'store']);
+    Route::get('product-purchases/{id}', [ProductPurchaseController::class, 'show']);
+    Route::get('product-purchases/admin/all', [ProductPurchaseController::class, 'adminIndex']);
+    Route::get('product-purchases/admin/{id}', [ProductPurchaseController::class, 'adminShow']);
+    Route::put('product-purchases/{id}/status', [ProductPurchaseController::class, 'updateStatus']);
     
     // Orders (product purchases only)
-    Route::get('orders/admin', [PurchaseController::class, 'adminOrders']);
+    Route::get('orders/admin', [ProductPurchaseController::class, 'adminOrders']);
+
+    // Ticket Purchases
+    Route::get('ticket-purchases', [TicketPurchaseController::class, 'index']);
+    Route::get('ticket-purchases/{id}', [TicketPurchaseController::class, 'show']);
+    Route::get('ticket-purchases/admin/all', [TicketPurchaseController::class, 'adminIndex']);
+    Route::get('ticket-purchases/admin/{id}', [TicketPurchaseController::class, 'adminShow']);
 
     // Shipping Prices
     Route::get('shipping-prices', [ShippingPriceController::class, 'index']);
@@ -178,8 +192,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('tax-prices/{id}', [TaxPriceController::class, 'update']);
     Route::delete('tax-prices/{id}', [TaxPriceController::class, 'destroy']);
     Route::get('tax-prices/active', [TaxPriceController::class, 'getActiveRate']);
-    Route::get('purchases/admin/{id}', [PurchaseController::class, 'adminShow']);
-    Route::put('purchases/{id}/status', [PurchaseController::class, 'updateStatus']);
 
     // Payments
     Route::post('payments/create', [PaymentController::class, 'createPayment']);
@@ -206,6 +218,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Upload (admin only)
     Route::post('upload', [UploadController::class, 'uploadImage']);
     Route::post('upload/multiple', [UploadController::class, 'uploadImages']);
+    Route::post('upload/event-content', [UploadController::class, 'uploadEventContentImage']);
 
     // Settings (admin only)
     Route::post('settings', [SettingsController::class, 'update']);
@@ -214,7 +227,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('settings/delete-logo', [SettingsController::class, 'deleteLogo']);
     Route::post('settings/upload-team-member-image', [SettingsController::class, 'uploadTeamMemberImage']);
     Route::delete('settings/delete-team-member-image', [SettingsController::class, 'deleteTeamMemberImage']);
-    Route::post('settings/toggle-maintenance', [SettingsController::class, 'toggleMaintenance']);
 
     // Notifications
     Route::get('notifications', [NotificationController::class, 'index']);

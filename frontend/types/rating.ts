@@ -2,7 +2,7 @@ export interface Rating {
   id: number
   user_id: number
   variant_id: number
-  purchase_id: number
+  product_purchase_id: number
   stars: number
   comment?: string
   created_at: string
@@ -22,6 +22,8 @@ export interface Rating {
       slug: string
     }
   }
+  // Deprecated: Use product_purchase_id instead
+  purchase_id?: number
 }
 
 export interface RatingStatistics {
@@ -35,7 +37,7 @@ export interface RatingStatistics {
 }
 
 export interface ReviewableProduct {
-  purchase_id: number
+  purchase_id: number // This is product_purchase_id from backend
   variant_id: number
   product: {
     id: number

@@ -1,6 +1,6 @@
 <!-- Admin Layout -->
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, provide } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, provide } from 'vue';
 import Sidebar from '@/components/navigation/Sidebar.vue';
 
 const contentPadding = ref('250px');
@@ -14,6 +14,12 @@ provide('toggleMobileMenu', () => {
     sidebarRef.value.toggleMobileMenu();
   }
 });
+
+// Provide isMobile state from Sidebar to AdminHeader
+const sidebarIsMobile = computed(() => {
+  return sidebarRef.value?.isMobile ?? false;
+});
+provide('sidebarIsMobile', sidebarIsMobile);
 
 const handleSidebarWidthChange = (newWidth: string) => {
   if (!isMobile.value && !isTablet.value) {
@@ -57,13 +63,13 @@ onBeforeUnmount(() => {
       <div 
         class="w-full transition-all duration-300 ease-in-out"
         :class="{
-          'pt-12': isMobile,
+          'pt-12': isMobile || isTablet,
           'lg:pt-12': !isMobile && !isTablet,
           'lg:ml-[250px]': !isMobile && !isTablet && contentPadding === '250px', 
           'lg:ml-[74px]': !isMobile && !isTablet && contentPadding === '74px'
         }"
       >
-        <div class="p-8">
+        <div class="p-4 sm:p-6 md:p-8">
           <NuxtPage></NuxtPage>
         </div>
       </div>

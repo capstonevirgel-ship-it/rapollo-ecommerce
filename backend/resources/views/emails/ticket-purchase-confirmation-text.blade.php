@@ -54,7 +54,7 @@ Hello {{ $user->user_name }},
 
 Thank you for purchasing event tickets! Your tickets have been successfully confirmed and payment has been processed.
 
-Purchase #{{ $purchase->reference_number }}
+Purchase #TKT-{{ $purchase->id }}
 Status: Tickets Confirmed
 
 @if($event)
@@ -62,15 +62,12 @@ Event Information:
 - Event: {{ $event->title }}
 - Date: {{ $event->date ? \Carbon\Carbon::parse($event->date)->format('F j, Y \a\t g:i A') : 'To be announced' }}
 - Location: {{ $event->location ?? 'To be announced' }}
-@if($event->description)
-- Description: {{ $event->description }}
-@endif
 @endif
 
 Your Tickets:
 @foreach($tickets as $index => $ticket)
 @php $line = $ticketTotals[$index] ?? ['price' => 0, 'quantity' => 1, 'total' => 0]; @endphp
-- Ticket #{{ $ticket->ticket_number ?? ($purchase->reference_number . '-' . ($loop->iteration)) }}
+- Ticket #{{ $ticket->ticket_number ?? ('TKT-' . $purchase->id . '-' . $loop->iteration) }}
   Valid for: {{ $event->title ?? 'Event' }}
   Quantity: {{ $line['quantity'] }}
   Price (each): ₱{{ $formatCurrency($line['price']) }}

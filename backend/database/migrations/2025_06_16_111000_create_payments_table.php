@@ -14,7 +14,9 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained();
-            $table->foreignId('purchase_id')->constrained();
+            $table->string('purchasable_type'); // 'App\Models\ProductPurchase' or 'App\Models\TicketPurchase'
+            $table->unsignedBigInteger('purchasable_id');
+            $table->index(['purchasable_type', 'purchasable_id']);
             $table->decimal('amount', 10, 2);
             $table->string('currency', 3)->default('PHP');
             $table->enum('status', ['pending', 'processing', 'paid', 'failed', 'cancelled', 'expired'])->default('pending');

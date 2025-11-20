@@ -106,7 +106,7 @@ onMounted(async () => {
   isLoading.value = true
   try {
     // Fetch real orders from the API
-    const response = await $fetch('/api/purchases') as { data: any[] }
+    const response = await $fetch('/api/product-purchases') as { data: any[] }
     orders.value = response.data || []
     
     // Fetch reviewed products to check which variants have been reviewed

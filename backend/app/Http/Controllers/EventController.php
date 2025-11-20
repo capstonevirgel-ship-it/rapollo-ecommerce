@@ -47,8 +47,8 @@ class EventController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:100',
-            'description' => 'nullable|string',
-            'date' => 'required|date|after:today',
+            'content' => 'nullable|string',
+            'date' => 'required|date|after:now',
             'location' => 'nullable|string|max:100',
             'poster_url' => 'nullable|string|max:255',
             'poster_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,svg|max:5120',
@@ -59,7 +59,7 @@ class EventController extends Controller
         $event = new Event();
         $event->admin_id = Auth::id();
         $event->title = $request->title;
-        $event->description = $request->description;
+        $event->content = $request->content;
         $event->date = $request->date;
         $event->location = $request->location;
         $event->base_ticket_price = $request->base_ticket_price;
@@ -91,8 +91,8 @@ class EventController extends Controller
 
         $request->validate([
             'title' => 'sometimes|required|string|max:100',
-            'description' => 'nullable|string',
-            'date' => 'sometimes|required|date|after:today',
+            'content' => 'nullable|string',
+            'date' => 'sometimes|required|date|after:now',
             'location' => 'nullable|string|max:100',
             'poster_url' => 'nullable|string|max:255',
             'poster_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,svg|max:5120',
@@ -114,7 +114,7 @@ class EventController extends Controller
         }
 
         $event->update($request->only([
-            'title', 'description', 'date', 'location', 
+            'title', 'content', 'date', 'location', 
             'base_ticket_price', 'max_tickets'
         ]));
 

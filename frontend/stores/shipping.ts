@@ -111,6 +111,30 @@ export const useShippingStore = defineStore('shipping', {
       }
     },
 
+    async toggleShippingActive(id: number, isActive: boolean) {
+      this.error = null
+      
+      try {
+        const response = await $fetch<{
+          message: string
+          data: ShippingPrice
+        }>(`/api/shipping-prices/${id}`, {
+          method: 'PUT',
+          body: { is_active: isActive }
+        })
+        
+        const index = this.shippingPrices.findIndex(price => price.id === id)
+        if (index !== -1) {
+          this.shippingPrices[index] = response.data
+        }
+        
+        return response.data
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || 'Failed to toggle shipping price status'
+        throw error
+      }
+    },
+
     async deleteShippingPrice(id: number) {
       this.loading = true
       this.error = null

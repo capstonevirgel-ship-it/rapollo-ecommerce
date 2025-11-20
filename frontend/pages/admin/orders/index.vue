@@ -6,6 +6,7 @@ import { useAlert } from '~/composables/useAlert'
 import Select from '@/components/Select.vue'
 import AdminActionButton from '@/components/AdminActionButton.vue'
 import DataTable from '@/components/DataTable.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { useRouter } from 'vue-router'
 
 definePageMeta({
@@ -28,7 +29,6 @@ const router = useRouter()
 
 // State
 const selectedStatus = ref('all')
-const searchQuery = ref('')
 const currentPage = ref(1)
 const perPage = ref(20)
 const selectedIds = ref<number[]>([])
@@ -49,12 +49,12 @@ const statusUpdateOptions = [
 
 // Columns for DataTable
 const columns = [
-  { label: 'Order', key: 'order_id' },
-  { label: 'Customer', key: 'customer' },
-  { label: 'Amount', key: 'amount' },
-  { label: 'Status', key: 'status' },
-  { label: 'Date', key: 'date' },
-  { label: 'Actions', key: 'actions' }
+  { label: 'Order', key: 'order_id', width: 10 },
+  { label: 'Customer', key: 'customer', width: 25 },
+  { label: 'Amount', key: 'amount', width: 12 },
+  { label: 'Status', key: 'status', width: 16.1667 },
+  { label: 'Date', key: 'date', width: 16.8333 },
+  { label: 'Actions', key: 'actions', width: 20 }
 ]
 
 // Computed - transform orders for DataTable
@@ -81,15 +81,6 @@ const filteredOrders = computed(() => {
 })
 
 // Methods
-const getStatusColor = (status: string) => {
-  const colors = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    shipped: 'bg-purple-100 text-purple-800',
-    delivered: 'bg-green-100 text-green-800'
-  }
-  return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'
-}
-
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-PH', {
     style: 'currency',
@@ -127,6 +118,30 @@ const downloadInvoice = (purchase: any) => {
   console.log('Download invoice for order:', purchase.id)
 }
 
+const exportOrders = () => {
+  // Simple CSV export
+  const headers = ['Order ID', 'Customer', 'Email', 'Amount', 'Status', 'Date']
+  const csvContent = [
+    headers.join(','),
+    ...filteredOrders.value.map(order => [
+      order.order_id,
+      `"${order.customer}"`,
+      `"${order.customer_email}"`,
+      order.amount.replace(/[₱,]/g, ''), // Remove currency symbols and commas
+      order.status,
+      order.date
+    ].join(','))
+  ].join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'orders-export.csv'
+  a.click()
+  window.URL.revokeObjectURL(url)
+}
+
 const updateOrderStatus = async (order: any, newStatus: string | number | null) => {
   if (!newStatus) return
   try {
@@ -143,22 +158,12 @@ const fetchOrders = async () => {
   try {
     await orderStore.fetchOrders({
       status: selectedStatus.value !== 'all' ? selectedStatus.value : undefined,
-      search: searchQuery.value || undefined,
       per_page: perPage.value
     })
   } catch (err) {
     console.error('Failed to fetch orders:', err)
     error('Failed to Load Orders', 'Unable to fetch orders. Please try again.')
   }
-}
-
-// Search with debounce
-let searchTimeout: NodeJS.Timeout
-const handleSearch = () => {
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(() => {
-    fetchOrders()
-  }, 500)
 }
 
 // Watchers
@@ -219,30 +224,30 @@ onMounted(() => {
     </div>
 
     <!-- Filters -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-4">
-          <div class="w-48">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Status</label>
-            <Select 
-              v-model="selectedStatus" 
-              :options="statusOptions"
-              placeholder="All Orders"
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div class="px-6 py-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+          <div class="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <!-- Status Filter -->
+            <div class="w-full sm:w-48">
+              <Select
+                v-model="selectedStatus"
+                :options="statusOptions"
+                placeholder="Filter by status"
+                size="md"
+              />
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex space-x-2">
+            <AdminActionButton
+              icon="mdi:download"
+              text="Export CSV"
+              variant="secondary"
+              @click="exportOrders"
             />
           </div>
-          <div class="w-64">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Search Customer</label>
-            <input 
-              v-model="searchQuery" 
-              @input="handleSearch"
-              type="text" 
-              placeholder="Search by name or email..."
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500"
-            />
-          </div>
-        </div>
-        <div class="text-sm text-gray-500">
-          Showing {{ filteredOrders.length }} orders (Total: {{ pagination?.total || 0 }})
         </div>
       </div>
     </div>
@@ -302,17 +307,13 @@ onMounted(() => {
           >
             <!-- Custom selected value with badge -->
             <template #selected="{ option, placeholder }">
-              <span v-if="option" :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(String(option.value))]">
-                {{ option.label }}
-              </span>
+              <StatusBadge v-if="option" :status="String(option.value)" type="purchase" />
               <span v-else class="text-gray-500">{{ placeholder }}</span>
             </template>
             
             <!-- Custom option with badge -->
-            <template #option="{ option, selected }">
-              <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(String(option.value))]">
-                {{ option.label }}
-              </span>
+            <template #option="{ option }">
+              <StatusBadge :status="String(option.value)" type="purchase" />
             </template>
           </Select>
         </div>

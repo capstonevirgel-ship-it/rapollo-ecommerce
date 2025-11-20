@@ -86,8 +86,8 @@
                         <td style="padding:12px 0; border-top:1px solid #e4e4e7;">
                             <table role="presentation" width="100%">
                                 <tr>
-                                    <td style="font-size:12px; text-transform:uppercase; letter-spacing:0.2em; color:#6b7280; font-weight:600;">Reference</td>
-                                    <td align="right" style="font-size:14px; font-weight:600; color:#111827; font-family:'Courier New', Courier, monospace;">{{ $purchase->reference_number }}</td>
+                                    <td style="font-size:12px; text-transform:uppercase; letter-spacing:0.2em; color:#6b7280; font-weight:600;">Order Number</td>
+                                    <td align="right" style="font-size:14px; font-weight:600; color:#111827; font-family:'Courier New', Courier, monospace;">TKT-{{ $purchase->id }}</td>
                                 </tr>
                             </table>
                         </td>
@@ -176,7 +176,7 @@
     @foreach($tickets as $index => $ticket)
         @php
             $line = $ticketTotals[$index] ?? ['price' => 0, 'quantity' => 1, 'total' => 0];
-            $ticketNumber = $ticket->ticket_number ?? ($purchase->reference_number . '-' . ($index + 1));
+            $ticketNumber = $ticket->ticket_number ?? ('TKT-' . $purchase->id . '-' . ($index + 1));
         @endphp
         <table role="presentation" width="100%" style="margin-bottom:24px; border:1px solid #d1d5db; border-radius:18px; overflow:hidden;">
             <tr>

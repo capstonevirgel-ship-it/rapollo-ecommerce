@@ -103,7 +103,7 @@ const formatPrice = (price: number | undefined | null): string => {
               {{ product.name }}
             </h2>
             <p class="text-primary-600 font-semibold text-lg">
-              ₱{{ formatPrice(product.price ?? product.variants?.[0]?.price) }}
+              ₱{{ formatPrice(product.price ?? 0) }}
             </p>
           </div>
         </NuxtLink>

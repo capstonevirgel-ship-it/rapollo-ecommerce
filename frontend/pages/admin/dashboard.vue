@@ -55,7 +55,7 @@ const revenueChartData = computed(() => {
     labels: dashboardStore.revenueChart.labels,
     datasets: [
       {
-        label: 'Revenue ($)',
+        label: 'Revenue (₱)',
         data: dashboardStore.revenueChart.revenue,
         borderColor: '#71717a',
         backgroundColor: 'rgba(113, 113, 122, 0.1)',
@@ -90,17 +90,17 @@ const ticketSalesChartData = computed(() => {
       {
         label: 'Tickets Sold',
         data: dashboardStore.ticketSalesChart.sales,
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderColor: '#71717a',
+        backgroundColor: 'rgba(113, 113, 122, 0.1)',
         borderWidth: 3,
         fill: true,
         tension: 0.4
       },
       {
-        label: 'Revenue (PHP)',
+        label: 'Revenue (₱)',
         data: dashboardStore.ticketSalesChart.revenue,
-        borderColor: '#8b5cf6',
-        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+        borderColor: '#52525b',
+        backgroundColor: 'rgba(82, 82, 91, 0.1)',
         borderWidth: 3,
         fill: true,
         tension: 0.4
@@ -231,33 +231,29 @@ const refreshData = async () => {
           title="Total Revenue"
           :value="formatCurrency(dashboardStore.stats?.total_revenue || 0)"
           icon="mdi:currency-usd"
-          :growth="dashboardStore.stats?.monthly_growth || 0"
         />
 
         <StatCard
-          title="Total Orders"
-          :value="(dashboardStore.stats?.total_orders || 0).toLocaleString()"
+          title="Total Events"
+          :value="(dashboardStore.stats?.total_events || 0).toLocaleString()"
           icon="mdi:clipboard-list"
-          :growth="dashboardStore.stats?.order_growth || 0"
         />
 
         <StatCard
           title="Total Products"
           :value="dashboardStore.stats?.total_products || 0"
           icon="mdi:package-variant"
-          :growth="dashboardStore.stats?.product_growth || 0"
         />
 
         <StatCard
           title="Total Customers"
           :value="dashboardStore.stats?.total_customers || 0"
           icon="mdi:account-group"
-          :growth="dashboardStore.stats?.customer_growth || 0"
         />
       </div>
 
       <!-- Charts Row -->
-      <div class="mt-8 sm:mt-10 lg:mt-14">
+      <div class="mt-8 sm:mt-10 lg:mt-8">
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8 lg:gap-10">
           <!-- Revenue Chart -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8">
@@ -282,7 +278,7 @@ const refreshData = async () => {
       </div>
 
       <!-- Bottom Row -->
-      <div class="mt-8 sm:mt-10 lg:mt-14">
+      <div class="mt-8 sm:mt-10 lg:mt-8">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
           <!-- Recent Orders -->
           <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8">
@@ -290,7 +286,17 @@ const refreshData = async () => {
               <h3 class="text-base sm:text-lg font-semibold text-gray-900">Recent Orders</h3>
               <NuxtLink to="/admin/orders" class="text-xs sm:text-sm text-zinc-600 hover:text-zinc-800">View all</NuxtLink>
             </div>
-            <div class="space-y-3 sm:space-y-4">
+            <!-- Empty State -->
+            <div v-if="dashboardStore.recentOrders.length === 0" class="text-center py-12">
+              <div class="mx-auto h-24 w-24 text-gray-400">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 class="mt-2 text-sm font-medium text-gray-900">No recent orders</h3>
+              <p class="mt-1 text-sm text-gray-500">No orders have been placed yet.</p>
+            </div>
+            <div v-else class="space-y-3 sm:space-y-4">
               <div v-for="order in dashboardStore.recentOrders" :key="order.id" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 bg-gray-50 rounded-lg">
                 <div class="flex items-center space-x-3 sm:space-x-4">
                   <div class="p-2 bg-white rounded-lg shadow-sm flex-shrink-0">

@@ -155,23 +155,34 @@ const drawerIconMap: Record<string, string> = {
   </svg>`
 }
 
-const profileDrawerNavItems = computed(() => [
-  { name: 'My Profile', href: '/profile', icon: 'user' },
-  { name: 'My Orders', href: '/my-orders', icon: 'shopping-bag' },
-  { name: 'My Tickets', href: '/my-tickets', icon: 'ticket' },
-  { name: 'My Reviews', href: '/my-reviews', icon: 'star' }
-].map(item => ({
-  ...item,
-  active: route.path === item.href
-})))
+const profileDrawerNavItems = computed(() => {
+  const items = [
+    { name: 'My Profile', href: '/profile', icon: 'user' },
+    { name: 'My Orders', href: '/my-orders', icon: 'shopping-bag' },
+    { name: 'My Tickets', href: '/my-tickets', icon: 'ticket' },
+    { name: 'My Reviews', href: '/my-reviews', icon: 'star' }
+  ]
+  
+  // Filter out items for admins
+  const filteredItems = authStore.isAdmin ? [] : items
+  
+  return filteredItems.map(item => ({
+    ...item,
+    active: route.path === item.href
+  }))
+})
 
 const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
 </script>
 
 <template>
   <header
-    class="bg-zinc-900 text-gray-100 shadow-sm sticky top-0 z-50 transition-transform duration-300"
-    :class="{ '-translate-y-full': !isHeaderVisible }"
+    class="bg-zinc-900 text-gray-100 shadow-sm sticky z-50 transition-transform duration-300"
+    :class="{ 
+      '-translate-y-full': !isHeaderVisible,
+      'top-[3.5rem]': authStore.isAdmin,
+      'top-0': !authStore.isAdmin
+    }"
   >
     <div class="mx-auto max-w-[88rem] py-3 px-4">
       <!-- Top Bar -->
@@ -299,7 +310,7 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
           <button @click="toggleShopDrawer" aria-label="Open shop">
             <Icon name="mdi:shopping-outline" class="text-2xl" />
           </button>
-          <NuxtLink to="/cart" aria-label="Cart" class="relative">
+          <NuxtLink v-if="!authStore.isAdmin" to="/cart" aria-label="Cart" class="relative">
             <Icon name="mdi:cart-outline" class="text-2xl" />
             <span 
               v-if="cartStore.cartCount > 0" 
@@ -323,7 +334,9 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
         leave-from-class="opacity-100 transform translate-y-0"
         leave-to-class="opacity-0 transform -translate-y-2"
       >
-        <div v-if="isMenuOpen" class="lg:hidden fixed inset-0 top-[5.8rem] bg-zinc-900/95 backdrop-blur-md z-40 overflow-y-auto">
+        <div v-if="isMenuOpen" class="lg:hidden fixed inset-0 bg-zinc-900/95 backdrop-blur-md z-40 overflow-y-auto"
+          :class="authStore.isAdmin ? 'top-[8rem]' : 'top-[5.8rem]'"
+        >
           <div class="px-6 py-6 space-y-4">
             <!-- Navigation Links -->
             <div class="space-y-1">
@@ -362,7 +375,7 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
                 </div>
                 
                 <!-- User Menu -->
-                <div class="space-y-1">
+                <div v-if="!authStore.isAdmin" class="space-y-1">
                   <NuxtLink
                     to="/my-tickets"
                     @click="isMenuOpen = false"
@@ -403,27 +416,18 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
                     </div>
                     <span class="font-medium text-sm">Profile</span>
                   </NuxtLink>
-                  <NuxtLink
-                    v-if="authStore.user?.role === 'admin'"
-                    to="/admin/events"
-                    @click="isMenuOpen = false"
-                    class="flex items-center space-x-3 px-4 py-2 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
-                  >
-                    <div class="w-7 h-7 bg-zinc-800/50 rounded-lg flex items-center justify-center">
-                      <Icon name="mdi:shield-account" class="text-base" />
-                    </div>
-                    <span class="font-medium text-sm">Admin Panel</span>
-                  </NuxtLink>
-                  <button 
-                    @click="authStore.logout(); isMenuOpen = false" 
-                    class="flex items-center space-x-3 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-xl transition-all duration-200 w-full"
-                  >
-                    <div class="w-7 h-7 bg-red-900/20 rounded-lg flex items-center justify-center">
-                      <Icon name="mdi:logout" class="text-base" />
-                    </div>
-                    <span class="font-medium text-sm">Logout</span>
-                  </button>
                 </div>
+                
+                <!-- Logout Button -->
+                <button 
+                  @click="authStore.logout(); isMenuOpen = false" 
+                  class="flex items-center space-x-3 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-xl transition-all duration-200 w-full"
+                >
+                  <div class="w-7 h-7 bg-red-900/20 rounded-lg flex items-center justify-center">
+                    <Icon name="mdi:logout" class="text-base" />
+                  </div>
+                  <span class="font-medium text-sm">Logout</span>
+                </button>
               </div>
               
               <!-- Guest User -->
@@ -519,16 +523,6 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
               <span>{{ item.name }}</span>
             </NuxtLink>
 
-            <!-- Admin Panel (if admin) -->
-            <NuxtLink
-              v-if="authStore.user?.role === 'admin'"
-              to="/admin/events"
-              @click="isProfileDrawerOpen = false"
-              class="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Icon name="mdi:shield-account" class="text-xl text-gray-400" />
-              <span>Admin Panel</span>
-            </NuxtLink>
           </nav>
 
           <!-- Logout Button -->

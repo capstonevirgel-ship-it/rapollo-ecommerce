@@ -30,10 +30,17 @@ const route = useRoute()
 const purchase = ref<any>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const isFetching = ref(false) // Guard to prevent recursive calls
 
 // Computed properties
 const isTicketPurchase = computed(() => purchase.value?.type === 'ticket')
-const orderNumber = computed(() => purchase.value?.order_number || `ORD-${purchase.value?.id}`)
+const orderNumber = computed(() => {
+  if (!purchase.value) return ''
+  if (purchase.value.type === 'ticket') {
+    return `TKT-${purchase.value.id}`
+  }
+  return purchase.value.order_number || `ORD-${purchase.value.id}`
+})
 
 const toNumber = (value: unknown) => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -52,34 +59,71 @@ const formatCurrency = (value: unknown) => {
 const totalAmount = computed(() => toNumber(purchase.value?.total))
 const purchaseDate = computed(() => {
   if (!purchase.value?.created_at) return ''
-  return new Date(purchase.value.created_at).toLocaleDateString('en-US', {
+  try {
+    return new Date(purchase.value.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
   })
+  } catch {
+    return ''
+  }
 })
 
 // Fetch purchase details
 const fetchPurchaseDetails = async () => {
+  // Prevent recursive calls
+  if (isFetching.value) {
+    console.warn('fetchPurchaseDetails already in progress, skipping...')
+    return
+  }
+  
   try {
+    isFetching.value = true
     loading.value = true
     error.value = null
     
     // Get purchase_id from URL params or session storage
-    const purchaseId = route.query.purchase_id || sessionStorage.getItem('last_purchase_id')
+    // Check both product purchase and ticket purchase IDs
+    const productPurchaseId = route.query.purchase_id || route.query.product_purchase_id || sessionStorage.getItem('last_purchase_id')
+    const ticketPurchaseId = route.query.ticket_purchase_id || sessionStorage.getItem('last_ticket_purchase_id')
     
-    if (!purchaseId) {
+    let purchaseData: any = null
+    
+    // Try ticket purchase first if ticket_purchase_id is available
+    if (ticketPurchaseId) {
+      try {
+        const response = await $fetch(`/api/ticket-purchases/${ticketPurchaseId}`) as { data: any }
+        purchaseData = response.data
+        purchaseData.type = 'ticket' // Mark as ticket purchase
+        
+        // Use tickets from purchase data instead of fetching all tickets
+        // This prevents unnecessary API calls and recursive issues
+        if (purchaseData.tickets && purchaseData.tickets.length > 0) {
+          // Update ticket store with only the tickets for this purchase
+          ticketStore.tickets = purchaseData.tickets
+        }
+        
+        // Clear ticket purchase ID from session
+        sessionStorage.removeItem('last_ticket_purchase_id')
+      } catch (err: any) {
+        console.warn('Failed to fetch ticket purchase, trying product purchase:', err)
+      }
+    }
+    
+    // If no ticket purchase found, try product purchase
+    if (!purchaseData && productPurchaseId) {
+      purchaseData = await purchaseStore.fetchPurchaseById(Number(productPurchaseId))
+      purchaseData.type = 'product' // Mark as product purchase
+    }
+    
+    if (!purchaseData) {
       throw new Error('No purchase ID found')
     }
     
-    const purchaseData = await purchaseStore.fetchPurchaseById(Number(purchaseId))
     purchase.value = purchaseData
-
-    if (purchase.value?.type === 'ticket') {
-      await ticketStore.fetchTickets()
-    }
     
     // Selectively clear only purchased items
     // 1) Build set of purchased variant ids
@@ -114,15 +158,18 @@ const fetchPurchaseDetails = async () => {
       await cartStore.index().catch(() => {})
     }
     
-    // Clear session storage
-    sessionStorage.removeItem('last_purchase_id')
-    sessionStorage.removeItem('purchased_variant_ids')
+    // Clear session storage (only if it was a product purchase)
+    if (purchase.value?.type === 'product') {
+      sessionStorage.removeItem('last_purchase_id')
+      sessionStorage.removeItem('purchased_variant_ids')
+    }
     
   } catch (err: any) {
     error.value = err.message || 'Failed to fetch order details'
     console.error('Error fetching purchase details:', err)
   } finally {
     loading.value = false
+    isFetching.value = false
   }
 }
 
@@ -133,7 +180,18 @@ onMounted(() => {
 
 const ticketsForPurchase = computed(() => {
   if (purchase.value?.type !== 'ticket' || !purchase.value?.id) return []
-  return (ticketStore.tickets || []).filter((ticket: any) => ticket.purchase_id === purchase.value?.id)
+  
+  // Prefer tickets directly from purchase data (already filtered and included in API response)
+  // This prevents unnecessary filtering and reactive loops
+  if (purchase.value.tickets && Array.isArray(purchase.value.tickets) && purchase.value.tickets.length > 0) {
+    return purchase.value.tickets
+  }
+  
+  // Fallback to filtering from ticket store if purchase data doesn't have tickets
+  const purchaseId = purchase.value.id // Capture ID to avoid reactive access in filter
+  return (ticketStore.tickets || []).filter((ticket: any) => 
+    ticket.ticket_purchase_id === purchaseId || ticket.purchase_id === purchaseId
+  )
 })
 
 const hasTicketData = computed(() => ticketsForPurchase.value.length > 0)
@@ -150,7 +208,6 @@ const ticketEventInfo = computed(() => {
 
   return {
     title: event.title,
-    description: event.description,
     location: event.location,
     posterUrl: event.poster_url,
     formattedDate: eventDate
@@ -192,7 +249,7 @@ const displayTickets = computed(() => {
 
 const totalTicketQuantity = computed(() => {
   if (purchase.value?.type !== 'ticket') return 0
-  const fromTickets = ticketsForPurchase.value.reduce((sum, ticket: any) => sum + (toNumber(ticket.quantity) || 1), 0)
+  const fromTickets = ticketsForPurchase.value.reduce((sum: number, ticket: any) => sum + (toNumber(ticket.quantity) || 1), 0)
   if (fromTickets > 0) return fromTickets
   if (purchase.value?.quantity) return toNumber(purchase.value.quantity)
   return ticketsForPurchase.value.length || 1
@@ -308,29 +365,81 @@ const getProductItemTotalPrice = (item: any) => {
             {{ ticketError }}
           </div>
           <div v-else class="space-y-6">
+            <!-- Single ticket (no slider) -->
+            <div v-if="ticketEventInfo && displayTickets.length === 1" class="relative bg-white border border-gray-200 rounded-lg shadow-sm overflow-visible">
+              <div class="relative">
+                <div class="h-64 w-full">
+                  <img
+                    :src="getImageUrl(displayTickets[0].event.posterUrl)"
+                    :alt="displayTickets[0].event.title"
+                    class="h-full w-full object-cover rounded-t-3xl"
+                  />
+                </div>
+              </div>
+
+              <div class="p-6 space-y-6">
+                <div class="space-y-2">
+                  <h2 class="text-2xl font-winner-extra-bold leading-tight text-gray-900">
+                    {{ displayTickets[0].event.title }}
+                  </h2>
+                  <p v-if="displayTickets[0].event.location" class="text-sm font-medium text-gray-600">
+                    {{ displayTickets[0].event.location }}
+                  </p>
+                </div>
+
+                <div class="flex flex-wrap gap-3">
+                  <div
+                    v-if="displayTickets[0].event.formattedDate"
+                    class="px-5 py-2 rounded-full border border-zinc-900 text-sm font-semibold text-zinc-900 uppercase tracking-wide"
+                  >
+                    {{ displayTickets[0].event.formattedDate }}
+                  </div>
+                  <div
+                    v-if="displayTickets[0].event.formattedTime"
+                    class="px-5 py-2 rounded-full border border-zinc-900 text-sm font-semibold text-zinc-900 uppercase tracking-wide"
+                  >
+                    {{ displayTickets[0].event.formattedTime }}
+                  </div>
+                  <div class="px-5 py-2 rounded-full border border-zinc-900 text-sm font-semibold text-zinc-900 uppercase tracking-wide">
+                    Price: ₱{{ formatCurrency(ticketUnitPrice) }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="relative bg-gray-50 px-6 py-6 border-t-2 border-dashed border-gray-300 rounded-b-3xl">
+                <div class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2">
+                  <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_0_0_22px)]"></div>
+                </div>
+                <div class="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2">
+                  <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_22px_0_0)]"></div>
+                </div>
+                <div class="flex flex-col items-center text-center space-y-3">
+                  <span class="text-xl font-winner-extra-bold tracking-[0.2em] text-gray-900">
+                    {{ displayTickets[0].ticketNumber }}
+                  </span>
+                  <div class="w-full h-px bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)]"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Multiple tickets (with slider) -->
             <Carousel
-              v-if="ticketEventInfo && displayTickets.length > 0"
+              v-else-if="ticketEventInfo && displayTickets.length > 1"
               :items="displayTickets"
               :items-to-show="1"
               :items-to-scroll="1"
               :autoplay="false"
-              :show-arrows="displayTickets.length > 1"
+              :show-arrows="true"
             >
               <template #item="{ item }">
                 <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm overflow-visible">
                   <div class="relative">
                     <div class="h-64 w-full">
                       <img
-                        :src="getImageUrl(item.event.posterUrl || '', 'event')"
+                        :src="getImageUrl(item.event.posterUrl)"
                         :alt="item.event.title"
                         class="h-full w-full object-cover rounded-t-3xl"
-                        @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.src = getImageUrl('', 'event') }"
                       />
-                    </div>
-                    <div class="absolute top-4 right-4">
-                      <span class="px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.35em] bg-white/95 text-gray-900 rounded-full shadow">
-                        {{ item.orderNumber }}
-                      </span>
                     </div>
                   </div>
 

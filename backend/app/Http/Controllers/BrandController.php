@@ -80,6 +80,14 @@ class BrandController extends Controller
 
     public function destroy(Brand $brand)
     {
+        // Check if brand has products
+        if ($brand->products()->exists()) {
+            return response()->json([
+                'message' => 'Cannot delete brand: It is used by products. Please reassign or delete products first.',
+                'error' => 'DEPENDENCY_EXISTS'
+            ], 422);
+        }
+        
         $brand->delete();
 
         return response()->json([

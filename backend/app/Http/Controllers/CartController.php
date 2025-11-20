@@ -45,6 +45,13 @@ class CartController extends Controller
     // Add item to cart (or increase quantity if already exists)
     public function store(Request $request)
     {
+        // Prevent admins from adding to cart
+        if (Auth::user()->role === 'admin') {
+            return response()->json([
+                'message' => 'Administrators cannot add items to cart. Please use a customer account to make purchases.'
+            ], 403);
+        }
+
         $data = $request->validate([
             'variant_id' => 'required|exists:product_variants,id',
             'quantity'   => 'required|integer|min:1',

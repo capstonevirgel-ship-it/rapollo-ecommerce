@@ -95,10 +95,10 @@ class ShippingPriceController extends Controller
             $shippingPrice = ShippingPrice::findOrFail($id);
             
             $validated = $request->validate([
-                'region' => 'required|string|unique:shipping_prices,region,' . $id,
-                'price' => 'required|numeric|min:0',
+                'region' => 'sometimes|required|string|unique:shipping_prices,region,' . $id,
+                'price' => 'sometimes|required|numeric|min:0',
                 'description' => 'nullable|string|max:500',
-                'is_active' => 'boolean'
+                'is_active' => 'sometimes|boolean'
             ]);
 
             $shippingPrice->update($validated);

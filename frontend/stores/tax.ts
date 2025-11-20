@@ -112,6 +112,30 @@ export const useTaxStore = defineStore('tax', {
       }
     },
 
+    async toggleTaxActive(id: number, isActive: boolean) {
+      this.error = null
+      
+      try {
+        const response = await $fetch<{
+          message: string
+          data: TaxPrice
+        }>(`/api/tax-prices/${id}`, {
+          method: 'PUT',
+          body: { is_active: isActive }
+        })
+        
+        const index = this.taxPrices.findIndex(price => price.id === id)
+        if (index !== -1) {
+          this.taxPrices[index] = response.data
+        }
+        
+        return response.data
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || 'Failed to toggle tax price status'
+        throw error
+      }
+    },
+
     async deleteTaxPrice(id: number) {
       this.loading = true
       this.error = null

@@ -48,7 +48,7 @@ const statusConfig = getStatusConfig()
 
 <template>
   <span :class="[
-    'inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold',
+    'inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold',
     statusConfig.color
   ]">
     {{ statusConfig.label }}

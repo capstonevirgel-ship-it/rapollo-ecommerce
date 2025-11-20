@@ -13,7 +13,13 @@ class Product extends Model
     protected $fillable = [
         'subcategory_id', 'brand_id', 'default_color_id', 'name', 'slug', 'description',
         'meta_title', 'meta_description', 'meta_keywords', 'canonical_url',
-        'robots', 'is_active', 'is_featured', 'is_hot', 'is_new'
+        'robots', 'is_active', 'is_featured', 'is_hot', 'is_new',
+        'base_price', 'price'
+    ];
+
+    protected $casts = [
+        'base_price' => 'float',
+        'price' => 'float',
     ];
 
     public function subcategory()
@@ -44,5 +50,29 @@ class Product extends Model
     public function sizes()
     {
         return $this->belongsToMany(Size::class, 'product_sizes');
+    }
+
+    /**
+     * Calculate and set final price from base price and taxes
+     */
+    public function calculateFinalPrice(): void
+    {
+        if ($this->base_price !== null && $this->base_price > 0) {
+            $this->price = \App\Models\TaxPrice::calculateFinalPrice($this->base_price);
+        }
+    }
+
+    /**
+     * Boot method to auto-calculate price on save
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($product) {
+            if ($product->base_price !== null && $product->base_price > 0 && $product->isDirty('base_price')) {
+                $product->calculateFinalPrice();
+            }
+        });
     }
 }

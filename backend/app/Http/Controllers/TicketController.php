@@ -6,8 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Ticket;
 use App\Models\Event;
 use App\Models\User;
-use App\Models\Purchase;
-use App\Models\PurchaseItem;
+use App\Models\TicketPurchase;
 use App\Models\Payment;
 use App\Services\PayMongoService;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +22,7 @@ class TicketController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $tickets = Ticket::with(['event', 'user', 'purchase'])
+        $tickets = Ticket::with(['event', 'user', 'ticketPurchase'])
             ->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -82,6 +81,13 @@ class TicketController extends Controller
      */
     public function store(Request $request)
     {
+        // Prevent admins from purchasing tickets
+        if (Auth::user()->role === 'admin') {
+            return response()->json([
+                'error' => 'Administrators cannot purchase tickets. Please use a customer account to buy tickets.'
+            ], 403);
+        }
+
         $request->validate([
             'event_id' => 'required|exists:events,id',
             'quantity' => 'required|integer|min:1|max:5'
@@ -111,21 +117,12 @@ class TicketController extends Controller
         try {
             $totalPrice = $event->ticket_price * $quantity;
 
-            // Create purchase record for tickets
-            $purchase = new Purchase();
-            $purchase->user_id = $user->id;
-            $purchase->total = $totalPrice;
-            $purchase->status = 'pending';
-            $purchase->type = 'ticket';
-            $purchase->event_id = $event->id;
-            $purchase->save();
-
-            // Create purchase item
-            $purchaseItem = new PurchaseItem();
-            $purchaseItem->purchase_id = $purchase->id;
-            $purchaseItem->quantity = $quantity;
-            $purchaseItem->price = $event->ticket_price;
-            $purchaseItem->save();
+            // Create ticket purchase record
+            $purchase = TicketPurchase::create([
+                'user_id' => $user->id,
+                'event_id' => $event->id,
+                'total' => $totalPrice,
+            ]);
 
             // NOTE: Tickets will be created after successful payment via webhook
             // This prevents duplicate ticket creation and ensures payment is confirmed first
@@ -232,6 +229,13 @@ class TicketController extends Controller
      */
     public function createPaymentIntent(Request $request)
     {
+        // Prevent admins from purchasing tickets
+        if (Auth::user()->role === 'admin') {
+            return response()->json([
+                'error' => 'Administrators cannot purchase tickets. Please use a customer account to buy tickets.'
+            ], 403);
+        }
+
         $request->validate([
             'event_id' => 'required|exists:events,id',
             'quantity' => 'required|integer|min:1|max:5'
@@ -261,21 +265,12 @@ class TicketController extends Controller
         try {
             $totalPrice = $event->ticket_price * $quantity;
 
-            // Create purchase record for tickets
-            $purchase = new Purchase();
-            $purchase->user_id = $user->id;
-            $purchase->total = $totalPrice;
-            $purchase->status = 'pending';
-            $purchase->type = 'ticket';
-            $purchase->event_id = $event->id;
-            $purchase->save();
-
-            // Create purchase item
-            $purchaseItem = new PurchaseItem();
-            $purchaseItem->purchase_id = $purchase->id;
-            $purchaseItem->quantity = $quantity;
-            $purchaseItem->price = $event->ticket_price;
-            $purchaseItem->save();
+            // Create ticket purchase record
+            $purchase = TicketPurchase::create([
+                'user_id' => $user->id,
+                'event_id' => $event->id,
+                'total' => $totalPrice
+            ]);
 
             // Create PayMongo checkout session
             $payMongoService = new PayMongoService();
@@ -302,7 +297,8 @@ class TicketController extends Controller
             // Create payment record
             $payment = new Payment();
             $payment->user_id = $user->id;
-            $payment->purchase_id = $purchase->id;
+            $payment->purchasable_type = TicketPurchase::class;
+            $payment->purchasable_id = $purchase->id;
             $payment->amount = $totalPrice;
             $payment->currency = 'PHP';
             $payment->status = 'pending';
@@ -343,10 +339,10 @@ class TicketController extends Controller
         $request->validate([
             'payment_intent_id' => 'required|string',
             'payment_method_id' => 'required|string',
-            'purchase_id' => 'required|integer|exists:purchases,id'
+            'purchase_id' => 'required|integer|exists:ticket_purchases,id'
         ]);
 
-        $purchase = Purchase::findOrFail($request->purchase_id);
+        $purchase = TicketPurchase::findOrFail($request->purchase_id);
         
         // Check if user owns this purchase
         if ($purchase->user_id !== Auth::id()) {
@@ -364,20 +360,19 @@ class TicketController extends Controller
 
             if ($paymentResponse['data']['attributes']['status'] === 'succeeded') {
                 // Check if tickets already exist to avoid duplicates
-                $existingTicketsCount = Ticket::where('purchase_id', $purchase->id)->count();
+                $existingTicketsCount = Ticket::where('ticket_purchase_id', $purchase->id)->count();
+                
+                // Get quantity from request metadata or default to 1
+                $quantity = $request->input('quantity', 1);
                 
                 if ($existingTicketsCount === 0) {
-                    // Get purchase item to get quantity
-                    $purchaseItem = $purchase->purchaseItems()->first();
-                    $quantity = $purchaseItem ? $purchaseItem->quantity : 1;
-
                     // Create tickets
                     $tickets = [];
                     for ($i = 0; $i < $quantity; $i++) {
                         $ticket = new Ticket();
                         $ticket->event_id = $purchase->event_id;
                         $ticket->user_id = $purchase->user_id;
-                        $ticket->purchase_id = $purchase->id;
+                        $ticket->ticket_purchase_id = $purchase->id;
                         $ticket->ticket_number = $ticket->generateTicketNumber();
                         $ticket->price = $purchase->event->ticket_price;
                         $ticket->status = 'confirmed';
@@ -388,11 +383,10 @@ class TicketController extends Controller
                     }
                 } else {
                     // Tickets already exist, just load them
-                    $tickets = Ticket::where('purchase_id', $purchase->id)->with('event')->get();
+                    $tickets = Ticket::where('ticket_purchase_id', $purchase->id)->with('event')->get();
                 }
 
-                // Update purchase status
-                $purchase->status = 'completed';
+                // Update purchase paid_at
                 $purchase->paid_at = now();
                 $purchase->save();
 

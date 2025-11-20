@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
+import { useAuthStore } from '~/stores/auth'
 import Select from '~/components/Select.vue'
 
 const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
 
 // Subject options for the select dropdown
 const subjectOptions = [
@@ -170,7 +172,7 @@ useHead({
 
               <button
                 type="submit"
-                :disabled="isSubmitting"
+                :disabled="isSubmitting || authStore.isAdmin"
                 class="w-full bg-zinc-900 text-white py-3 px-6 rounded-lg font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span v-if="isSubmitting" class="flex items-center justify-center">
@@ -180,6 +182,7 @@ useHead({
                   </svg>
                   Sending...
                 </span>
+                <span v-else-if="authStore.isAdmin">Contact form disabled for administrators</span>
                 <span v-else>Send Message</span>
               </button>
             </form>

@@ -24,16 +24,10 @@ export interface TeamSettings {
   team_members: TeamMember[]
 }
 
-export interface MaintenanceSettings {
-  maintenance_mode: boolean
-  maintenance_message: string
-}
-
 export interface AllSettings {
   site: SiteSettings
   contact: ContactSettings
   team: TeamSettings
-  maintenance: MaintenanceSettings
 }
 
 export interface Setting {

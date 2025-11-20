@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('shipping_prices', function (Blueprint $table) {
             $table->id();
-            $table->string('region')->unique(); // Local, Luzon, Cebu, Visayas, Mindanao
+            $table->string('region')->unique(); 
             $table->decimal('price', 10, 2); // Shipping price in PHP
             $table->text('description')->nullable(); // Optional description
             $table->boolean('is_active')->default(true); // Enable/disable shipping to this region

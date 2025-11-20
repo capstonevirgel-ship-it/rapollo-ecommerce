@@ -130,25 +130,6 @@ class SettingsSeeder extends Seeder
                 'updated_at' => $now,
             ],
 
-            // Maintenance Mode
-            [
-                'key' => 'maintenance_mode',
-                'value' => '0',
-                'type' => 'boolean',
-                'group' => 'maintenance',
-                'description' => 'Enable or disable maintenance mode',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            [
-                'key' => 'maintenance_message',
-                'value' => 'We are currently performing scheduled maintenance. Please check back soon!',
-                'type' => 'text',
-                'group' => 'maintenance',
-                'description' => 'Message displayed during maintenance',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
 
             // Structured Store Address (source of truth)
             [

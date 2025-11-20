@@ -28,10 +28,12 @@ export interface Order {
 
 export interface OrderItem {
   id: number
-  purchase_id: number
+  product_purchase_id: number
   variant_id: number
   quantity: number
   price: number
+  // Deprecated: Use product_purchase_id instead
+  purchase_id?: number
   variant?: {
     id: number
     product_id: number
@@ -79,7 +81,8 @@ export interface OrderItem {
 export interface Payment {
   id: number
   user_id: number
-  purchase_id: number
+  purchasable_type?: string
+  purchasable_id?: number
   amount: number
   currency: string
   status: 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled' | 'expired'
@@ -89,6 +92,8 @@ export interface Payment {
   payment_date?: string
   notes?: string
   metadata?: any
+  // Deprecated: Use purchasable_type and purchasable_id instead
+  purchase_id?: number
 }
 
 export const useOrderStore = defineStore('order', () => {
@@ -146,7 +151,7 @@ export const useOrderStore = defineStore('order', () => {
     error.value = null
     
     try {
-      const response = await useCustomFetch(`/api/purchases/${orderId}/status`, {
+      const response = await useCustomFetch(`/api/product-purchases/${orderId}/status`, {
         method: 'PUT',
         body: { status }
       })

@@ -78,30 +78,18 @@ type Variant = {
   color_name: string;
   color_hex: string;
   size_id: number | null;
-  base_price: number;
   stock: number;
   sku: string;
   images: File[];
+  primary_image_index: number | null; // Index of primary image in images array
   available_sizes: number[]; // Sizes available for this variant
   size_stocks: { [sizeId: number]: number }; // Individual stock per size
 };
 
-const variants = ref<Variant[]>([
-  {
-    color_name: "Black",
-    color_hex: "#000000",
-    size_id: null,
-    base_price: 0,
-    stock: 10,
-    sku: "",
-    images: [],
-    available_sizes: [],
-    size_stocks: {},
-  },
-]);
+const variants = ref<Variant[]>([]);
 
-// Computed function to calculate final price for a variant
-const getVariantFinalPrice = (basePrice: number) => {
+// Computed function to calculate final price for product
+const getProductFinalPrice = (basePrice: number) => {
   if (basePrice <= 0) return 0
   const totalTaxRate = taxStore.totalTaxRate
   return basePrice * (1 + totalTaxRate / 100)
@@ -156,7 +144,7 @@ const groupedSubcategories = computed(() => {
 const accordionSections = [
   { id: 'basic', title: 'Basic Information', icon: 'mdi:information', required: true },
   { id: 'media', title: 'Media & Images', icon: 'mdi:image', required: true },
-  { id: 'variants', title: 'Variants & Pricing', icon: 'mdi:palette', required: true },
+  { id: 'variants', title: 'Product Variants', icon: 'mdi:palette', required: false },
   { id: 'inventory', title: 'Inventory', icon: 'mdi:package-variant', required: false },
   { id: 'seo', title: 'SEO & Marketing', icon: 'mdi:search-web', required: false },
 ];
@@ -169,11 +157,13 @@ const isAccordionComplete = (sectionId: string) => {
     case 'media':
       return images.value.length > 0;
     case 'variants':
-      return variants.value.length > 0 && variants.value.every(v => v.base_price > 0);
+      // Variants are optional - section is complete if at least one variant exists
+      return variants.value.length > 0;
     case 'inventory':
-      return true; // Optional section
+      return false; // Optional section - never mark as complete automatically
     case 'seo':
-      return true; // Optional section
+      // SEO is optional - section is complete only if at least one SEO field is filled
+      return (seoTitle.value.trim() !== '' || seoDescription.value.trim() !== '' || seoKeywords.value.trim() !== '' || seoCanonicalUrl.value.trim() !== '');
     default:
       return false;
   }
@@ -195,7 +185,8 @@ const searchPreview = computed(() => {
 });
 
 const canSubmit = computed(() => {
-  return isAccordionComplete('basic') && isAccordionComplete('media') && isAccordionComplete('variants');
+  // Variants are optional, so we don't require them for submission
+  return isAccordionComplete('basic') && isAccordionComplete('media');
 });
 
 // Load brands/subcategories/sizes on mount
@@ -213,15 +204,7 @@ onMounted(async () => {
   initializeSelectedSizes();
 });
 
-// Watch master base price and sync with variants (only if variant base_price hasn't been manually changed)
-watch(masterBasePrice, (newPrice, oldPrice) => {
-  variants.value.forEach(variant => {
-    // Only sync if variant base_price is 0 or matches the old master base price (meaning it was synced)
-    if (variant.base_price === 0 || variant.base_price === oldPrice) {
-      variant.base_price = newPrice;
-    }
-  });
-});
+// Note: Variants no longer have base_price - they inherit from product
 
 // Watch master stock and sync with variants that have no sizes
 watch(masterStock, (newStock) => {
@@ -234,42 +217,87 @@ watch(masterStock, (newStock) => {
 
 function handleProductImages(e: Event) {
   const target = e.target as HTMLInputElement;
-  if (target.files) images.value = Array.from(target.files);
+  if (target.files) {
+    const newFiles = Array.from(target.files);
+    images.value = [...images.value, ...newFiles];
+    // Set first image as primary if no primary is set
+    if (primaryProductImageIndex.value === null && images.value.length > 0) {
+      primaryProductImageIndex.value = 0;
+    }
+  }
 }
 
 function handleVariantImages(e: Event, index: number) {
   const target = e.target as HTMLInputElement;
-  if (target.files) variants.value[index].images = Array.from(target.files);
+  if (target.files) {
+    const newFiles = Array.from(target.files);
+    variants.value[index].images = [...variants.value[index].images, ...newFiles];
+    // Set first image as primary if no primary is set
+    if (variants.value[index].primary_image_index === null && variants.value[index].images.length > 0) {
+      variants.value[index].primary_image_index = 0;
+    }
+  }
 }
 
+function removeProductImage(index: number) {
+  images.value.splice(index, 1);
+  // Adjust primary index if needed
+  if (primaryProductImageIndex.value === index) {
+    primaryProductImageIndex.value = images.value.length > 0 ? 0 : null;
+  } else if (primaryProductImageIndex.value !== null && primaryProductImageIndex.value > index) {
+    primaryProductImageIndex.value = primaryProductImageIndex.value - 1;
+  }
+}
+
+function removeVariantImage(variantIndex: number, imageIndex: number) {
+  variants.value[variantIndex].images.splice(imageIndex, 1);
+  // Adjust primary index if needed
+  const variant = variants.value[variantIndex];
+  if (variant.primary_image_index === imageIndex) {
+    variant.primary_image_index = variant.images.length > 0 ? 0 : null;
+  } else if (variant.primary_image_index !== null && variant.primary_image_index > imageIndex) {
+    variant.primary_image_index = variant.primary_image_index - 1;
+  }
+}
+
+function setPrimaryProductImage(index: number) {
+  primaryProductImageIndex.value = index;
+}
+
+function setPrimaryVariantImage(variantIndex: number, imageIndex: number) {
+  variants.value[variantIndex].primary_image_index = imageIndex;
+}
+
+function getImagePreview(file: File) {
+  return URL.createObjectURL(file);
+}
 
 function addVariant() {
   variants.value.push({
     color_name: "White",
     color_hex: "#ffffff",
     size_id: null,
-    price: 0,
-    stock: 10,
+    stock: masterStock.value || 10,
     sku: "",
     images: [],
+    primary_image_index: null,
     available_sizes: [...selectedSizes.value], // Copy all selected sizes
     size_stocks: {}, // Initialize empty size stocks
   });
 }
 
 function removeVariant(index: number) {
-  if (variants.value.length > 1) {
-    variants.value.splice(index, 1);
-  }
+  variants.value.splice(index, 1);
 }
 
-// Handle color picker change - replace the color_name with hex value
+// Handle color picker change - replace the color_name with hex value (capitalized)
 function handleColorPickerChange(variantIndex: number, hexValue: string) {
   const variant = variants.value[variantIndex];
-  variant.color_hex = hexValue;
-  // Update color_name to show the hex value instead of the original name
-  variant.color_name = hexValue;
-  console.log(`Color picker changed to: ${hexValue}, color_name updated to: ${hexValue}`);
+  const capitalizedHex = hexValue.toUpperCase();
+  variant.color_hex = capitalizedHex;
+  // Update color_name to show the capitalized hex value instead of the original name
+  variant.color_name = capitalizedHex;
+  console.log(`Color picker changed to: ${capitalizedHex}, color_name updated to: ${capitalizedHex}`);
 }
 
 // Handle color dropdown change - update color picker to match
@@ -312,10 +340,6 @@ const initializeSelectedSizes = () => {
   }
 };
 
-function getImagePreview(file: File) {
-  return URL.createObjectURL(file);
-}
-
 function toggleAccordion(sectionId: string) {
   activeAccordion.value = activeAccordion.value === sectionId ? '' : sectionId;
 }
@@ -339,6 +363,19 @@ async function submitProduct() {
       finalBrandId = created.id;
     }
 
+    // Determine if we have valid variants
+    const validVariants = variants.value.length > 0
+      ? variants.value.map((v) => ({
+          color_name: v.color_name,
+          color_hex: v.color_hex,
+          available_sizes: v.available_sizes,
+          stock: v.stock,
+          sku: v.sku,
+          images: v.images,
+          primary_image_index: v.primary_image_index,
+        }))
+      : [];
+
     await productStore.createProduct({
       subcategory_id: subcategoryId.value,
       brand_id: finalBrandId || undefined,
@@ -350,19 +387,14 @@ async function submitProduct() {
       canonical_url: seoCanonicalUrl.value,
       robots: seoRobots.value,
       images: images.value,
+      primary_image_index: primaryProductImageIndex.value,
       sizes: selectedSizes.value,
       default_color_id: defaultColorId.value || undefined,
       default_color_name: defaultColorMode === 'custom' && defaultColorName.value ? defaultColorName.value : undefined,
       default_color_hex: defaultColorMode === 'custom' && defaultColorHex.value ? defaultColorHex.value : undefined,
-      variants: variants.value.map((v) => ({
-        color_name: v.color_name,
-        color_hex: v.color_hex,
-        available_sizes: v.available_sizes,
-        base_price: v.base_price,
-        stock: v.stock,
-        sku: v.sku,
-        images: v.images,
-      })),
+      // Always send base_price if provided (variants inherit from product)
+      base_price: masterBasePrice.value > 0 ? masterBasePrice.value : undefined,
+      variants: validVariants.length > 0 ? validVariants : undefined, // Send undefined if no variants
     });
 
     success("Product Created", "Product has been created successfully!");
@@ -379,9 +411,7 @@ async function submitProduct() {
     selectedSizes.value = [];
     masterBasePrice.value = 0;
     masterStock.value = 10;
-    variants.value = [
-      { color_name: "Black", color_hex: "#000000", size_id: null, base_price: 0, stock: 10, sku: "", images: [], available_sizes: [], size_stocks: {} },
-    ];
+    variants.value = [];
     newBrandMode.value = false;
     newBrandName.value = "";
     
@@ -564,7 +594,6 @@ async function submitProduct() {
               <!-- Default/Main Product Color -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Default Product Color</label>
-                <p class="text-xs text-gray-500 mb-3">This color will be used for the main/default product images. Users can select this to view the default product view.</p>
                 <div class="flex items-center gap-2">
                   <Select
                     v-if="defaultColorMode === 'select'"
@@ -588,8 +617,13 @@ async function submitProduct() {
                     />
                     <input 
                       type="color" 
-                      v-model="defaultColorHex"
-                      class="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                      :value="defaultColorHex"
+                      @input="(e) => {
+                        const hex = (e.target as HTMLInputElement).value.toUpperCase();
+                        defaultColorHex = hex;
+                        defaultColorName = hex;
+                      }"
+                      class="w-10 h-10 border-2 border-gray-300 rounded-md cursor-pointer"
                     />
                   </div>
                   <button
@@ -697,6 +731,46 @@ async function submitProduct() {
                   {{ images.length }} file(s) selected
                 </p>
               </div>
+              
+              <!-- Image Previews -->
+              <div v-if="images.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                <div 
+                  v-for="(image, index) in images" 
+                  :key="index"
+                  class="relative group border-2 rounded-lg overflow-hidden"
+                  :class="primaryProductImageIndex === index ? 'border-zinc-900 ring-2 ring-zinc-900' : 'border-gray-300'"
+                >
+                  <img 
+                    :src="getImagePreview(image)" 
+                    :alt="`Product image ${index + 1}`"
+                    class="w-full h-32 object-cover"
+                  />
+                  <div class="absolute top-2 right-2 flex gap-1">
+                    <button
+                      @click="setPrimaryProductImage(index)"
+                      :class="[
+                        'px-2 py-1 rounded text-xs font-medium transition-colors',
+                        primaryProductImageIndex === index 
+                          ? 'bg-zinc-900 text-white' 
+                          : 'bg-white/90 text-gray-700 hover:bg-white'
+                      ]"
+                      :title="primaryProductImageIndex === index ? 'Primary image' : 'Set as thumbnail'"
+                    >
+                      <Icon :name="primaryProductImageIndex === index ? 'mdi:star' : 'mdi:star-outline'" />
+                    </button>
+                    <button
+                      @click="removeProductImage(index)"
+                      class="px-2 py-1 rounded bg-red-500 text-white text-xs hover:bg-red-600 transition-colors"
+                      title="Remove image"
+                    >
+                      <Icon name="mdi:delete" />
+                    </button>
+                  </div>
+                  <div v-if="primaryProductImageIndex === index" class="absolute bottom-0 left-0 right-0 bg-zinc-900/80 text-white text-xs py-1 px-2 text-center">
+                    Primary Image
+                  </div>
+                </div>
+              </div>
             </div>
       </div>
     </div>
@@ -714,7 +788,7 @@ async function submitProduct() {
                 :class="isAccordionComplete('variants') ? 'text-green-600' : 'text-gray-400'"
               />
               <div>
-                <h3 class="font-semibold text-gray-900">Variants & Pricing</h3>
+                <h3 class="font-semibold text-gray-900">Product Variants</h3>
                 <p class="text-sm text-gray-500">Product variants, colors, sizes, and pricing</p>
               </div>
             </div>
@@ -730,11 +804,25 @@ async function submitProduct() {
           
           <div v-if="activeAccordion === 'variants'" class="px-6 pb-6 border-t border-gray-200">
             <div class="pt-6 space-y-6">
+              <!-- Empty State -->
+              <div v-if="variants.length === 0" class="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+                <Icon name="mdi:palette-outline" class="text-4xl text-gray-400 mx-auto mb-4" />
+                <h4 class="text-lg font-medium text-gray-900 mb-2">No Variants Added</h4>
+                <p class="text-sm text-gray-500 mb-6">Variants are optional. Click the button below to add a variant if needed.</p>
+                <button 
+                  @click="addVariant" 
+                  class="px-6 py-3 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 mx-auto"
+                >
+                  <Icon name="mdi:plus" />
+                  Add Your First Variant
+                </button>
+              </div>
+
+              <!-- Variants List -->
               <div v-for="(variant, index) in variants" :key="index" class="p-4 border border-gray-200 rounded-lg">
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="font-medium text-gray-900">Variant {{ index + 1 }}</h4>
                   <button 
-                    v-if="variants.length > 1"
                     @click="removeVariant(index)"
                     class="text-red-600 hover:text-red-700"
                   >
@@ -763,7 +851,7 @@ async function submitProduct() {
                         type="color" 
                         :value="variant.color_hex"
                         @input="handleColorPickerChange(index, ($event.target as HTMLInputElement).value)"
-                        class="w-10 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                        class="w-10 h-10 border-2 border-gray-300 rounded-md cursor-pointer"
                       />
                     </div>
                     <p class="text-xs text-gray-500 mt-1">Select Black or White, then use color picker for exact hex</p>
@@ -797,22 +885,6 @@ async function submitProduct() {
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <!-- Base Price -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Base Price (Before Tax) *</label>
-                    <div class="relative">
-                      <span class="absolute left-3 top-2 text-gray-500">₱</span>
-                      <input 
-                        v-model="variant.base_price" 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0.00"
-                        class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                      />
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">Base price before tax. Final price: <span class="font-semibold text-zinc-900">₱{{ getVariantFinalPrice(variant.base_price).toFixed(2) }}</span></p>
-                  </div>
-
                   <!-- SKU -->
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">SKU</label>
@@ -862,26 +934,68 @@ async function submitProduct() {
 
         <!-- Variant Images -->
         <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Variant Images</label>
-                  <input 
-                    type="file" 
-                    multiple 
-                    accept="image/*"
-                    @change="(e) => handleVariantImages(e, index)" 
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                  />
+          <label class="block text-sm font-medium text-gray-700 mb-2">Variant Images</label>
+          <input 
+            type="file" 
+            multiple 
+            accept="image/*"
+            @change="(e) => handleVariantImages(e, index)" 
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 mb-3"
+          />
+          
+          <!-- Variant Image Previews -->
+          <div v-if="variant.images.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-3">
+            <div 
+              v-for="(image, imgIndex) in variant.images" 
+              :key="imgIndex"
+              class="relative group border-2 rounded-lg overflow-hidden"
+              :class="variant.primary_image_index === imgIndex ? 'border-zinc-900 ring-2 ring-zinc-900' : 'border-gray-300'"
+            >
+              <img 
+                :src="getImagePreview(image)" 
+                :alt="`Variant image ${imgIndex + 1}`"
+                class="w-full h-32 object-cover"
+              />
+              <div class="absolute top-2 right-2 flex gap-1">
+                <button
+                  @click="setPrimaryVariantImage(index, imgIndex)"
+                  :class="[
+                    'px-2 py-1 rounded text-xs font-medium transition-colors',
+                    variant.primary_image_index === imgIndex 
+                      ? 'bg-zinc-900 text-white' 
+                      : 'bg-white/90 text-gray-700 hover:bg-white'
+                  ]"
+                  :title="variant.primary_image_index === imgIndex ? 'Primary image' : 'Set as thumbnail'"
+                >
+                  <Icon :name="variant.primary_image_index === imgIndex ? 'mdi:star' : 'mdi:star-outline'" />
+                </button>
+                <button
+                  @click="removeVariantImage(index, imgIndex)"
+                  class="px-2 py-1 rounded bg-red-500 text-white text-xs hover:bg-red-600 transition-colors"
+                  title="Remove image"
+                >
+                  <Icon name="mdi:delete" />
+                </button>
+              </div>
+              <div v-if="variant.primary_image_index === imgIndex" class="absolute bottom-0 left-0 right-0 bg-zinc-900/80 text-white text-xs py-1 px-2 text-center">
+                Primary Image
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
+              <!-- Add Variant Button (only show if variants exist) -->
               <button 
+                v-if="variants.length > 0"
                 @click="addVariant" 
                 class="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700 transition-colors flex items-center justify-center gap-2"
               >
                 <Icon name="mdi:plus" />
                 Add Variant
-      </button>
-    </div>
-  </div>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- SEO & Marketing -->
@@ -988,7 +1102,7 @@ async function submitProduct() {
                       <!-- Product Image -->
                       <div class="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden">
                         <Icon v-if="images.length === 0" name="mdi:image-outline" class="text-3xl text-gray-400" />
-                        <img v-else :src="getImagePreview(images[0])" :alt="name || 'Product'" class="w-full h-full object-cover" />
+                        <img v-else :src="getImagePreview(primaryProductImageIndex !== null ? images[primaryProductImageIndex] : images[0])" :alt="name || 'Product'" class="w-full h-full object-cover" />
                       </div>
                       
                       <!-- Product Details -->
@@ -997,7 +1111,7 @@ async function submitProduct() {
                           {{ name || 'Product Name' }}
                         </h3>
                         <p class="text-sm font-semibold text-gray-900 mb-2">
-                          {{ variants.length > 0 && variants[0].base_price > 0 ? `₱${getVariantFinalPrice(variants[0].base_price).toFixed(2)}` : 'Price not set' }}
+                          {{ masterBasePrice > 0 ? `₱${getProductFinalPrice(masterBasePrice).toFixed(2)}` : 'Price not set' }}
                         </p>
                         
                         <!-- Brand/Seller -->

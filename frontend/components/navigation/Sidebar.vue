@@ -11,6 +11,9 @@ const isMobile = ref(false);
 const mobileMenuOpen = ref(false);
 const openDropdowns = ref<Record<string, boolean>>({});
 
+// Track admin header position for mobile menu
+const mobileMenuTop = ref('48px'); // Default fallback
+
 // Menu items
 const menuItems = ref([
   { link: '/admin/dashboard', label: 'Dashboard', icon: 'view-dashboard' },
@@ -20,6 +23,7 @@ const menuItems = ref([
     icon: 'shopping',
     children: [
       { link: '/admin/products', label: 'Products' },
+      { link: '/admin/product-labels', label: 'Product Labels' },
       { link: '/admin/categories', label: 'Categories' },
       { link: '/admin/subcategories', label: 'Subcategories' },
       { link: '/admin/brands', label: 'Brands' }
@@ -49,6 +53,22 @@ const closeMobileMenu = () => {
   mobileMenuOpen.value = false;
 };
 
+// Calculate mobile menu position based on admin header
+const calculateMobileMenuPosition = () => {
+  if (process.client) {
+    // Find the admin header element by class
+    const adminHeader = document.querySelector('.admin-header') as HTMLElement;
+    if (adminHeader) {
+      const rect = adminHeader.getBoundingClientRect();
+      // Position mobile menu right below the header (fixed position uses viewport coordinates)
+      mobileMenuTop.value = `${rect.bottom}px`;
+    } else {
+      // Fallback to default if header not found
+      mobileMenuTop.value = '48px';
+    }
+  }
+};
+
 const handleClickOutside = (event: MouseEvent) => {
   if (!mobileMenuOpen.value) return;
   
@@ -67,16 +87,22 @@ const handleResize = () => {
   } else {
     emit('width-change', sidebarWidth.value);
   }
+  // Recalculate mobile menu position on resize
+  if (mobileMenuOpen.value) {
+    calculateMobileMenuPosition();
+  }
 };
 
 const handleLogout = () => {
   authStore.logout();
 };
 
-// Watch for mobile menu open/close to add/remove click listener
+// Watch for mobile menu open/close to add/remove click listener and recalculate position
 watch(mobileMenuOpen, (isOpen) => {
   if (process.client) {
     if (isOpen) {
+      // Recalculate position when menu opens
+      calculateMobileMenuPosition();
       // Use nextTick to ensure the menu is rendered before adding listener
       nextTick(() => {
         document.addEventListener('click', handleClickOutside);
@@ -115,7 +141,8 @@ defineExpose({
   width: sidebarWidth,
   toggleMobileMenu: () => { mobileMenuOpen.value = !mobileMenuOpen.value; },
   closeMobileMenu,
-  mobileMenuOpen
+  mobileMenuOpen,
+  isMobile
 });
 </script>
 
@@ -211,36 +238,65 @@ defineExpose({
     </div>
 
     <!-- Mobile Menu Backdrop -->
-    <div
-      v-if="isMobile && mobileMenuOpen"
-      class="fixed inset-0 bg-black/50 z-[55]"
-      :style="{ top: '48px' }"
-      @click="closeMobileMenu"
-    ></div>
+    <Transition
+      enter-active-class="transition-opacity duration-300 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-200 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="isMobile && mobileMenuOpen"
+        class="fixed inset-0 bg-black/50 z-[55]"
+        :style="{ top: mobileMenuTop }"
+        @click="closeMobileMenu"
+      ></div>
+    </Transition>
 
     <!-- Mobile Dropdown Menu -->
-    <div 
-      v-if="isMobile && mobileMenuOpen" 
-      class="mobile-menu bg-gray-800 text-white shadow-lg px-4 py-2 fixed left-0 right-0 z-[55] max-h-[calc(100vh-48px)] overflow-y-auto sidebar-scrollbar border-t border-gray-700"
-      :style="{ top: '64px' }"
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="opacity-0 transform -translate-y-4"
+      enter-to-class="opacity-100 transform translate-y-0"
+      leave-active-class="transition-all duration-200 ease-in"
+      leave-from-class="opacity-100 transform translate-y-0"
+      leave-to-class="opacity-0 transform -translate-y-4"
     >
+      <div 
+        v-if="isMobile && mobileMenuOpen" 
+        class="mobile-menu bg-gray-800 text-white shadow-lg px-4 py-2 fixed left-0 right-0 z-[55] overflow-y-auto sidebar-scrollbar border-t border-gray-700"
+        :style="{ top: mobileMenuTop, maxHeight: `calc(100vh - ${mobileMenuTop})` }"
+      >
       <nav>
-        <ul class="flex flex-col gap-3 pb-2">
+        <ul class="flex flex-col gap-2 pb-2">
           <li v-for="item in menuItems" :key="item.label">
             <div v-if="item.children">
               <button
                 @click="toggleDropdown(item.label)"
-                class="flex items-center gap-3 py-3 px-3 w-full rounded hover:bg-gray-700 transition-colors duration-200"
+                class="flex items-center gap-2.5 py-2 px-3 w-full rounded hover:bg-gray-700 transition-colors duration-200"
               >
-                <Icon :name="`mdi:${item.icon}`" class="text-xl" />
-                <span class="text-lg">{{ item.label }}</span>
-                <Icon :name="`mdi:${openDropdowns[item.label] ? 'chevron-up' : 'chevron-down'}`" class="ml-auto text-lg" />
+                <Icon :name="`mdi:${item.icon}`" class="text-lg" />
+                <span class="text-base">{{ item.label }}</span>
+                <Icon 
+                  name="mdi:chevron-down" 
+                  class="ml-auto text-base transition-transform duration-200"
+                  :class="{ 'rotate-180': openDropdowns[item.label] }"
+                />
               </button>
-              <ul v-show="openDropdowns[item.label]" class="ml-6 mt-1 space-y-1">
+              <Transition
+                enter-active-class="transition-all duration-300 ease-out"
+                enter-from-class="opacity-0 max-h-0"
+                enter-to-class="opacity-100 max-h-96"
+                leave-active-class="transition-all duration-200 ease-in"
+                leave-from-class="opacity-100 max-h-96"
+                leave-to-class="opacity-0 max-h-0"
+              >
+                <ul v-show="openDropdowns[item.label]" class="ml-6 mt-1 space-y-0.5 overflow-hidden">
                 <li v-for="child in item.children" :key="child.link">
                   <NuxtLink
                     :to="child.link"
-                    class="flex items-center py-2 px-2 hover:bg-gray-700 rounded"
+                    class="flex items-center py-1.5 px-2 hover:bg-gray-700 rounded text-sm"
                     active-class="bg-gray-200 text-gray-900"
                     @click="mobileMenuOpen = false"
                   >
@@ -248,16 +304,17 @@ defineExpose({
                   </NuxtLink>
                 </li>
               </ul>
+              </Transition>
             </div>
             <div v-else>
               <NuxtLink
                 :to="item.link"
-                class="flex items-center gap-3 py-3 px-3 rounded hover:bg-gray-700 transition-colors duration-200"
+                class="flex items-center gap-2.5 py-2 px-3 rounded hover:bg-gray-700 transition-colors duration-200"
                 active-class="bg-gray-200 text-gray-900"
                 @click="mobileMenuOpen = false"
               >
-                <Icon :name="`mdi:${item.icon}`" class="text-xl" />
-                <span class="text-lg">{{ item.label }}</span>
+                <Icon :name="`mdi:${item.icon}`" class="text-lg" />
+                <span class="text-base">{{ item.label }}</span>
               </NuxtLink>
             </div>
           </li>
@@ -266,16 +323,17 @@ defineExpose({
             <hr class="my-2 border-gray-700" />
             <div class="px-3 py-2">
               <button 
-                class="bg-gray-200 text-gray-900 w-full py-3 rounded flex items-center justify-center mt-2 hover:bg-gray-300 transition-colors duration-200"
+                class="bg-gray-200 text-gray-900 py-1 px-6 rounded flex items-center justify-start mt-2 hover:bg-gray-300 transition-colors duration-200"
                 @click="() => { mobileMenuOpen = false; handleLogout() }"
               >
-                <Icon name="mdi:exit-to-app" class="text-xl" />
-                <span class="ml-2 text-lg">Logout</span>
+                <Icon name="mdi:exit-to-app" class="text-lg" />
+                <span class="ml-2 text-base">Logout</span>
               </button>
             </div>
           </li>
         </ul>
       </nav>
-    </div>
+      </div>
+    </Transition>
   </div>
 </template>

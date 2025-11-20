@@ -10,10 +10,12 @@ import DataTable from '@/components/DataTable.vue'
 import AdminActionButton from '@/components/AdminActionButton.vue'
 import AdminAddButton from '@/components/AdminAddButton.vue'
 import Toggle from '@/components/Toggle.vue'
+import ActiveInactiveToggle from '@/components/ActiveInactiveToggle.vue'
+import Select from '@/components/Select.vue'
 import type { TeamMember } from '~/types/settings'
 
 interface Props {
-  activeTab: 'site' | 'contact' | 'social' | 'team' | 'maintenance' | 'shipping'
+  activeTab: 'site' | 'contact' | 'social' | 'team' | 'shipping'
   isEditingMode: boolean
 }
 
@@ -69,14 +71,10 @@ const newMember = ref<TeamMember>({
 const memberImageFile = ref<File | null>(null)
 const memberImagePreview = ref<string | null>(null)
 
-// Maintenance Mode
-const maintenanceMode = ref(false)
-const maintenanceMessage = ref('')
 
 // Shipping Management
 const showCreateShippingDialog = ref(false)
 const showEditShippingDialog = ref(false)
-const showBulkEditShippingDialog = ref(false)
 const selectedShippingPrice = ref<ShippingPrice | null>(null)
 const isShippingSubmitting = ref(false)
 
@@ -94,7 +92,6 @@ const createShippingForm = ref<ShippingPriceForm>({
 })
 
 const editShippingForm = ref<Partial<ShippingPriceForm>>({})
-const bulkEditShippingData = ref<Array<{ id: number; price: number; is_active: boolean }>>([])
 
 const createTaxForm = ref<TaxPriceForm>({
   name: '',
@@ -109,7 +106,6 @@ const editTaxForm = ref<Partial<TaxPriceForm>>({})
 const shippingColumns = [
   { label: "Region", key: "region" },
   { label: "Price", key: "price" },
-  { label: "Description", key: "description" },
   { label: "Status", key: "status" },
   { label: "Actions", key: "actions" }
 ]
@@ -118,13 +114,22 @@ const shippingColumns = [
 const taxColumns = [
   { label: "Name", key: "name" },
   { label: "Rate (%)", key: "rate" },
-  { label: "Description", key: "description" },
   { label: "Status", key: "status" },
   { label: "Actions", key: "actions" }
 ]
 
 // Loading states
 const saving = ref(false)
+const togglingShipping = ref<Set<number>>(new Set())
+const togglingTax = ref<Set<number>>(new Set())
+
+// Computed region options for Select component
+const regionOptions = computed(() => {
+  return Object.entries(shippingStore.availableRegions).map(([value, label]) => ({
+    value,
+    label: label as string
+  }))
+})
 
 // Computed
 const logoUrl = computed(() => {
@@ -193,10 +198,6 @@ const loadSettings = async () => {
       const team = settings.team || {}
       teamMembers.value = team.team_members || []
 
-      // Maintenance Mode
-      const maintenance = settings.maintenance || {}
-      maintenanceMode.value = maintenance.maintenance_mode || false
-      maintenanceMessage.value = maintenance.maintenance_message || ''
     }
   } catch (error) {
     console.error('Failed to load settings:', error)
@@ -456,39 +457,6 @@ const saveTeamMembers = async () => {
   }
 }
 
-// Toggle maintenance mode
-const toggleMaintenance = async () => {
-  try {
-    saving.value = true
-    await settingsStore.toggleMaintenance(maintenanceMode.value, maintenanceMessage.value)
-    await loadSettings()
-    showSuccess(`Maintenance mode ${maintenanceMode.value ? 'enabled' : 'disabled'}`)
-  } catch (error) {
-    console.error('Failed to toggle maintenance mode:', error)
-    showError('Failed to toggle maintenance mode')
-  } finally {
-    saving.value = false
-  }
-}
-
-// Save maintenance message
-const saveMaintenanceMessage = async () => {
-  try {
-    saving.value = true
-    const settings = [
-      { key: 'maintenance_message', value: maintenanceMessage.value, group: 'maintenance', type: 'textarea' }
-    ]
-    await settingsStore.updateSettings({ settings })
-    await loadSettings()
-    showSuccess('Maintenance message updated successfully')
-    emit('toggle-edit-mode')
-  } catch (error) {
-    console.error('Failed to update maintenance message:', error)
-    showError('Failed to update maintenance message')
-  } finally {
-    saving.value = false
-  }
-}
 
 // Shipping Management Functions
 const loadShippingData = async () => {
@@ -534,7 +502,7 @@ const openEditShippingDialog = (shippingPrice: ShippingPrice) => {
     region: shippingPrice.region,
     price: shippingPrice.price,
     description: shippingPrice.description || '',
-    is_active: shippingPrice.is_active
+    is_active: shippingPrice.is_active ?? true
   }
   showEditShippingDialog.value = true
 }
@@ -570,27 +538,6 @@ const handleDeleteShipping = async (shippingPrice: ShippingPrice) => {
   }
 }
 
-const openBulkEditShippingDialog = () => {
-  bulkEditShippingData.value = shippingStore.shippingPrices.map(price => ({
-    id: price.id,
-    price: price.price,
-    is_active: price.is_active
-  }))
-  showBulkEditShippingDialog.value = true
-}
-
-const handleBulkEditShipping = async () => {
-  isShippingSubmitting.value = true
-  try {
-    await shippingStore.bulkUpdateShippingPrices(bulkEditShippingData.value)
-    showSuccess('Success', 'Shipping prices updated successfully')
-    showBulkEditShippingDialog.value = false
-  } catch (err) {
-    showError('Failed to Update', 'Could not update shipping prices')
-  } finally {
-    isShippingSubmitting.value = false
-  }
-}
 
 // Tax Management Functions
 const loadTaxData = async () => {
@@ -636,7 +583,7 @@ const openEditTaxDialog = (taxPrice: TaxPrice) => {
     name: taxPrice.name,
     rate: taxPrice.rate,
     description: taxPrice.description || '',
-    is_active: taxPrice.is_active
+    is_active: taxPrice.is_active ?? true
   }
   showEditTaxDialog.value = true
 }
@@ -669,6 +616,58 @@ const handleDeleteTax = async (taxPrice: TaxPrice) => {
     showSuccess('Success', 'Tax price deleted successfully')
   } catch (err) {
     showError('Failed to Delete', 'Could not delete tax price')
+  }
+}
+
+// Toggle shipping price active status
+const toggleShippingActive = async (id: number, currentStatus: boolean) => {
+  const newStatus = !currentStatus
+  togglingShipping.value.add(id)
+
+  try {
+    // Optimistic update
+    const shippingPrice = shippingStore.shippingPrices.find(p => p.id === id)
+    if (shippingPrice) {
+      shippingPrice.is_active = newStatus
+    }
+
+    await shippingStore.toggleShippingActive(id, newStatus)
+    showSuccess('Status Updated', `Shipping price has been ${newStatus ? 'activated' : 'deactivated'} successfully.`)
+  } catch (err: any) {
+    // Revert optimistic update
+    const shippingPrice = shippingStore.shippingPrices.find(p => p.id === id)
+    if (shippingPrice) {
+      shippingPrice.is_active = currentStatus
+    }
+    showError('Update Failed', `Failed to ${newStatus ? 'activate' : 'deactivate'} shipping price. Please try again.`)
+  } finally {
+    togglingShipping.value.delete(id)
+  }
+}
+
+// Toggle tax price active status
+const toggleTaxActive = async (id: number, currentStatus: boolean) => {
+  const newStatus = !currentStatus
+  togglingTax.value.add(id)
+
+  try {
+    // Optimistic update
+    const taxPrice = taxStore.taxPrices.find(p => p.id === id)
+    if (taxPrice) {
+      taxPrice.is_active = newStatus
+    }
+
+    await taxStore.toggleTaxActive(id, newStatus)
+    showSuccess('Status Updated', `Tax price has been ${newStatus ? 'activated' : 'deactivated'} successfully.`)
+  } catch (err: any) {
+    // Revert optimistic update
+    const taxPrice = taxStore.taxPrices.find(p => p.id === id)
+    if (taxPrice) {
+      taxPrice.is_active = currentStatus
+    }
+    showError('Update Failed', `Failed to ${newStatus ? 'activate' : 'deactivate'} tax price. Please try again.`)
+  } finally {
+    togglingTax.value.delete(id)
   }
 }
 
@@ -1040,98 +1039,19 @@ watch(() => props.activeTab, (newTab) => {
       </div>
     </div>
 
-    <!-- Maintenance Mode Tab -->
-    <div v-if="activeTab === 'maintenance'" class="p-8">
-      <div class="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 mb-8">
-        <div class="flex items-start">
-          <Icon name="mdi:alert" class="text-yellow-600 text-2xl mr-3 mt-0.5 flex-shrink-0" />
-          <div>
-            <h3 class="font-semibold text-yellow-900 text-lg">Warning</h3>
-            <p class="text-sm text-yellow-700 mt-2">
-              Enabling maintenance mode will make your site unavailable to regular users.
-              Only administrators will be able to access the site.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Toggle -->
-      <div class="mb-8">
-        <label class="flex items-center cursor-pointer group">
-          <div class="relative">
-            <input
-              v-model="maintenanceMode"
-              type="checkbox"
-              class="sr-only"
-              @change="toggleMaintenance"
-            />
-            <div
-              :class="[
-                'w-14 h-8 rounded-full transition-colors',
-                maintenanceMode ? 'bg-red-500' : 'bg-gray-300'
-              ]"
-            >
-              <div
-                :class="[
-                  'absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform shadow-md',
-                  maintenanceMode ? 'transform translate-x-6' : ''
-                ]"
-              ></div>
-            </div>
-          </div>
-          <span class="ml-4 text-base font-medium text-gray-900">
-            {{ maintenanceMode ? 'Maintenance Mode is ON' : 'Maintenance Mode is OFF' }}
-          </span>
-        </label>
-      </div>
-
-      <!-- Message -->
-      <div class="mb-8">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Maintenance Message</label>
-        <textarea
-          v-model="maintenanceMessage"
-          rows="4"
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-          placeholder="Enter a message to display to users"
-          :disabled="!maintenanceMode"
-        ></textarea>
-        <p class="text-xs text-gray-500 mt-2">
-          This message will be displayed to users when they try to access your site during maintenance.
-        </p>
-      </div>
-
-      <button
-        v-if="maintenanceMode"
-        @click="saveMaintenanceMessage"
-        :disabled="saving"
-        class="px-6 py-3 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-50 font-medium"
-      >
-        <Icon name="mdi:content-save" class="inline-block mr-2" />
-        {{ saving ? 'Saving...' : 'Save Message' }}
-      </button>
-    </div>
-
     <!-- Shipping & Tax Tab -->
     <div v-if="activeTab === 'shipping'" class="p-8">
       <div class="space-y-12">
         <!-- Shipping Prices Section -->
         <div class="space-y-6">
           <!-- Header -->
-          <div class="flex justify-between items-center">
+          <div class="flex flex-col max-[489px]:flex-col min-[490px]:flex-row min-[490px]:justify-between min-[490px]:items-center gap-4">
             <div>
               <h2 class="text-xl font-semibold text-gray-900">Shipping Price Management</h2>
               <p class="text-gray-600 mt-1">Manage shipping prices for different regions</p>
             </div>
-          <div class="flex gap-3">
-            <button
-              @click="openBulkEditShippingDialog"
-              class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
-            >
-              Bulk Edit
-            </button>
             <AdminAddButton text="Add Shipping Price" @click="openCreateShippingDialog" />
           </div>
-        </div>
 
         <!-- Loading State -->
         <div v-if="shippingStore.loading" class="flex justify-center py-8">
@@ -1149,43 +1069,31 @@ watch(() => props.activeTab, (newTab) => {
           v-else
           :columns="shippingColumns"
           :rows="shippingData"
+          :show-checkboxes="false"
         >
-          <template #region="{ row }">
-            <div>
-              <div class="font-medium text-gray-900">{{ row.region }}</div>
-              <div class="text-sm text-gray-500">{{ row.rawData.region }}</div>
+          <template #cell-region="{ row }">
+            <div class="min-w-0">
+              <div class="font-medium text-gray-900 truncate">{{ row.region }}</div>
+              <div class="text-sm text-gray-500 truncate">{{ row.rawData.region }}</div>
             </div>
           </template>
 
-          <template #price="{ row }">
+          <template #cell-price="{ row }">
             <div class="font-medium text-gray-900">{{ row.price }}</div>
           </template>
 
-          <template #description="{ row }">
-            <div class="text-gray-900 max-w-xs truncate">{{ row.description }}</div>
+          <template #cell-status="{ row }">
+            <div class="flex items-center justify-start">
+              <ActiveInactiveToggle
+                :model-value="!!row.rawData.is_active"
+                :disabled="togglingShipping.has(row.rawData.id)"
+                @update:model-value="toggleShippingActive(row.rawData.id, !!row.rawData.is_active)"
+              />
+            </div>
           </template>
 
-          <template #status="{ row }">
-            <span
-              :class="[
-                'inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full',
-                row.rawData.is_active
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-red-100 text-red-800'
-              ]"
-            >
-              <span
-                :class="[
-                  'w-1.5 h-1.5 rounded-full mr-1.5',
-                  row.rawData.is_active ? 'bg-green-600' : 'bg-red-600'
-                ]"
-              ></span>
-              {{ row.status }}
-            </span>
-          </template>
-
-          <template #actions="{ row }">
-            <div class="flex gap-2 justify-center">
+          <template #cell-actions="{ row }">
+            <div class="flex gap-2 justify-start">
               <AdminActionButton
                 icon="mdi:pencil"
                 text="Edit"
@@ -1206,23 +1114,12 @@ watch(() => props.activeTab, (newTab) => {
         <!-- Tax Prices Section -->
         <div class="space-y-6 border-t border-gray-200 pt-8">
           <!-- Header -->
-          <div class="flex justify-between items-center">
+          <div class="flex flex-col max-[489px]:flex-col min-[490px]:flex-row min-[490px]:justify-between min-[490px]:items-center gap-4">
             <div>
               <h2 class="text-xl font-semibold text-gray-900">Tax Price Management</h2>
               <p class="text-gray-600 mt-1">Manage tax rates (e.g., VAT, GST, Sales Tax). Multiple active taxes will be summed.</p>
             </div>
             <AdminAddButton text="Add Tax Price" @click="openCreateTaxDialog" />
-          </div>
-
-          <!-- Total Tax Rate Display -->
-          <div v-if="taxStore.totalTaxRate > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-blue-900">Total Active Tax Rate</p>
-                <p class="text-2xl font-bold text-blue-600">{{ typeof taxStore.totalTaxRate === 'number' ? taxStore.totalTaxRate.toFixed(2) : '0.00' }}%</p>
-                <p class="text-xs text-blue-700 mt-1">Sum of all active tax rates</p>
-              </div>
-            </div>
           </div>
 
           <!-- Loading State -->
@@ -1241,34 +1138,28 @@ watch(() => props.activeTab, (newTab) => {
             v-else
             :columns="taxColumns"
             :rows="taxData"
+            :show-checkboxes="false"
           >
-            <template #name="{ row }">
-              <div class="font-medium text-gray-900">{{ row.name }}</div>
+            <template #cell-name="{ row }">
+              <div class="font-medium text-gray-900 truncate min-w-0">{{ row.name }}</div>
             </template>
 
-            <template #rate="{ row }">
+            <template #cell-rate="{ row }">
               <div class="font-medium text-gray-900">{{ row.rate }}</div>
             </template>
 
-            <template #description="{ row }">
-              <div class="text-gray-900 max-w-xs truncate">{{ row.description }}</div>
+            <template #cell-status="{ row }">
+              <div class="flex items-center justify-start">
+                <ActiveInactiveToggle
+                  :model-value="!!row.rawData.is_active"
+                  :disabled="togglingTax.has(row.rawData.id)"
+                  @update:model-value="toggleTaxActive(row.rawData.id, !!row.rawData.is_active)"
+                />
+              </div>
             </template>
 
-            <template #status="{ row }">
-              <span
-                :class="[
-                  'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                  row.rawData.is_active
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
-                ]"
-              >
-                {{ row.status }}
-              </span>
-            </template>
-
-            <template #actions="{ row }">
-              <div class="flex gap-2 justify-center">
+            <template #cell-actions="{ row }">
+              <div class="flex gap-2 justify-start">
                 <AdminActionButton
                   icon="mdi:pencil"
                   text="Edit"
@@ -1383,20 +1274,12 @@ watch(() => props.activeTab, (newTab) => {
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Region *</label>
-          <select
+          <Select
             v-model="createShippingForm.region"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-            required
-          >
-            <option value="">Select a region</option>
-            <option
-              v-for="(name, region) in shippingStore.availableRegions"
-              :key="region"
-              :value="region"
-            >
-              {{ name }}
-            </option>
-          </select>
+            :options="regionOptions"
+            placeholder="Select a region"
+            size="md"
+          />
         </div>
 
         <div>
@@ -1422,11 +1305,6 @@ watch(() => props.activeTab, (newTab) => {
           ></textarea>
         </div>
 
-        <Toggle
-          v-model="createShippingForm.is_active"
-          label="Active"
-        />
-
         <div class="flex justify-end gap-3 pt-4">
           <button
             @click="showCreateShippingDialog = false"
@@ -1450,19 +1328,12 @@ watch(() => props.activeTab, (newTab) => {
       <div v-if="selectedShippingPrice" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Region *</label>
-          <select
-            v-model="editShippingForm.region"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-            required
-          >
-            <option
-              v-for="(name, region) in shippingStore.availableRegions"
-              :key="region"
-              :value="region"
-            >
-              {{ name }}
-            </option>
-          </select>
+          <Select
+            v-model="editShippingForm.region!"
+            :options="regionOptions"
+            placeholder="Select a region"
+            size="md"
+          />
         </div>
 
         <div>
@@ -1488,11 +1359,6 @@ watch(() => props.activeTab, (newTab) => {
           ></textarea>
         </div>
 
-        <Toggle
-          v-model="editShippingForm.is_active"
-          label="Active"
-        />
-
         <div class="flex justify-end gap-3 pt-4">
           <button
             @click="showEditShippingDialog = false"
@@ -1506,61 +1372,6 @@ watch(() => props.activeTab, (newTab) => {
             class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
           >
             {{ isShippingSubmitting ? 'Updating...' : 'Update' }}
-          </button>
-        </div>
-      </div>
-    </Dialog>
-
-    <!-- Bulk Edit Shipping Prices Dialog -->
-    <Dialog v-model="showBulkEditShippingDialog" title="Bulk Edit Shipping Prices" width="600px">
-      <div class="space-y-4">
-        <div class="text-sm text-gray-600 mb-4">
-          Update prices and status for multiple regions at once.
-        </div>
-
-        <div class="space-y-3">
-          <div
-            v-for="item in bulkEditShippingData"
-            :key="item.id"
-            class="flex items-center gap-4 p-3 border border-gray-200 rounded-lg"
-          >
-            <div class="flex-1">
-              <div class="font-medium text-gray-900">
-                {{ shippingStore.availableRegions[shippingStore.shippingPrices.find(p => p.id === item.id)?.region || ''] }}
-              </div>
-            </div>
-            <div class="w-24">
-              <input
-                v-model.number="item.price"
-                type="number"
-                step="0.01"
-                min="0"
-                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-              />
-            </div>
-            <div class="flex items-center">
-              <input
-                v-model="item.is_active"
-                type="checkbox"
-                class="h-4 w-4 text-zinc-900 focus:ring-zinc-900 border-gray-300 rounded"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-3 pt-4">
-          <button
-            @click="showBulkEditShippingDialog = false"
-            class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            @click="handleBulkEditShipping"
-            :disabled="isShippingSubmitting"
-            class="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
-          >
-            {{ isShippingSubmitting ? 'Updating...' : 'Update All' }}
           </button>
         </div>
       </div>
@@ -1604,11 +1415,6 @@ watch(() => props.activeTab, (newTab) => {
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
           ></textarea>
         </div>
-
-        <Toggle
-          v-model="createTaxForm.is_active"
-          label="Active"
-        />
 
         <div class="flex justify-end gap-3 pt-4">
           <button
@@ -1666,11 +1472,6 @@ watch(() => props.activeTab, (newTab) => {
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
           ></textarea>
         </div>
-
-        <Toggle
-          v-model="editTaxForm.is_active"
-          label="Active"
-        />
 
         <div class="flex justify-end gap-3 pt-4">
           <button

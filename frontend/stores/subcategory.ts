@@ -120,12 +120,12 @@ export const useSubcategoryStore = defineStore("subcategory", {
       }
     },
 
-    async deleteSubcategory(id: number) {
+    async deleteSubcategory(slug: string) {
       this.loading = true;
       this.error = null;
       try {
-        await useCustomFetch(`/api/subcategories/${id}`, { method: "DELETE" });
-        this.subcategories = this.subcategories.filter((sub) => sub.id !== id);
+        await useCustomFetch(`/api/subcategories/${slug}`, { method: "DELETE" });
+        this.subcategories = this.subcategories.filter((sub) => sub.slug !== slug);
       } catch (error: any) {
         this.error = error.data?.message || error.message || "Failed to delete subcategory";
         throw error;

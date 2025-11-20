@@ -1,19 +1,24 @@
 import type { Subcategory } from './subcategory'
 
 export interface ProductVariantPayload {
+  id?: number // For updates
   color_id?: number
   color_name?: string
   color_hex?: string
   available_sizes?: number[]
   size_stocks?: { [sizeId: number]: number }
-  price: number
   stock: number
   sku: string
-  images?: File[]
+  images?: File[] // For create
+  new_images?: File[] // For update
+  existing_images?: number[] // Image IDs to keep
+  images_to_delete?: number[] // Image IDs to delete
+  primary_existing_image_id?: number | null // ID of existing primary image
+  primary_new_image_index?: number | null // Index of new primary image
 }
 
 export interface ProductPayload {
-  subcategory_id: number
+  subcategory_id?: number // Optional for updates
   brand_id?: number
   brand_name?: string
   default_color_id?: number
@@ -30,13 +35,21 @@ export interface ProductPayload {
   is_featured?: boolean
   is_hot?: boolean
   is_new?: boolean
-  images?: File[]
+  base_price?: number
+  images?: File[] // For create
+  new_images?: File[] // For update
+  existing_image_ids?: number[] // Image IDs to keep
+  images_to_delete?: number[] // Image IDs to delete
+  primary_existing_image_id?: number | null // ID of existing primary image
+  primary_new_image_index?: number | null // Index of new primary image
+  primary_image_index?: number | null // For create
   sizes?: number[]
-  variants: ProductVariantPayload[]
+  variants?: ProductVariantPayload[] // Optional for updates
 }
 
 export interface Product {
   price?: number
+  base_price?: number
   id: number
   subcategory_id: number
   brand_id: number
@@ -86,7 +99,6 @@ export interface Product {
     product_id: number
     color_id: number
     size_id: number
-    price: number 
     stock: number
     sku: string
     created_at: string

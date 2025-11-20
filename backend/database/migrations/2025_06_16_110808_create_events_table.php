@@ -12,8 +12,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('admin_id')->constrained('users')->cascadeOnDelete();
             $table->string('title', 100);
-            $table->text('description')->nullable();
-            $table->date('date');
+            $table->text('content')->nullable();
+            $table->dateTime('date');
             $table->string('location', 100)->nullable();
             $table->string('poster_url', 255)->nullable();
             $table->decimal('base_ticket_price', 10, 2)->nullable(); // Base price before tax

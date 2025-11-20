@@ -2,7 +2,7 @@
 import { useAuthStore } from '~/stores/auth'
 import { useNotificationStore } from '~/stores/notification'
 import NotificationDropdown from '~/components/NotificationDropdown.vue'
-import { inject, ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { inject, ref, onMounted, onBeforeUnmount, computed, type ComputedRef } from 'vue'
 
 const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
@@ -10,6 +10,7 @@ const route = useRoute()
 
 // Get mobile menu controls from Sidebar (injected)
 const toggleMobileMenu = inject<(() => void) | null>('toggleMobileMenu', null)
+const sidebarIsMobile = inject<ComputedRef<boolean> | null>('sidebarIsMobile', null)
 const isMobile = ref(false)
 
 const checkMobile = () => {
@@ -67,11 +68,11 @@ const handleAdminMarkAllAsRead = async () => {
 </script>
 
 <template>
-  <div v-if="authStore.isAdmin" class="fixed top-0 left-0 right-0 z-[60] bg-zinc-800 text-white py-2 px-4 text-sm border-b border-zinc-700">
-    <div class="max-w-7xl mx-auto flex items-center justify-between">
+  <div v-if="authStore.isAdmin" class="admin-header fixed top-0 left-0 right-0 z-[60] bg-zinc-800 text-white py-2.5 px-4 text-sm border-b border-zinc-700">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
       <!-- Left side - Admin info -->
-      <div class="flex items-center space-x-4">
-        <div class="flex items-center space-x-2">
+      <div class="flex items-center gap-3 lg:gap-4">
+        <div class="flex items-center gap-2">
           <Icon name="mdi:shield-crown" class="text-yellow-400 hidden lg:block" />
           <span class="font-medium">Admin Panel</span>
         </div>
@@ -81,16 +82,25 @@ const handleAdminMarkAllAsRead = async () => {
       </div>
 
       <!-- Right side - Navigation and actions -->
-      <div class="flex items-center space-x-2 sm:space-x-4">
+      <div class="flex items-center gap-2 sm:gap-3">
         <!-- Single Toggle Button -->
-        <div class="flex items-center space-x-2">
-          <NuxtLink
-            :to="isAdminView ? '/' : '/admin/dashboard'"
-            class="flex items-center justify-center px-2 sm:px-3 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-xs transition-colors"
-          >
-            <Icon :name="isAdminView ? 'mdi:web' : 'mdi:view-dashboard'" class="m-0" />
-            <span class="hidden sm:inline ml-1">{{ isAdminView ? 'Go to Website' : 'Go to Dashboard' }}</span>
-          </NuxtLink>
+        <NuxtLink
+          :to="isAdminView ? '/' : '/admin/dashboard'"
+          class="flex items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded text-xs transition-colors"
+        >
+          <Icon :name="isAdminView ? 'mdi:web' : 'mdi:view-dashboard'" class="m-0" />
+          <span v-if="!sidebarIsMobile?.value" class="hidden sm:inline">{{ isAdminView ? 'Go to Website' : 'Go to Dashboard' }}</span>
+        </NuxtLink>
+        
+        <!-- Notifications -->
+        <div v-if="!sidebarIsMobile?.value" class="max-[722px]:hidden">
+          <NotificationDropdown
+            :notifications="[...notificationStore.notifications]"
+            view-all-url="/admin/notifications"
+            @mark-as-read="handleAdminMarkAsRead"
+            @delete="handleAdminDeleteNotification"
+            @mark-all-as-read="handleAdminMarkAllAsRead"
+          />
         </div>
 
         <!-- Mobile Menu Toggle Button -->
@@ -103,27 +113,14 @@ const handleAdminMarkAllAsRead = async () => {
           <Icon name="mdi:menu" class="text-xl" />
         </button>
 
-        <!-- Notifications -->
-        <div class="max-[722px]:hidden">
-          <NotificationDropdown
-            :notifications="[...notificationStore.notifications]"
-            view-all-url="/admin/notifications"
-            @mark-as-read="handleAdminMarkAsRead"
-            @delete="handleAdminDeleteNotification"
-            @mark-all-as-read="handleAdminMarkAllAsRead"
-          />
-        </div>
-
         <!-- Admin Actions -->
-        <div class="hidden lg:flex items-center space-x-2">
-          <button
-            @click="authStore.logout()"
-            class="text-zinc-300 hover:text-white transition-colors"
-            title="Logout"
-          >
-            <Icon name="mdi:logout" />
-          </button>
-        </div>
+        <button
+          @click="authStore.logout()"
+          class="hidden lg:flex text-zinc-300 hover:text-white transition-colors p-1"
+          title="Logout"
+        >
+          <Icon name="mdi:logout" class="text-lg" />
+        </button>
       </div>
     </div>
   </div>

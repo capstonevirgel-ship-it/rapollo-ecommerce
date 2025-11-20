@@ -50,6 +50,9 @@ class SubcategoryController extends Controller
             // Handle by ID
             $subcategory = Subcategory::with([
                 'category',
+                'products' => function($query) {
+                    $query->where('is_active', true);
+                },
                 'products.brand',
                 'products.variants.color',
                 'products.variants.size',
@@ -60,6 +63,9 @@ class SubcategoryController extends Controller
             // Handle by slug
             $subcategory = Subcategory::with([
                 'category',
+                'products' => function($query) {
+                    $query->where('is_active', true);
+                },
                 'products.brand',
                 'products.variants.color',
                 'products.variants.size',
@@ -78,6 +84,9 @@ class SubcategoryController extends Controller
     {
         $subcategory = Subcategory::with([
             'category',
+            'products' => function($query) {
+                $query->where('is_active', true);
+            },
             'products.brand',
             'products.variants.color',
             'products.variants.size',
@@ -114,6 +123,14 @@ class SubcategoryController extends Controller
      */
     public function destroy(Subcategory $subcategory)
     {
+        // Check if subcategory has products
+        if ($subcategory->products()->exists()) {
+            return response()->json([
+                'message' => 'Cannot delete subcategory: It contains products. Please delete or reassign products first.',
+                'error' => 'DEPENDENCY_EXISTS'
+            ], 422);
+        }
+        
         $subcategory->delete();
 
         return response()->json([

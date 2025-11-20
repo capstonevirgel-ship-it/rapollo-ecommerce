@@ -50,59 +50,51 @@ class ProductVariantSeeder extends Seeder
         $socks = Product::where('slug', 'athletic-socks')->first();
         $towel = Product::where('slug', 'sports-towel')->first();
 
-        // Calculate base prices assuming 12% VAT tax rate
-        // base_price = final_price / 1.12
+        // Variants inherit price from product - no price fields needed
         $variants = [
             // FlipTop Collaboration T-Shirt variants (Black main + Red/Brown variants)
-            // Base price: 899 / 1.12 ≈ 802.68, final price: 802.68 * 1.12 ≈ 899.00
-            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 50, 'sku' => 'NKE-FLIP-BLK-S'],
-            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 75, 'sku' => 'NKE-FLIP-BLK-M'],
-            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 60, 'sku' => 'NKE-FLIP-BLK-L'],
-            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 40, 'sku' => 'NKE-FLIP-BLK-XL'],
-            ['product_id' => $fliptopTee->id, 'color_id' => $red->id, 'size_id' => $s->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 30, 'sku' => 'NKE-FLIP-RED-S'],
-            ['product_id' => $fliptopTee->id, 'color_id' => $red->id, 'size_id' => $m->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 50, 'sku' => 'NKE-FLIP-RED-M'],
-            ['product_id' => $fliptopTee->id, 'color_id' => $red->id, 'size_id' => $l->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 40, 'sku' => 'NKE-FLIP-RED-L'],
-            ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $s->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 25, 'sku' => 'NKE-FLIP-BRN-S'],
-            ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $m->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 35, 'sku' => 'NKE-FLIP-BRN-M'],
-            ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $l->id, 'base_price' => 802.68, 'price' => 899.00, 'stock' => 30, 'sku' => 'NKE-FLIP-BRN-L'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'stock' => 50, 'sku' => 'NKE-FLIP-BLK-S'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'stock' => 75, 'sku' => 'NKE-FLIP-BLK-M'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'stock' => 60, 'sku' => 'NKE-FLIP-BLK-L'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'stock' => 40, 'sku' => 'NKE-FLIP-BLK-XL'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $red->id, 'size_id' => $s->id, 'stock' => 30, 'sku' => 'NKE-FLIP-RED-S'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $red->id, 'size_id' => $m->id, 'stock' => 50, 'sku' => 'NKE-FLIP-RED-M'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $red->id, 'size_id' => $l->id, 'stock' => 40, 'sku' => 'NKE-FLIP-RED-L'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $s->id, 'stock' => 25, 'sku' => 'NKE-FLIP-BRN-S'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $m->id, 'stock' => 35, 'sku' => 'NKE-FLIP-BRN-M'],
+            ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $l->id, 'stock' => 30, 'sku' => 'NKE-FLIP-BRN-L'],
 
             // RxPanda Collaboration T-Shirt variants (Black only)
-            // Base price: 799 / 1.12 ≈ 713.39, final price: 713.39 * 1.12 ≈ 799.00
-            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'base_price' => 713.39, 'price' => 799.00, 'stock' => 30, 'sku' => 'ADD-RXP-BLK-S'],
-            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'base_price' => 713.39, 'price' => 799.00, 'stock' => 50, 'sku' => 'ADD-RXP-BLK-M'],
-            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'base_price' => 713.39, 'price' => 799.00, 'stock' => 40, 'sku' => 'ADD-RXP-BLK-L'],
-            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'base_price' => 713.39, 'price' => 799.00, 'stock' => 25, 'sku' => 'ADD-RXP-BLK-XL'],
+            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'stock' => 30, 'sku' => 'ADD-RXP-BLK-S'],
+            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'stock' => 50, 'sku' => 'ADD-RXP-BLK-M'],
+            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'stock' => 40, 'sku' => 'ADD-RXP-BLK-L'],
+            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'stock' => 25, 'sku' => 'ADD-RXP-BLK-XL'],
 
             // TurboHectic Collaboration T-Shirt variants (Black only)
-            // Base price: 799 / 1.12 ≈ 713.39, final price: 713.39 * 1.12 ≈ 799.00
-            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'base_price' => 713.39, 'price' => 799.00, 'stock' => 30, 'sku' => 'PUM-TURBO-BLK-S'],
-            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'base_price' => 713.39, 'price' => 799.00, 'stock' => 50, 'sku' => 'PUM-TURBO-BLK-M'],
-            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'base_price' => 713.39, 'price' => 799.00, 'stock' => 40, 'sku' => 'PUM-TURBO-BLK-L'],
-            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'base_price' => 713.39, 'price' => 799.00, 'stock' => 25, 'sku' => 'PUM-TURBO-BLK-XL'],
+            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'stock' => 30, 'sku' => 'PUM-TURBO-BLK-S'],
+            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'stock' => 50, 'sku' => 'PUM-TURBO-BLK-M'],
+            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'stock' => 40, 'sku' => 'PUM-TURBO-BLK-L'],
+            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'stock' => 25, 'sku' => 'PUM-TURBO-BLK-XL'],
 
             // Ubec Classic T-Shirt variants (White main + Brown variants)
-            // Base price: 699 / 1.12 ≈ 624.11, final price: 624.11 * 1.12 ≈ 699.00
-            ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $s->id, 'base_price' => 624.11, 'price' => 699.00, 'stock' => 20, 'sku' => 'UNQ-UBEC-WHT-S'],
-            ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $m->id, 'base_price' => 624.11, 'price' => 699.00, 'stock' => 35, 'sku' => 'UNQ-UBEC-WHT-M'],
-            ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $l->id, 'base_price' => 624.11, 'price' => 699.00, 'stock' => 30, 'sku' => 'UNQ-UBEC-WHT-L'],
-            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $s->id, 'base_price' => 624.11, 'price' => 699.00, 'stock' => 15, 'sku' => 'UNQ-UBEC-BRN-S'],
-            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $m->id, 'base_price' => 624.11, 'price' => 699.00, 'stock' => 25, 'sku' => 'UNQ-UBEC-BRN-M'],
-            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $l->id, 'base_price' => 624.11, 'price' => 699.00, 'stock' => 20, 'sku' => 'UNQ-UBEC-BRN-L'],
+            ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $s->id, 'stock' => 20, 'sku' => 'UNQ-UBEC-WHT-S'],
+            ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $m->id, 'stock' => 35, 'sku' => 'UNQ-UBEC-WHT-M'],
+            ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $l->id, 'stock' => 30, 'sku' => 'UNQ-UBEC-WHT-L'],
+            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $s->id, 'stock' => 15, 'sku' => 'UNQ-UBEC-BRN-S'],
+            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $m->id, 'stock' => 25, 'sku' => 'UNQ-UBEC-BRN-M'],
+            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $l->id, 'stock' => 20, 'sku' => 'UNQ-UBEC-BRN-L'],
 
             // Premium Sweatshirt variants (White only)
-            // Base price: 1299 / 1.12 ≈ 1159.82, final price: 1159.82 * 1.12 ≈ 1299.00
-            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $s->id, 'base_price' => 1159.82, 'price' => 1299.00, 'stock' => 15, 'sku' => 'ZAR-SWEAT-WHT-S'],
-            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $m->id, 'base_price' => 1159.82, 'price' => 1299.00, 'stock' => 25, 'sku' => 'ZAR-SWEAT-WHT-M'],
-            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $l->id, 'base_price' => 1159.82, 'price' => 1299.00, 'stock' => 20, 'sku' => 'ZAR-SWEAT-WHT-L'],
-            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $xl->id, 'base_price' => 1159.82, 'price' => 1299.00, 'stock' => 15, 'sku' => 'ZAR-SWEAT-WHT-XL'],
+            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $s->id, 'stock' => 15, 'sku' => 'ZAR-SWEAT-WHT-S'],
+            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $m->id, 'stock' => 25, 'sku' => 'ZAR-SWEAT-WHT-M'],
+            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $l->id, 'stock' => 20, 'sku' => 'ZAR-SWEAT-WHT-L'],
+            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $xl->id, 'stock' => 15, 'sku' => 'ZAR-SWEAT-WHT-XL'],
 
             // Athletic Socks variants (Red only)
-            // Base price: 299 / 1.12 ≈ 266.96, final price: 266.96 * 1.12 ≈ 299.00
-            ['product_id' => $socks->id, 'color_id' => $red->id, 'size_id' => $oneSize->id, 'base_price' => 266.96, 'price' => 299.00, 'stock' => 100, 'sku' => 'HM-SOCK-RED-OS'],
+            ['product_id' => $socks->id, 'color_id' => $red->id, 'size_id' => $oneSize->id, 'stock' => 100, 'sku' => 'HM-SOCK-RED-OS'],
 
             // Sports Towel variants (Black only)
-            // Base price: 599 / 1.12 ≈ 534.82, final price: 534.82 * 1.12 ≈ 599.00
-            ['product_id' => $towel->id, 'color_id' => $black->id, 'size_id' => $oneSize->id, 'base_price' => 534.82, 'price' => 599.00, 'stock' => 25, 'sku' => 'NKE-TOWEL-BLK-OS']
+            ['product_id' => $towel->id, 'color_id' => $black->id, 'size_id' => $oneSize->id, 'stock' => 25, 'sku' => 'NKE-TOWEL-BLK-OS']
         ];
 
         foreach ($variants as $variant) {

@@ -90,6 +90,18 @@ class CategoryController extends Controller
      */
     public function destroy(Category $category)
     {
+        // Check if any subcategories have products
+        $hasProducts = $category->subcategories()
+            ->whereHas('products')
+            ->exists();
+        
+        if ($hasProducts) {
+            return response()->json([
+                'message' => 'Cannot delete category: It contains subcategories with products. Please delete or reassign products first.',
+                'error' => 'DEPENDENCY_EXISTS'
+            ], 422);
+        }
+        
         $category->delete();
 
         return response()->json([

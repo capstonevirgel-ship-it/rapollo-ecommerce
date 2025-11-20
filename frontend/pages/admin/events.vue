@@ -39,13 +39,13 @@ onMounted(() => {
   eventStore.fetchEvents()
 })
 
-const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingEvent = ref<Event | null>(null)
 const formData = ref({
   title: '',
-  description: '',
+  content: '',
   date: '',
+  time: '',
   location: '',
   poster_url: '',
   base_ticket_price: '',
@@ -60,8 +60,9 @@ const isUploadingImage = ref(false)
 const resetForm = () => {
   formData.value = {
     title: '',
-    description: '',
+    content: '',
     date: '',
+    time: '',
     location: '',
     poster_url: '',
     base_ticket_price: '',
@@ -72,17 +73,18 @@ const resetForm = () => {
   isUploadingImage.value = false
 }
 
-const openCreateModal = () => {
-  resetForm()
-  showCreateModal.value = true
-}
-
 const openEditModal = (event: Event) => {
   editingEvent.value = event
+  // Parse date and time from event.date
+  const eventDate = new Date(event.date)
+  const dateStr = eventDate.toISOString().split('T')[0]
+  const timeStr = eventDate.toTimeString().split(' ')[0].slice(0, 5) // HH:MM format
+  
   formData.value = {
     title: event.title,
-    description: event.description || '',
-    date: event.date.split('T')[0], // Convert to date input format
+    content: event.content || '',
+    date: dateStr,
+    time: timeStr,
     location: event.location || '',
     poster_url: event.poster_url || '',
     base_ticket_price: event.base_ticket_price?.toString() || event.ticket_price?.toString() || '',
@@ -96,7 +98,6 @@ const openEditModal = (event: Event) => {
 }
 
 const closeModals = () => {
-  showCreateModal.value = false
   showEditModal.value = false
   editingEvent.value = null
   resetForm()
@@ -138,48 +139,21 @@ const getPosterImageUrl = (): string | null => {
   return null
 }
 
-const createEvent = async () => {
-  try {
-    isUploadingImage.value = true
-    
-    const eventData = new FormData()
-    eventData.append('title', formData.value.title)
-    eventData.append('description', formData.value.description || '')
-    eventData.append('date', formData.value.date)
-    eventData.append('location', formData.value.location || '')
-    
-    if (posterFile.value) {
-      eventData.append('poster_image', posterFile.value)
-    } else if (formData.value.poster_url) {
-      eventData.append('poster_url', formData.value.poster_url)
-    }
-    
-    if (formData.value.base_ticket_price) {
-      eventData.append('base_ticket_price', formData.value.base_ticket_price)
-    }
-    if (formData.value.max_tickets) {
-      eventData.append('max_tickets', formData.value.max_tickets)
-    }
-    
-    await eventStore.createEvent(eventData as any)
-    closeModals()
-  } catch (error) {
-    console.error('Error creating event:', error)
-  } finally {
-    isUploadingImage.value = false
-  }
-}
-
 const updateEvent = async () => {
   if (!editingEvent.value) return
   
   try {
     isUploadingImage.value = true
     
+    // Combine date and time
+    const dateTime = formData.value.time 
+      ? `${formData.value.date} ${formData.value.time}:00`
+      : `${formData.value.date} 12:00:00`
+    
     const eventData = new FormData()
     eventData.append('title', formData.value.title)
-    eventData.append('description', formData.value.description || '')
-    eventData.append('date', formData.value.date)
+    eventData.append('content', formData.value.content || '')
+    eventData.append('date', dateTime)
     eventData.append('location', formData.value.location || '')
     
     if (posterFile.value) {
@@ -238,15 +212,15 @@ const formatTime = (dateString: string) => {
           <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Manage Events</h1>
           <p class="text-sm sm:text-base text-gray-600 mt-1">Create and manage events</p>
         </div>
-        <button
-          @click="openCreateModal"
+        <NuxtLink
+          to="/admin/add-event"
           class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
         >
           <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>
           Create Event
-        </button>
+        </NuxtLink>
       </div>
 
       <!-- Loading State -->
@@ -281,17 +255,18 @@ const formatTime = (dateString: string) => {
         <h3 class="mt-2 text-sm font-medium text-gray-900">No events found</h3>
         <p class="mt-1 text-sm text-gray-500">Get started by creating your first event.</p>
         <div class="mt-8">
-          <button
-            @click="openCreateModal"
+          <NuxtLink
+            to="/admin/add-event"
             class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-zinc-900 hover:bg-zinc-800"
           >
             Create Event
-          </button>
+          </NuxtLink>
         </div>
       </div>
 
       <!-- Events Grid -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div v-for="event in eventStore.events" :key="event.id" class="bg-white rounded-lg shadow-md overflow-hidden">
           <!-- Event Image -->
           <div v-if="event.poster_url" class="h-48 w-full bg-gray-200">
@@ -306,7 +281,6 @@ const formatTime = (dateString: string) => {
           <!-- Event Content -->
           <div class="p-6">
             <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ event.title }}</h3>
-            <p class="text-gray-600 mb-4 line-clamp-3">{{ event.description }}</p>
             
             <!-- Event Details -->
             <div class="space-y-2 mb-4">
@@ -369,156 +343,15 @@ const formatTime = (dateString: string) => {
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Create/Edit Dialog -->
-    <Dialog 
-      v-model="showCreateModal" 
-      :title="'Create Event'"
-      width="800px"
-      class="max-h-[90vh] overflow-hidden"
-    >
-      <div class="max-h-[calc(90vh-120px)] overflow-y-auto pr-2">
-        <form @submit.prevent="createEvent()" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
-                <input
-                  v-model="formData.title"
-                  type="text"
-                  required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                  placeholder="Enter event title"
-                >
-              </div>
-              
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input
-                  v-model="formData.date"
-                  type="date"
-                  required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                >
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea
-                v-model="formData.description"
-                rows="3"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                placeholder="Enter event description"
-              ></textarea>
-            </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <input
-                  v-model="formData.location"
-                  type="text"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                  placeholder="Enter event location"
-                >
-              </div>
-              
-              <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Event Poster</label>
-          
-          <div class="flex gap-4">
-            <!-- Image Preview - 2/3 width -->
-            <div class="flex-1 max-w-[66.666%]">
-              <!-- Image Preview -->
-              <div v-if="getPosterImageUrl()" class="mb-4">
-                <div class="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200">
-                  <img 
-                    :src="getPosterImageUrl() || ''" 
-                    alt="Event poster preview" 
-                    class="w-full h-full object-cover" 
-                  />
-                </div>
-                <button
-                  v-if="posterFile || posterPreview"
-                  @click="posterFile = null; posterPreview = null"
-                  class="mt-2 text-sm text-red-600 hover:text-red-700 font-medium inline-flex items-center"
-                >
-                  <Icon name="mdi:close-circle" class="mr-1" />
-                  Remove Selected Image
-                </button>
-              </div>
-              
-              <!-- Upload Area -->
-              <div v-else class="mb-4">
-                <div class="w-full aspect-video bg-gray-50 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
-                  <Icon name="mdi:image-outline" class="text-4xl text-gray-400" />
-                </div>
-              </div>
-            </div>
-            
-            <!-- File Input - 1/3 width -->
-            <div class="flex-1 max-w-[33.333%] flex flex-col justify-center">
-                <input
-                type="file"
-                @change="handlePosterChange"
-                accept="image/*"
-                class="block w-full"
-              />
-              <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF, SVG up to 2MB. Recommended: 16:9 aspect ratio.</p>
-            </div>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Base Ticket Price (Before Tax) (₱)</label>
-                <input
-                  v-model="formData.base_ticket_price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                  placeholder="0.00"
-                >
-              </div>
-              
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Max Tickets</label>
-                <input
-                  v-model="formData.max_tickets"
-                  type="number"
-                  min="1"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                  placeholder="100"
-                >
-              </div>
-            </div>
-
-            <div class="flex space-x-3 pt-4">
-              <button
-                type="button"
-                @click="closeModals"
-            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                :disabled="eventStore.loading || isUploadingImage"
-            class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-lg hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            {{ (eventStore.loading || isUploadingImage) ? 'Saving...' : 'Create Event' }}
-          </button>
-        </div>
-        </form>
-      </div>
-    </Dialog>
-
-    <Dialog 
-      v-model="showEditModal" 
-      :title="'Edit Event'"
-      width="800px"
-      class="max-h-[90vh] overflow-hidden"
-    >
+  <!-- Edit Dialog -->
+  <Dialog 
+    v-model="showEditModal" 
+    :title="'Edit Event'"
+    width="800px"
+    class="max-h-[90vh] overflow-hidden"
+  >
       <div class="max-h-[calc(90vh-120px)] overflow-y-auto pr-2">
         <form @submit.prevent="updateEvent()" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -542,15 +375,25 @@ const formatTime = (dateString: string) => {
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
             >
           </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
+            <input
+              v-model="formData.time"
+              type="time"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+            >
+          </div>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Content</label>
           <textarea
-            v-model="formData.description"
+            v-model="formData.content"
             rows="3"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-            placeholder="Enter event description"
+            placeholder="Enter event content"
           ></textarea>
         </div>
 
@@ -653,5 +496,5 @@ const formatTime = (dateString: string) => {
             </div>
           </form>
         </div>
-    </Dialog>
+  </Dialog>
 </template>

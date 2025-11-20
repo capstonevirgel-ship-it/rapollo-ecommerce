@@ -83,6 +83,11 @@ export const useProductStore = defineStore("product", {
       if (payload.is_featured !== undefined) formData.append("is_featured", String(payload.is_featured));
       if (payload.is_hot !== undefined) formData.append("is_hot", String(payload.is_hot));
       if (payload.is_new !== undefined) formData.append("is_new", String(payload.is_new));
+      
+      // Product base_price (for products without variants)
+      if (payload.base_price !== undefined && payload.base_price !== null) {
+        formData.append("base_price", String(payload.base_price));
+      }
 
       // Sizes
       if (payload.sizes) {
@@ -93,7 +98,8 @@ export const useProductStore = defineStore("product", {
       payload.images?.forEach(file => formData.append("images[]", file));
 
       // Variants
-      payload.variants.forEach((variant, vIndex) => {
+      if (payload.variants && Array.isArray(payload.variants)) {
+        payload.variants.forEach((variant, vIndex) => {
         if (variant.color_id) formData.append(`variants[${vIndex}][color_id]`, String(variant.color_id));
         else if (variant.color_name) {
           formData.append(`variants[${vIndex}][color_name]`, variant.color_name);
@@ -114,12 +120,12 @@ export const useProductStore = defineStore("product", {
           });
         }
 
-        formData.append(`variants[${vIndex}][price]`, String(variant.price));
         formData.append(`variants[${vIndex}][stock]`, String(variant.stock));
         formData.append(`variants[${vIndex}][sku]`, variant.sku);
 
         variant.images?.forEach(file => formData.append(`variants[${vIndex}][images][]`, file));
-      });
+        });
+      }
 
       // Debug: Log the FormData being sent
       console.log('=== FORM DATA BEING SENT TO BACKEND ===');
@@ -156,6 +162,288 @@ export const useProductStore = defineStore("product", {
         return true;
       } catch (error: any) {
         this.error = error.data?.message || error.message || "Failed to delete product";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async updateProduct(slug: string, payload: Partial<ProductPayload>) {
+      this.loading = true;
+      this.error = null;
+
+      const formData = new FormData();
+
+      // Basic fields
+      if (payload.subcategory_id !== undefined) formData.append("subcategory_id", String(payload.subcategory_id));
+      if (payload.brand_id !== undefined) formData.append("brand_id", String(payload.brand_id));
+      formData.append("name", payload.name || "");
+      if (payload.description !== undefined) formData.append("description", payload.description || "");
+      if (payload.meta_title !== undefined) formData.append("meta_title", payload.meta_title || "");
+      if (payload.meta_description !== undefined) formData.append("meta_description", payload.meta_description || "");
+      if (payload.meta_keywords !== undefined) formData.append("meta_keywords", payload.meta_keywords || "");
+      if (payload.canonical_url !== undefined) formData.append("canonical_url", payload.canonical_url || "");
+      if (payload.robots !== undefined) formData.append("robots", payload.robots || "");
+      if (payload.is_active !== undefined) formData.append("is_active", String(payload.is_active));
+      if (payload.is_featured !== undefined) formData.append("is_featured", String(payload.is_featured));
+      if (payload.is_hot !== undefined) formData.append("is_hot", String(payload.is_hot));
+      if (payload.is_new !== undefined) formData.append("is_new", String(payload.is_new));
+      
+      // Product base_price
+      if (payload.base_price !== undefined && payload.base_price !== null) {
+        formData.append("base_price", String(payload.base_price));
+      }
+
+      // Default color
+      if (payload.default_color_id !== undefined) formData.append("default_color_id", String(payload.default_color_id));
+      if (payload.default_color_name) formData.append("default_color_name", payload.default_color_name);
+      if (payload.default_color_hex) formData.append("default_color_hex", payload.default_color_hex);
+
+      // Sizes
+      if (payload.sizes) {
+        payload.sizes.forEach(sizeId => formData.append("sizes[]", String(sizeId)));
+      }
+
+      // Product Images - existing images to keep
+      if (payload.existing_image_ids) {
+        payload.existing_image_ids.forEach(imageId => formData.append("existing_image_ids[]", String(imageId)));
+      }
+
+      // Product Images - images to delete
+      if (payload.images_to_delete) {
+        payload.images_to_delete.forEach(imageId => formData.append("images_to_delete[]", String(imageId)));
+      }
+
+      // Product Images - new images
+      if (payload.new_images) {
+        payload.new_images.forEach(file => formData.append("new_images[]", file));
+      }
+
+      // Product Images - primary image selection
+      if (payload.primary_existing_image_id !== undefined && payload.primary_existing_image_id !== null) {
+        formData.append("primary_existing_image_id", String(payload.primary_existing_image_id));
+      }
+      if (payload.primary_new_image_index !== undefined && payload.primary_new_image_index !== null) {
+        formData.append("primary_new_image_index", String(payload.primary_new_image_index));
+      }
+
+      // Variants
+      if (payload.variants && Array.isArray(payload.variants)) {
+        payload.variants.forEach((variant, vIndex) => {
+          // Variant ID for updates
+          if (variant.id) formData.append(`variants[${vIndex}][id]`, String(variant.id));
+
+          // Color
+          if (variant.color_id) formData.append(`variants[${vIndex}][color_id]`, String(variant.color_id));
+          else if (variant.color_name) {
+            formData.append(`variants[${vIndex}][color_name]`, variant.color_name);
+            if (variant.color_hex) formData.append(`variants[${vIndex}][color_hex]`, variant.color_hex);
+          }
+
+          // Available sizes
+          if (variant.available_sizes) {
+            variant.available_sizes.forEach(sizeId => formData.append(`variants[${vIndex}][available_sizes][]`, String(sizeId)));
+          }
+
+          // Size stocks
+          if (variant.size_stocks) {
+            Object.entries(variant.size_stocks).forEach(([sizeId, stock]) => {
+              formData.append(`variants[${vIndex}][size_stocks][${sizeId}]`, String(stock));
+            });
+          }
+
+          formData.append(`variants[${vIndex}][stock]`, String(variant.stock));
+          formData.append(`variants[${vIndex}][sku]`, variant.sku);
+
+          // Variant Images - existing images to keep
+          if (variant.existing_images) {
+            variant.existing_images.forEach(imageId => formData.append(`variants[${vIndex}][existing_images][]`, String(imageId)));
+          }
+
+          // Variant Images - images to delete
+          if (variant.images_to_delete) {
+            variant.images_to_delete.forEach(imageId => formData.append(`variants[${vIndex}][images_to_delete][]`, String(imageId)));
+          }
+
+          // Variant Images - new images
+          if (variant.new_images) {
+            variant.new_images.forEach(file => formData.append(`variants[${vIndex}][new_images][]`, file));
+          }
+
+          // Variant Images - primary image selection
+          if (variant.primary_existing_image_id !== undefined && variant.primary_existing_image_id !== null) {
+            formData.append(`variants[${vIndex}][primary_existing_image_id]`, String(variant.primary_existing_image_id));
+          }
+          if (variant.primary_new_image_index !== undefined && variant.primary_new_image_index !== null) {
+            formData.append(`variants[${vIndex}][primary_new_image_index]`, String(variant.primary_new_image_index));
+          }
+        });
+      }
+
+      // Add method spoofing for PUT request
+      formData.append('_method', 'PUT');
+
+      try {
+        const data = await useCustomFetch<Product>(`/api/products/${slug}`, { 
+          method: "POST", 
+          body: formData
+        });
+        
+        // Update local state
+        const index = this.products.findIndex(p => p.slug === slug);
+        if (index !== -1) {
+          this.products[index] = data;
+        }
+        if (this.product?.slug === slug) {
+          this.product = data;
+        }
+        
+        return data;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to update product";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async toggleProductActive(slug: string, isActive: boolean) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await useCustomFetch<any>(`/api/products/${slug}`, {
+          method: "PUT",
+          body: { is_active: isActive }
+        });
+
+        // Update local state
+        const index = this.products.findIndex(p => p.slug === slug);
+        if (index !== -1) {
+          this.products[index].is_active = isActive ? 1 : 0;
+        }
+        if (this.product?.slug === slug) {
+          this.product.is_active = isActive ? 1 : 0;
+        }
+
+        return response;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to toggle product status";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async bulkUpdateLabels(products: Array<{ id: number; is_featured?: boolean; is_hot?: boolean; is_new?: boolean }>) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await useCustomFetch<any>("/api/products/bulk-update-labels", {
+          method: "PATCH",
+          body: { products }
+        });
+
+        // Update local state
+        products.forEach(productData => {
+          const index = this.products.findIndex(p => p.id === productData.id);
+          if (index !== -1) {
+            if (productData.is_featured !== undefined) {
+              this.products[index].is_featured = productData.is_featured ? 1 : 0;
+            }
+            if (productData.is_hot !== undefined) {
+              this.products[index].is_hot = productData.is_hot ? 1 : 0;
+            }
+            if (productData.is_new !== undefined) {
+              this.products[index].is_new = productData.is_new ? 1 : 0;
+            }
+          }
+          if (this.product?.id === productData.id) {
+            if (productData.is_featured !== undefined) {
+              this.product.is_featured = productData.is_featured ? 1 : 0;
+            }
+            if (productData.is_hot !== undefined) {
+              this.product.is_hot = productData.is_hot ? 1 : 0;
+            }
+            if (productData.is_new !== undefined) {
+              this.product.is_new = productData.is_new ? 1 : 0;
+            }
+          }
+        });
+
+        return response;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to update product labels";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async bulkUpdateActiveStatus(productIds: number[], isActive: boolean) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await useCustomFetch<any>("/api/products/bulk-update-active-status", {
+          method: "PATCH",
+          body: { product_ids: productIds, is_active: isActive }
+        });
+
+        // Update local state
+        productIds.forEach(productId => {
+          const index = this.products.findIndex(p => p.id === productId);
+          if (index !== -1) {
+            this.products[index].is_active = isActive ? 1 : 0;
+          }
+          if (this.product?.id === productId) {
+            this.product.is_active = isActive ? 1 : 0;
+          }
+        });
+
+        return response;
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to update product status";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchFeaturedProducts() {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await useCustomFetch<any>("/api/products/homepage/featured", { method: "GET" });
+        return response.data || [];
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to fetch featured products";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchTrendingProducts() {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await useCustomFetch<any>("/api/products/homepage/trending", { method: "GET" });
+        return response.data || [];
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to fetch trending products";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchNewArrivals() {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await useCustomFetch<any>("/api/products/homepage/new-arrivals", { method: "GET" });
+        return response.data || [];
+      } catch (error: any) {
+        this.error = error.data?.message || error.message || "Failed to fetch new arrivals";
         throw error;
       } finally {
         this.loading = false;

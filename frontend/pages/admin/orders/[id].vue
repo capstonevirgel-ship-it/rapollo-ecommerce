@@ -60,7 +60,7 @@ const fetchOrder = async () => {
   console.log('Fetching order details for ID:', orderId.value)
   
   try {
-    const response = await $fetch(`/api/purchases/admin/${orderId.value}`) as { data: any }
+    const response = await $fetch(`/api/product-purchases/admin/${orderId.value}`) as { data: any }
     console.log('Order details response:', response)
     
     if (response && response.data) {

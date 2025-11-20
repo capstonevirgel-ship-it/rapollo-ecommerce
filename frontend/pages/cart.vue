@@ -35,6 +35,7 @@ const isLoading = ref(false)
 const isProcessingPayment = ref(false)
 const paymentError = ref('')
 const addressError = ref('')
+const phoneError = ref('')
 const address = ref<{ street?: string; barangay?: string; city?: string; province?: string; zipcode?: string } | null>(null)
 const resolvedRegion = ref<string>('')
 
@@ -69,8 +70,16 @@ onMounted(async () => {
       if (missing) {
         addressError.value = 'Please complete your profile address before checkout.'
       } else {
+        addressError.value = ''
         const res: any = await $fetch('/api/shipping/resolve-region', { params: { city: address.value?.city, province: address.value?.province } })
         resolvedRegion.value = res?.region || ''
+      }
+      
+      // Check phone number
+      if (!profile?.phone || profile.phone.trim() === '') {
+        phoneError.value = 'Please add your phone number in your profile before checkout.'
+      } else {
+        phoneError.value = ''
       }
     } catch (e: any) {
       // ignore
@@ -140,8 +149,8 @@ const cartItems = computed(() => {
       id: item.id, // Include the cart item ID (will be 0 for guest items)
       variant: {
         id: item.variant_id,
-        price: item.variant?.price || 0, // Final price (displayed to user)
-        base_price: (item.variant?.base_price ?? item.variant?.price) ?? 0, // Base price for calculations
+        price: item.variant?.product?.price || item.variant?.price || 0, // Final price (displayed to user)
+        base_price: (item.variant?.product?.base_price ?? item.variant?.product?.price ?? item.variant?.base_price ?? item.variant?.price) ?? 0, // Base price for calculations
         stock: item.variant?.stock || 0,
         color_id: item.variant?.color_id ?? item.variant?.color?.id,
         images: item.variant?.images || [],
@@ -208,7 +217,7 @@ const itemsForSummary = computed(() => {
 const formatCurrency = (amount: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 2 }).format(amount || 0)
 // Subtotal should use base_price (before tax) to avoid double taxation
 const subtotal = computed(() => itemsForSummary.value.reduce((sum, item) => {
-  const basePrice = item.variant?.base_price ?? item.variant?.price ?? 0
+  const basePrice = item.variant?.product?.base_price ?? item.variant?.product?.price ?? item.variant?.base_price ?? item.variant?.price ?? 0
   return sum + (basePrice * item.quantity)
 }, 0))
 const shipping = computed(() => {
@@ -233,6 +242,15 @@ const regionLabel = computed(() => {
 
 // Process PayMongo payment directly
 const proceedToCheckout = async () => {
+  // Prevent admins from proceeding to checkout
+  if (authStore.isAdmin) {
+    warning(
+      'Admin Restriction',
+      'Administrators cannot proceed to checkout. Please use a customer account to make purchases.'
+    )
+    return
+  }
+
   if (!authStore.isAuthenticated) {
     await navigateTo('/login')
     return
@@ -240,6 +258,21 @@ const proceedToCheckout = async () => {
   if (!selectedCartItems.value.length) {
     warning('No Items Selected', 'Please select at least one item to checkout.')
     return
+  }
+  
+  // Check if phone number is set
+  try {
+    const profile: any = await $fetch('/api/profile')
+    if (!profile?.phone || profile.phone.trim() === '') {
+      warning(
+        'Phone Number Required',
+        'Please add your phone number in your profile before proceeding to checkout.'
+      )
+      await navigateTo('/profile')
+      return
+    }
+  } catch (err) {
+    console.error('Failed to fetch profile:', err)
   }
   
   try {
@@ -264,6 +297,7 @@ const proceedToCheckout = async () => {
     // Create PayMongo payment intent
     const paymentIntent = await payMongoStore.createPaymentIntent(
       total.value,
+      'App\\Models\\ProductPurchase',
       purchase.id,
       {
         order_number: `ORD-${purchase.id}`,
@@ -430,7 +464,7 @@ const removeSelected = async () => {
 
                <!-- Price -->
                <div class="md:col-span-2 text-center">
-                 <span class="text-lg font-semibold text-gray-900">{{ formatCurrency(item.variant.price ?? 0) }}</span>
+                 <span class="text-lg font-semibold text-gray-900">{{ formatCurrency(item.variant?.product?.price ?? item.variant?.price ?? 0) }}</span>
                </div>
 
                <!-- Quantity -->
@@ -460,7 +494,7 @@ const removeSelected = async () => {
 
                <!-- Subtotal -->
                <div class="md:col-span-2 text-center">
-                 <span class="text-lg font-bold text-gray-900">{{ formatCurrency((item.variant.price ?? 0) * item.quantity) }}</span>
+                 <span class="text-lg font-bold text-gray-900">{{ formatCurrency((item.variant?.product?.price ?? item.variant?.price ?? 0) * item.quantity) }}</span>
                </div>
 
                <!-- Delete Button -->
@@ -542,8 +576,9 @@ const removeSelected = async () => {
            </div>
 
              <LoadingButton
+             v-if="!authStore.isAdmin"
              :loading="isProcessingPayment"
-             :disabled="!authStore.isAuthenticated || isProcessingPayment || hasStockIssues || !!addressError"
+             :disabled="!authStore.isAuthenticated || isProcessingPayment || hasStockIssues || !!addressError || !!phoneError"
              loading-text="Processing Payment..."
              :normal-text="authStore.isAuthenticated ? 'Proceed to Checkout' : 'Login to Checkout'"
              variant="primary"
@@ -551,10 +586,18 @@ const removeSelected = async () => {
              class="w-full mt-6"
              @click="proceedToCheckout"
            />
+           <div v-else class="w-full mt-6 px-6 py-3 bg-gray-200 text-gray-600 rounded text-center font-medium">
+             Administrators cannot proceed to checkout
+           </div>
 
            <div v-if="addressError" class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
              {{ addressError }}
              <NuxtLink to="/profile" class="underline font-medium ml-1">Update address</NuxtLink>
+           </div>
+
+           <div v-if="phoneError" class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+             {{ phoneError }}
+             <NuxtLink to="/profile" class="underline font-medium ml-1">Update profile</NuxtLink>
            </div>
 
           <p class="mt-4 text-center text-sm text-gray-500">

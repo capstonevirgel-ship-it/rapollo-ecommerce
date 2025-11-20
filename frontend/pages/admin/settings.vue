@@ -18,7 +18,7 @@ useHead({
 const settingsStore = useSettingsStore()
 
 // Active tab
-const activeTab = ref<'site' | 'contact' | 'social' | 'team' | 'maintenance' | 'shipping'>('site')
+const activeTab = ref<'site' | 'contact' | 'social' | 'team' | 'shipping'>('site')
 
 // Loading states
 const isEditingMode = ref(false)
@@ -44,7 +44,7 @@ onMounted(() => {
       </div>
       <div class="flex items-center gap-3">
           <button
-          v-if="activeTab !== 'team' && activeTab !== 'maintenance' && activeTab !== 'shipping'"
+          v-if="activeTab !== 'team' && activeTab !== 'shipping'"
           @click="toggleEditMode"
           class="inline-flex items-center px-4 py-2 rounded-lg transition-colors"
           :class="isEditingMode 
@@ -113,18 +113,6 @@ onMounted(() => {
           >
             <Icon name="mdi:account-group" class="inline-block mr-2" />
             Team
-          </button>
-          <button
-            @click="activeTab = 'maintenance'; isEditingMode = false"
-            :class="[
-              'px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
-              activeTab === 'maintenance'
-                ? 'border-zinc-900 text-zinc-900'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            ]"
-          >
-            <Icon name="mdi:wrench" class="inline-block mr-2" />
-            Maintenance Mode
           </button>
           <button
             @click="activeTab = 'shipping'; isEditingMode = false"

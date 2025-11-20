@@ -8,10 +8,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Services\PayMongoService;
 use App\Models\Payment;
-use App\Models\Purchase;
+use App\Models\ProductPurchase;
+use App\Models\TicketPurchase;
 use App\Models\Ticket;
 use App\Models\ProductVariant;
-use App\Models\PurchaseItem;
+use App\Models\ProductPurchaseItem;
 use App\Models\Cart;
 use App\Models\User;
 use App\Mail\ProductPurchaseConfirmation;
@@ -176,9 +177,19 @@ class WebhookController extends Controller
             // Find the payment record
             $paymentRecord = Payment::where('payment_intent_id', $paymentIntentId)->first();
             
-            // Fallback: try to find by purchase_id in metadata
+            // Fallback: try to find by purchasable_id in metadata
             if (!$paymentRecord && isset($metadata['purchase_id'])) {
-                $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])->first();
+                // Try to find by purchasable_id (could be product_purchase_id or ticket_purchase_id)
+                $purchaseId = $metadata['purchase_id'];
+                $paymentRecord = Payment::where(function($q) use ($purchaseId) {
+                    $q->where(function($q2) use ($purchaseId) {
+                        $q2->where('purchasable_type', ProductPurchase::class)
+                           ->where('purchasable_id', $purchaseId);
+                    })->orWhere(function($q2) use ($purchaseId) {
+                        $q2->where('purchasable_type', TicketPurchase::class)
+                           ->where('purchasable_id', $purchaseId);
+                    });
+                })->first();
             }
             
             // Additional fallback: try to find by transaction_id or payment ID
@@ -214,46 +225,46 @@ class WebhookController extends Controller
                 ]);
 
                 // Update purchase status and handle business logic
-                $purchase = $paymentRecord->purchase;
-                if ($purchase) {
+                $purchasable = $paymentRecord->purchasable;
+                if ($purchasable) {
                     try {
                         DB::beginTransaction();
                         
-                        $purchase->update(['status' => 'processing']);
-                        
                         // Handle product purchases
-                        if ($purchase->type === 'product') {
-                            $this->decrementProductStock($purchase);
-                            $this->sendProductConfirmationEmail($purchase);
-                            $this->createProductOrderNotifications($purchase);
-                        }
-                        
-                        // Handle ticket purchases
-                        if ($purchase->type === 'ticket') {
-                            $this->createTicketsForPurchase($purchase);
-                            $this->sendTicketConfirmationEmail($purchase);
-                            $this->createEventOrderNotifications($purchase);
-                        }
+                        if ($purchasable instanceof ProductPurchase) {
+                            $purchasable->update(['status' => 'processing']);
+                            $this->decrementProductStock($purchasable);
+                            $this->sendProductConfirmationEmail($purchasable);
+                            $this->createProductOrderNotifications($purchasable);
                         
                         // Clear only purchased items from user's cart (preserve other items)
                         try {
-                            $purchasedVariantIds = $purchase->purchaseItems()
+                                $purchasedVariantIds = $purchasable->productPurchaseItems()
                                 ->pluck('variant_id')
                                 ->filter()
                                 ->all();
                             if (!empty($purchasedVariantIds)) {
-                                Cart::where('user_id', $purchase->user_id)
+                                    Cart::where('user_id', $purchasable->user_id)
                                     ->whereIn('variant_id', $purchasedVariantIds)
                                     ->delete();
                             }
                         } catch (\Exception $e) {
                             // If anything goes wrong, fallback to clearing entire cart to avoid inconsistencies
                             Log::warning('Selective cart clear failed, falling back to full clear', [
-                                'purchase_id' => $purchase->id,
-                                'user_id' => $purchase->user_id,
+                                    'purchase_id' => $purchasable->id,
+                                    'user_id' => $purchasable->user_id,
                                 'error' => $e->getMessage(),
                             ]);
-                            Cart::where('user_id', $purchase->user_id)->delete();
+                                Cart::where('user_id', $purchasable->user_id)->delete();
+                            }
+                        }
+                        
+                        // Handle ticket purchases
+                        if ($purchasable instanceof TicketPurchase) {
+                            $purchasable->update(['paid_at' => now()]);
+                            $this->createTicketsForPurchase($purchasable);
+                            $this->sendTicketConfirmationEmail($purchasable);
+                            $this->createEventOrderNotifications($purchasable);
                         }
                         
                         DB::commit();
@@ -348,11 +359,20 @@ class WebhookController extends Controller
             // Find the payment record by payment_intent_id first
             $paymentRecord = Payment::where('payment_intent_id', $paymentIntentId)->first();
             
-            // Fallback: try to find by purchase_id in metadata (this is the most reliable)
+            // Fallback: try to find by purchasable_id in metadata (this is the most reliable)
             if (!$paymentRecord && isset($metadata['purchase_id'])) {
-                $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])->first();
-                Log::info('Found payment record by purchase_id', [
-                    'purchase_id' => $metadata['purchase_id'],
+                $purchaseId = $metadata['purchase_id'];
+                $paymentRecord = Payment::where(function($q) use ($purchaseId) {
+                    $q->where(function($q2) use ($purchaseId) {
+                        $q2->where('purchasable_type', ProductPurchase::class)
+                           ->where('purchasable_id', $purchaseId);
+                    })->orWhere(function($q2) use ($purchaseId) {
+                        $q2->where('purchasable_type', TicketPurchase::class)
+                           ->where('purchasable_id', $purchaseId);
+                    });
+                })->first();
+                Log::info('Found payment record by purchasable_id', [
+                    'purchase_id' => $purchaseId,
                     'payment_id' => $paymentRecord ? $paymentRecord->id : null
                 ]);
             }
@@ -398,9 +418,17 @@ class WebhookController extends Controller
             
             // Final fallback: try to find by payment intent ID in metadata and update it
             if (!$paymentRecord && isset($metadata['purchase_id'])) {
-                // Look for payment records with this purchase_id and update payment_intent_id
-                $paymentRecord = Payment::where('purchase_id', $metadata['purchase_id'])
-                    ->where('payment_intent_id', null)
+                $purchaseId = $metadata['purchase_id'];
+                // Look for payment records with this purchasable_id and update payment_intent_id
+                $paymentRecord = Payment::where(function($q) use ($purchaseId) {
+                    $q->where(function($q2) use ($purchaseId) {
+                        $q2->where('purchasable_type', ProductPurchase::class)
+                           ->where('purchasable_id', $purchaseId);
+                    })->orWhere(function($q2) use ($purchaseId) {
+                        $q2->where('purchasable_type', TicketPurchase::class)
+                           ->where('purchasable_id', $purchaseId);
+                    });
+                })->where('payment_intent_id', null)
                     ->first();
                 
                 if ($paymentRecord) {
@@ -418,7 +446,7 @@ class WebhookController extends Controller
                 'payment_intent_id' => $paymentIntentId,
                 'found_record' => $paymentRecord ? true : false,
                 'payment_record_id' => $paymentRecord ? $paymentRecord->id : null,
-                'purchase_id' => $paymentRecord ? $paymentRecord->purchase_id : null
+                'purchasable_id' => $paymentRecord ? $paymentRecord->purchasable_id : null
             ]);
 
             if ($paymentRecord) {
@@ -438,28 +466,30 @@ class WebhookController extends Controller
                 $paymentRecord->update($updateData);
 
                 // Update purchase status to failed
-                $purchase = $paymentRecord->purchase;
-                if ($purchase) {
-                    $oldStatus = $purchase->status;
-                    $purchase->update(['status' => 'failed']);
+                $purchasable = $paymentRecord->purchasable;
+                if ($purchasable) {
+                    if ($purchasable instanceof ProductPurchase) {
+                        $oldStatus = $purchasable->status;
+                        $purchasable->update(['status' => 'failed']);
                     
-                    Log::info('Updated purchase status to failed', [
-                        'purchase_id' => $purchase->id,
+                        Log::info('Updated product purchase status to failed', [
+                            'purchase_id' => $purchasable->id,
                         'old_status' => $oldStatus,
                         'new_status' => 'failed'
                     ]);
+                    }
                     
                     // Create cancelled tickets for failed payment so user can see what they tried to purchase
-                    if ($purchase->type === 'ticket') {
-                        $this->createCancelledTicketsForPurchase($purchase);
+                    if ($purchasable instanceof TicketPurchase) {
+                        $this->createCancelledTicketsForPurchase($purchasable);
                     }
                     
                     // Create notification for the user about failed payment
-                    $user = $purchase->user;
+                    $user = $purchasable->user;
                     if ($user) {
                         try {
                             // Create in-app notification
-                            if ($purchase->type === 'ticket') {
+                            if ($purchasable instanceof TicketPurchase) {
                                 NotificationService::createPaymentNotification(
                                     $user,
                                     'Payment Failed',
@@ -471,13 +501,13 @@ class WebhookController extends Controller
                                 );
                                 Log::info('Created payment failed notification for ticket purchase', [
                                     'user_id' => $user->id,
-                                    'purchase_id' => $purchase->id
+                                    'purchase_id' => $purchasable->id
                                 ]);
                             } else {
                                 NotificationService::createPaymentNotification(
                                     $user,
                                     'Payment Failed',
-                                    'Your payment for order #' . $purchase->id . ' has failed. Please try again.',
+                                    'Your payment for order #' . $purchasable->id . ' has failed. Please try again.',
                                     [
                                         'action_url' => '/my-orders',
                                         'action_text' => 'View Orders'
@@ -485,7 +515,7 @@ class WebhookController extends Controller
                                 );
                                 Log::info('Created payment failed notification for product purchase', [
                                     'user_id' => $user->id,
-                                    'purchase_id' => $purchase->id
+                                    'purchase_id' => $purchasable->id
                                 ]);
                             }
 
@@ -494,7 +524,7 @@ class WebhookController extends Controller
                             $failureCode = $paymentData['failure_code'] ?? 'CLOSED';
                             
                             Mail::to($user->email)->send(new PaymentFailureNotification(
-                                $purchase, 
+                                $purchasable, 
                                 $user, 
                                 $failureReason, 
                                 $failureCode
@@ -503,20 +533,20 @@ class WebhookController extends Controller
                             Log::info('Sent payment failure email notification', [
                                 'user_id' => $user->id,
                                 'user_email' => $user->email,
-                                'purchase_id' => $purchase->id,
+                                'purchase_id' => $purchasable->id,
                                 'failure_reason' => $failureReason
                             ]);
                             
                         } catch (\Exception $e) {
                             Log::error('Failed to create payment failed notification or send email', [
                                 'user_id' => $user->id,
-                                'purchase_id' => $purchase->id,
+                                'purchase_id' => $purchasable->id,
                                 'error' => $e->getMessage()
                             ]);
                         }
                     } else {
                         Log::warning('No user found for purchase when creating payment failed notification', [
-                            'purchase_id' => $purchase->id
+                            'purchase_id' => $purchasable->id
                         ]);
                     }
                 }
@@ -525,7 +555,7 @@ class WebhookController extends Controller
             Log::info('Payment failure webhook completed successfully', [
                 'payment_intent_id' => $paymentIntentId,
                 'payment_record_id' => $paymentRecord ? $paymentRecord->id : null,
-                'purchase_id' => $paymentRecord ? $paymentRecord->purchase_id : null
+                'purchasable_id' => $paymentRecord ? $paymentRecord->purchasable_id : null
             ]);
 
             return response()->json([
@@ -547,28 +577,25 @@ class WebhookController extends Controller
     }
 
     /**
-     * Create tickets for a purchase
+     * Create tickets for a ticket purchase
      */
-    private function createTicketsForPurchase(Purchase $purchase): void
+    private function createTicketsForPurchase(TicketPurchase $purchase): void
     {
         try {
             // Check if tickets already exist to prevent duplicates
-            $existingTicketsCount = Ticket::where('purchase_id', $purchase->id)->count();
+            $existingTicketsCount = Ticket::where('ticket_purchase_id', $purchase->id)->count();
             if ($existingTicketsCount > 0) {
                 return; // Tickets already exist, skip creation
             }
 
-            $purchaseItem = $purchase->purchaseItems()->first();
-            if (!$purchaseItem) {
+            // Get quantity from metadata or tickets count
+            // For ticket purchases, we need to get quantity from payment metadata or calculate from total
+            $event = $purchase->event;
+            if (!$event || !$event->ticket_price) {
                 return;
             }
 
-            $quantity = $purchaseItem->quantity;
-            $event = $purchase->event;
-            
-            if (!$event) {
-                return;
-            }
+            $quantity = (int) ($purchase->total / $event->ticket_price);
 
             // Verify ticket availability
             if (!$event->hasTicketsAvailable($quantity)) {
@@ -578,7 +605,7 @@ class WebhookController extends Controller
             // Create tickets
             for ($i = 0; $i < $quantity; $i++) {
                 $ticket = new Ticket();
-                $ticket->purchase_id = $purchase->id;
+                $ticket->ticket_purchase_id = $purchase->id;
                 $ticket->event_id = $event->id;
                 $ticket->user_id = $purchase->user_id;
                 $ticket->status = 'confirmed';
@@ -600,31 +627,26 @@ class WebhookController extends Controller
     /**
      * Create cancelled tickets for a failed purchase
      */
-    private function createCancelledTicketsForPurchase(Purchase $purchase): void
+    private function createCancelledTicketsForPurchase(TicketPurchase $purchase): void
     {
         try {
             // Check if tickets already exist to prevent duplicates
-            $existingTicketsCount = Ticket::where('purchase_id', $purchase->id)->count();
+            $existingTicketsCount = Ticket::where('ticket_purchase_id', $purchase->id)->count();
             if ($existingTicketsCount > 0) {
                 return; // Tickets already exist, skip creation
             }
 
-            $purchaseItem = $purchase->purchaseItems()->first();
-            if (!$purchaseItem) {
+            $event = $purchase->event;
+            if (!$event || !$event->ticket_price) {
                 return;
             }
 
-            $quantity = $purchaseItem->quantity;
-            $event = $purchase->event;
-            
-            if (!$event) {
-                return;
-            }
+            $quantity = (int) ($purchase->total / $event->ticket_price);
 
             // Create cancelled tickets
             for ($i = 0; $i < $quantity; $i++) {
                 $ticket = new Ticket();
-                $ticket->purchase_id = $purchase->id;
+                $ticket->ticket_purchase_id = $purchase->id;
                 $ticket->event_id = $event->id;
                 $ticket->user_id = $purchase->user_id;
                 $ticket->status = 'failed';
@@ -652,10 +674,10 @@ class WebhookController extends Controller
     /**
      * Decrement product stock for a purchase
      */
-    private function decrementProductStock(Purchase $purchase): void
+    private function decrementProductStock(ProductPurchase $purchase): void
     {
         try {
-            $purchaseItems = $purchase->purchaseItems;
+            $purchaseItems = $purchase->productPurchaseItems;
             
             if ($purchaseItems->isEmpty()) {
                 return;
@@ -686,7 +708,7 @@ class WebhookController extends Controller
     /**
      * Send product purchase confirmation email
      */
-    private function sendProductConfirmationEmail(Purchase $purchase): void
+    private function sendProductConfirmationEmail(ProductPurchase $purchase): void
     {
         try {
             $user = $purchase->user;
@@ -704,7 +726,7 @@ class WebhookController extends Controller
     /**
      * Send ticket purchase confirmation email
      */
-    private function sendTicketConfirmationEmail(Purchase $purchase): void
+    private function sendTicketConfirmationEmail(TicketPurchase $purchase): void
     {
         try {
             $user = $purchase->user;
@@ -722,17 +744,19 @@ class WebhookController extends Controller
     /**
      * Create notifications for product orders
      */
-    private function createProductOrderNotifications(Purchase $purchase): void
+    private function createProductOrderNotifications(ProductPurchase $purchase): void
     {
         try {
             $user = $purchase->user;
             if (!$user) return;
 
+            $shippingAmount = optional($purchase->shipping_address)['shipping_amount'] ?? 0;
+
             // Customer notifications
             NotificationService::createPaymentNotification(
                 $user,
                 'Payment Successful',
-                'Your payment of ₱' . number_format($purchase->total - $purchase->shipping_cost, 2) . ' has been processed successfully.',
+                'Your payment of ₱' . number_format($purchase->total - $shippingAmount, 2) . ' has been processed successfully.',
                 [
                     'action_url' => '/my-orders',
                     'action_text' => 'View Orders'
@@ -773,7 +797,7 @@ class WebhookController extends Controller
     /**
      * Create notifications for event orders
      */
-    private function createEventOrderNotifications(Purchase $purchase): void
+    private function createEventOrderNotifications(TicketPurchase $purchase): void
     {
         try {
             $user = $purchase->user;
@@ -794,6 +818,8 @@ class WebhookController extends Controller
 
             // Event registration confirmed notification
             if ($event) {
+                $ticketCount = $purchase->tickets()->count();
+                
                 NotificationService::createEventNotification(
                     $user,
                     'Event Registration Confirmed',
@@ -810,7 +836,7 @@ class WebhookController extends Controller
                     NotificationService::createEventNotification(
                         $admin,
                         'New Event Registration',
-                        $user->user_name . ' has registered for "' . $event->title . '" event. ' . $purchase->purchaseItems->sum('quantity') . ' ticket(s) purchased for ₱' . number_format($purchase->total, 2) . '.',
+                        $user->user_name . ' has registered for "' . $event->title . '" event. ' . $ticketCount . ' ticket(s) purchased for ₱' . number_format($purchase->total, 2) . '.',
                         [
                             'action_url' => '/admin/events/' . $event->id,
                             'action_text' => 'View Event'

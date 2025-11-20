@@ -208,25 +208,4 @@ class SettingsController extends Controller
         return response()->json(['message' => 'Team member image deleted successfully']);
     }
 
-    /**
-     * Toggle maintenance mode
-     */
-    public function toggleMaintenance(Request $request)
-    {
-        $validated = $request->validate([
-            'enabled' => 'required|boolean',
-            'message' => 'nullable|string',
-        ]);
-
-        Setting::set('maintenance_mode', $validated['enabled'] ? '1' : '0', 'maintenance', 'boolean');
-        
-        if (isset($validated['message'])) {
-            Setting::set('maintenance_message', $validated['message'], 'maintenance', 'textarea');
-        }
-
-        return response()->json([
-            'message' => 'Maintenance mode updated successfully',
-            'maintenance_mode' => (bool) $validated['enabled'],
-        ]);
-    }
 }

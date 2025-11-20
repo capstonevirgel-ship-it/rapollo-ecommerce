@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
-use App\Models\Purchase;
+use App\Models\ProductPurchase;
+use App\Models\TicketPurchase;
 use App\Models\Cart;
 use App\Services\PayMongoService;
 use Illuminate\Http\Request;
@@ -28,32 +29,42 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.01',
             'currency' => 'required|string|max:3',
-            'purchase_id' => 'required|integer|exists:purchases,id',
+            'purchasable_type' => 'required|string|in:App\Models\ProductPurchase,App\Models\TicketPurchase',
+            'purchasable_id' => 'required|integer',
             'metadata' => 'sometimes|array'
         ]);
 
         try {
-            $purchase = Purchase::find($validated['purchase_id']);
+            // Find the purchasable (ProductPurchase or TicketPurchase)
+            $purchasable = $validated['purchasable_type']::find($validated['purchasable_id']);
+            
+            if (!$purchasable) {
+                return response()->json([
+                    'error' => 'Purchase not found.',
+                ], 404);
+            }
             
             // Check if user owns this purchase
-            if ($purchase->user_id !== Auth::id()) {
+            if ($purchasable->user_id !== Auth::id()) {
                 return response()->json([
                     'error' => 'Unauthorized access to purchase.',
                 ], 403);
             }
 
             // Check if purchase is in a valid state for payment
-            if (in_array($purchase->status, ['completed', 'cancelled'])) {
+            if ($purchasable instanceof ProductPurchase) {
+                if (in_array($purchasable->status, ['completed', 'cancelled'])) {
                 return response()->json([
-                    'error' => "Cannot proceed with payment. Purchase status is {$purchase->status}.",
+                        'error' => "Cannot proceed with payment. Purchase status is {$purchasable->status}.",
                 ], 400);
+                }
             }
 
             // Add purchase info to metadata
             $metadata = array_merge($validated['metadata'] ?? [], [
-                'purchase_id' => $purchase->id,
+                'purchase_id' => $purchasable->id,
                 'user_id' => Auth::id(),
-                'order_number' => $purchase->order_number ?? 'ORD-' . $purchase->id
+                'order_number' => 'ORD-' . $purchasable->id
             ]);
 
             // Create checkout session with PayMongo
@@ -76,10 +87,14 @@ class PaymentController extends Controller
 
             // Create payment record
             $payment = Payment::updateOrCreate(
-                ['purchase_id' => $validated['purchase_id']],
+                [
+                    'purchasable_type' => $validated['purchasable_type'],
+                    'purchasable_id' => $validated['purchasable_id']
+                ],
                 [
                     'user_id' => Auth::id(),
-                    'purchase_id' => $validated['purchase_id'],
+                    'purchasable_type' => $validated['purchasable_type'],
+                    'purchasable_id' => $validated['purchasable_id'],
                     'amount' => $validated['amount'],
                     'currency' => $validated['currency'],
                     'status' => 'pending',
@@ -127,14 +142,22 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'payment_intent_id' => 'required|string',
             'payment_method_id' => 'required|string',
-            'purchase_id' => 'required|integer|exists:purchases,id'
+            'purchasable_type' => 'required|string|in:App\Models\ProductPurchase,App\Models\TicketPurchase',
+            'purchasable_id' => 'required|integer'
         ]);
 
         try {
-            $purchase = Purchase::find($validated['purchase_id']);
+            // Find the purchasable (ProductPurchase or TicketPurchase)
+            $purchasable = $validated['purchasable_type']::find($validated['purchasable_id']);
+            
+            if (!$purchasable) {
+                return response()->json([
+                    'error' => 'Purchase not found.',
+                ], 404);
+            }
             
             // Check if user owns this purchase
-            if ($purchase->user_id !== Auth::id()) {
+            if ($purchasable->user_id !== Auth::id()) {
                 return response()->json([
                     'error' => 'Unauthorized access to purchase.',
                 ], 403);
@@ -177,16 +200,20 @@ class PaymentController extends Controller
 
             // Update purchase status
             if ($status === 'succeeded') {
-                $purchase->update(['status' => 'completed']);
+                if ($purchasable instanceof ProductPurchase) {
+                    $purchasable->update(['status' => 'processing', 'paid_at' => now()]);
                 // Clear user's cart after successful payment
                 Cart::where('user_id', Auth::id())->delete();
+                } elseif ($purchasable instanceof TicketPurchase) {
+                    $purchasable->update(['paid_at' => now()]);
+                }
             }
 
             return response()->json([
                 'message' => 'Payment processed successfully.',
                 'status' => $status,
                 'payment_intent' => $paymentIntent,
-                'purchase_status' => $purchase->fresh()->status
+                'purchase_status' => $purchasable instanceof ProductPurchase ? $purchasable->fresh()->status : 'paid'
             ]);
 
         } catch (Exception $e) {
@@ -251,32 +278,46 @@ class PaymentController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'currency' => 'required|string|max:3',
             'payment_method' => 'required|string|in:card,gcash,paymaya,cod',
-            'purchase_id' => 'required|integer|exists:purchases,id',
+            'purchasable_type' => 'required|string|in:App\Models\ProductPurchase,App\Models\TicketPurchase',
+            'purchasable_id' => 'required|integer',
         ]);
 
         try {
-            $purchase = Purchase::find($validated['purchase_id']);
+            // Find the purchasable (ProductPurchase or TicketPurchase)
+            $purchasable = $validated['purchasable_type']::find($validated['purchasable_id']);
+            
+            if (!$purchasable) {
+                return response()->json([
+                    'error' => 'Purchase not found.',
+                ], 404);
+            }
             
             // Check if user owns this purchase
-            if ($purchase->user_id !== Auth::id()) {
+            if ($purchasable->user_id !== Auth::id()) {
                 return response()->json([
                     'error' => 'Unauthorized access to purchase.',
                 ], 403);
             }
 
             // Check if purchase is in a valid state for payment
-            if (in_array($purchase->status, ['completed', 'cancelled'])) {
+            if ($purchasable instanceof ProductPurchase) {
+                if (in_array($purchasable->status, ['completed', 'cancelled'])) {
                 return response()->json([
-                    'error' => "Cannot proceed with payment. Purchase status is {$purchase->status}.",
+                        'error' => "Cannot proceed with payment. Purchase status is {$purchasable->status}.",
                 ], 400);
+                }
             }
 
             // Create payment record
             $payment = Payment::updateOrCreate(
-                ['purchase_id' => $validated['purchase_id']],
+                [
+                    'purchasable_type' => $validated['purchasable_type'],
+                    'purchasable_id' => $validated['purchasable_id']
+                ],
                 [
                     'user_id' => Auth::id(),
-                    'purchase_id' => $validated['purchase_id'],
+                    'purchasable_type' => $validated['purchasable_type'],
+                    'purchasable_id' => $validated['purchasable_id'],
                     'amount' => $validated['amount'],
                     'currency' => $validated['currency'],
                     'status' => $validated['payment_method'] === 'cod' ? 'pending' : 'paid',
@@ -289,18 +330,24 @@ class PaymentController extends Controller
 
             // Update purchase status
             if ($validated['payment_method'] === 'cod') {
-                $purchase->update(['status' => 'processing']);
+                if ($purchasable instanceof ProductPurchase) {
+                    $purchasable->update(['status' => 'processing']);
+                }
             } else {
-                $purchase->update(['status' => 'completed']);
+                if ($purchasable instanceof ProductPurchase) {
+                    $purchasable->update(['status' => 'processing', 'paid_at' => now()]);
                 // Clear user's cart after successful payment
                 Cart::where('user_id', Auth::id())->delete();
+                } elseif ($purchasable instanceof TicketPurchase) {
+                    $purchasable->update(['paid_at' => now()]);
+                }
             }
 
             return response()->json([
                 'message' => 'Payment processed successfully.',
                 'payment_status' => $payment->status,
                 'payment_method' => $payment->payment_method,
-                'purchase_status' => $purchase->status,
+                'purchase_status' => $purchasable instanceof ProductPurchase ? $purchasable->status : 'paid',
             ]);
         } catch (Exception $e) {
             Log::error('Error in createPayment:', [

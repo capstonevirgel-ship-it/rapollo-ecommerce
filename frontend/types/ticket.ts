@@ -2,7 +2,7 @@ export interface Ticket {
   id: number
   event_id: number
   user_id: number
-  purchase_id: number
+  ticket_purchase_id: number
   ticket_number: string
   price: number
   status: 'pending' | 'confirmed' | 'cancelled' | 'used' | 'failed'
@@ -11,7 +11,10 @@ export interface Ticket {
   updated_at: string
   event?: Event
   user?: User
+  ticketPurchase?: TicketPurchase
+  // Deprecated: Use ticketPurchase instead
   purchase?: Purchase
+  purchase_id?: number
 }
 
 export interface Event {
@@ -33,45 +36,9 @@ export interface Event {
   remaining_tickets?: number
 }
 
-export interface User {
-  id: number
-  user_name: string
-  email: string
-  role: string
-  created_at: string
-  updated_at: string
-}
+import type { User, Purchase, PurchaseItem } from './purchase'
 
-export interface Purchase {
-  id: number
-  user_id: number
-  total: number
-  status: 'pending' | 'processing' | 'completed' | 'cancelled'
-  type?: 'product' | 'ticket' // Optional to handle NULL values from existing purchases
-  event_id?: number
-  shipping_address?: any
-  billing_address?: any
-  paid_at?: string
-  created_at: string
-  updated_at: string
-  user?: User
-  event?: Event
-  purchase_items?: PurchaseItem[]
-  tickets?: Ticket[]
-}
-
-export interface PurchaseItem {
-  id: number
-  purchase_id: number
-  variant_id?: number
-  ticket_id?: number
-  quantity: number
-  price: number
-  created_at: string
-  updated_at: string
-  variant?: any
-  ticket?: Ticket
-}
+export type { User, Purchase, PurchaseItem }
 
 export interface TicketStatistics {
   total_tickets: number

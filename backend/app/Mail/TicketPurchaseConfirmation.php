@@ -7,20 +7,20 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Purchase;
+use App\Models\TicketPurchase;
 use App\Models\User;
 
 class TicketPurchaseConfirmation extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public Purchase $purchase;
+    public TicketPurchase $purchase;
     public User $user;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Purchase $purchase, User $user)
+    public function __construct(TicketPurchase $purchase, User $user)
     {
         $this->purchase = $purchase;
         $this->user = $user;
@@ -32,7 +32,7 @@ class TicketPurchaseConfirmation extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Event Ticket Confirmation - ' . $this->purchase->reference_number,
+            subject: 'Event Ticket Confirmation - Order #' . $this->purchase->id,
         );
     }
 

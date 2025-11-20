@@ -15,10 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('event_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('purchase_id')->constrained()->cascadeOnDelete(); 
+            $table->foreignId('ticket_purchase_id')->constrained('ticket_purchases')->cascadeOnDelete(); 
             $table->string('ticket_number')->unique();
             $table->decimal('price', 10, 2);
-            $table->enum('status', ['pending', 'confirmed', 'cancelled', 'used', 'failed'])->default('pending');
+            $table->enum('status', ['confirmed', 'cancelled', 'used', 'failed'])->default('confirmed');
             $table->timestamp('booked_at');
             $table->timestamps();
         });

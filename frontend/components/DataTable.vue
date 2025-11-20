@@ -4,6 +4,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 type Column = {
   label: string
   key: string
+  width?: number  // Optional, represents percentage (0-100)
 }
 
 type Row = {
@@ -102,19 +103,42 @@ function prevPage() {
 function getColumnClasses(key: string): string {
   const classes = []
   
-  // Set minimum widths for different column types
+  // Check if this is a brands table
+  const isBrandsTable = props.columns.length === 3 && 
+    props.columns.some(col => col.key === 'logo') && 
+    props.columns.some(col => col.key === 'name') && 
+    props.columns.some(col => col.key === 'actions')
+  
+  // Check if this is a categories table
+  const isCategoriesTable = props.columns.length === 3 && 
+    props.columns.some(col => col.key === 'name') && 
+    props.columns.some(col => col.key === 'slug') && 
+    props.columns.some(col => col.key === 'actions')
+  
+  // Set minimum widths and alignment for different column types
   if (key === 'actions') {
     classes.push('w-32 min-w-[8rem]')
+    if (isBrandsTable || isCategoriesTable) {
+      classes.push('text-center')
+    }
   } else if (key === 'image' || key === 'logo') {
     classes.push('w-20 min-w-[5rem]')
+    if (isBrandsTable) {
+      classes.push('text-left')
+    }
   } else if (key === 'name' || key === 'title') {
     classes.push('min-w-[12rem] max-w-[20rem]')
+    if (isBrandsTable || isCategoriesTable) {
+      classes.push('text-left')
+    }
+  } else if (key === 'slug') {
+    if (isCategoriesTable) {
+      classes.push('text-left')
+    }
   } else if (key === 'meta_description') {
     classes.push('min-w-[15rem] max-w-[25rem]')
   } else if (key === 'meta_title') {
     classes.push('min-w-[10rem] max-w-[18rem]')
-  } else if (key === 'slug') {
-    classes.push('min-w-[8rem] max-w-[15rem]')
   } else if (key === 'price' || key === 'status') {
     classes.push('w-24 min-w-[6rem]')
   } else {
@@ -127,13 +151,40 @@ function getColumnClasses(key: string): string {
 function getCellClasses(key: string): string {
   const classes = []
   
-  // Different text wrapping for different column types
+  // Check if this is a brands table
+  const isBrandsTable = props.columns.length === 3 && 
+    props.columns.some(col => col.key === 'logo') && 
+    props.columns.some(col => col.key === 'name') && 
+    props.columns.some(col => col.key === 'actions')
+  
+  // Check if this is a categories table
+  const isCategoriesTable = props.columns.length === 3 && 
+    props.columns.some(col => col.key === 'name') && 
+    props.columns.some(col => col.key === 'slug') && 
+    props.columns.some(col => col.key === 'actions')
+  
+  // Different text wrapping and alignment for different column types
   if (key === 'meta_description') {
     classes.push('whitespace-normal break-words')
   } else if (key === 'name' || key === 'title' || key === 'meta_title') {
     classes.push('whitespace-nowrap')
+    if ((isBrandsTable || isCategoriesTable) && key === 'name') {
+      classes.push('text-left')
+    }
+  } else if (key === 'slug') {
+    classes.push('whitespace-nowrap')
+    if (isCategoriesTable) {
+      classes.push('text-left')
+    }
   } else if (key === 'actions') {
     classes.push('whitespace-nowrap')
+    if (isBrandsTable || isCategoriesTable) {
+      classes.push('text-center')
+    }
+  } else if (key === 'logo' || key === 'image') {
+    if (isBrandsTable) {
+      classes.push('text-left')
+    }
   } else {
     classes.push('whitespace-nowrap')
   }
@@ -141,61 +192,38 @@ function getCellClasses(key: string): string {
   return classes.join(' ')
 }
 
-const columnWidths = ref<string[]>([])
-
-onMounted(() => {
-  // Calculate percentage-based widths for better responsive design
-  const totalColumns = props.columns.length
-  const checkboxColumnWidth = 48 // Fixed width for checkbox column (w-12 = 48px)
-  const remainingWidth = 100 - (checkboxColumnWidth / 16) // Subtract checkbox width in percentage
+// Calculate column widths based on specified widths or distribute evenly
+const columnWidths = computed(() => {
+  const checkboxColumnWidth = props.showCheckboxes ? 48 / 16 : 0 // Fixed width for checkbox column in percentage
+  const availableWidth = 100 - checkboxColumnWidth
   
-  // Check if this is a brands table (Logo, Name, Actions)
-  const isBrandsTable = props.columns.length === 3 && 
-    props.columns.some(col => col.key === 'logo') && 
-    props.columns.some(col => col.key === 'name') && 
-    props.columns.some(col => col.key === 'actions')
+  // Sum all specified widths
+  const specifiedWidths = props.columns
+    .filter(col => col.width !== undefined)
+    .reduce((sum, col) => sum + (col.width || 0), 0)
   
-  // Distribute remaining width among columns
-  const tempWidths: string[] = []
+  // Find columns without specified widths
+  const columnsWithoutWidth = props.columns.filter(col => col.width === undefined)
   
-  if (isBrandsTable) {
-    // Special distribution for brands table
-    props.columns.forEach((col) => {
-      if (col.key === 'logo') {
-        tempWidths.push('20%') // Logo column - enough space for image
-      } else if (col.key === 'name') {
-        tempWidths.push('50%') // Name column - most space for brand names
-      } else if (col.key === 'actions') {
-        tempWidths.push('30%') // Actions column - space for delete button
-      }
-    })
-  } else {
-    // Default distribution for other tables
-    props.columns.forEach((col, index) => {
-      let widthPercentage: number
-      
-      // Adjust width based on column content type
-      if (col.key === 'image' || col.key === 'logo') {
-        widthPercentage = 15 // Image/Logo columns - narrow but not too narrow
-      } else if (col.key === 'name' || col.key === 'slug') {
-        widthPercentage = 25 // Name and slug - medium-wide
-      } else if (col.key === 'price' || col.key === 'status' || col.key === 'category' || col.key === 'subcategory') {
-        widthPercentage = 15 // Price, status, category columns - medium
-      } else if (col.key === 'meta_title') {
-        widthPercentage = 25 // Meta title - wider
-      } else if (col.key === 'meta_description') {
-        widthPercentage = 30 // Meta description - widest
-      } else if (col.key === 'actions') {
-        widthPercentage = 20 // Actions column - wider for buttons
-      } else {
-        widthPercentage = remainingWidth / totalColumns // Default distribution
-      }
-      
-      tempWidths.push(`${widthPercentage}%`)
-    })
+  // Calculate remaining width and distribute evenly among columns without widths
+  const remainingWidth = availableWidth - specifiedWidths
+  const defaultWidth = columnsWithoutWidth.length > 0 
+    ? remainingWidth / columnsWithoutWidth.length 
+    : 0
+  
+  // Normalize if all columns have widths and sum doesn't equal 100%
+  let normalizationFactor = 1
+  if (columnsWithoutWidth.length === 0 && specifiedWidths > 0) {
+    normalizationFactor = availableWidth / specifiedWidths
   }
-
-  columnWidths.value = tempWidths
+  
+  // Generate width array
+  return props.columns.map(col => {
+    const width = col.width !== undefined 
+      ? col.width * normalizationFactor 
+      : defaultWidth
+    return `${Math.max(0, width)}%`
+  })
 })
 </script>
 
@@ -232,7 +260,7 @@ onMounted(() => {
       <!-- Table Container -->
       <div>
         <div class="overflow-x-auto custom-scrollbar">
-          <table class="min-w-full divide-y divide-gray-200">
+          <table class="min-w-full divide-y divide-gray-200" style="table-layout: fixed; width: 100%;">
             <thead class="bg-gray-50">
               <tr>
                 <th v-if="showCheckboxes" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
@@ -241,8 +269,16 @@ onMounted(() => {
                 <th
                   v-for="(col, i) in columns"
                   :key="col.key"
-                  class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  :class="getColumnClasses(col.key)"
+                  :class="[
+                    'py-3 text-xs font-medium text-gray-500 uppercase tracking-wider',
+                    (props.columns.length === 3 && 
+                     props.columns.some(c => c.key === 'logo') && 
+                     props.columns.some(c => c.key === 'name') && 
+                     props.columns.some(c => c.key === 'actions') &&
+                     col.key === 'logo') || col.key === 'status' ? 'pl-2 pr-4' : 'px-4',
+                    getColumnClasses(col.key)
+                  ]"
+                  :style="{ width: columnWidths[i] }"
                 >
                   <div class="flex items-center gap-1 cursor-pointer" @click="toggleSort(col.key)">
                     <span class="truncate">{{ col.label }}</span>
@@ -273,8 +309,16 @@ onMounted(() => {
                 <td
                   v-for="(col, i) in columns"
                   :key="col.key"
-                  class="px-3 py-4 text-sm text-gray-900"
-                  :class="getCellClasses(col.key)"
+                  :class="[
+                    'py-4 text-sm text-gray-900',
+                    (props.columns.length === 3 && 
+                     props.columns.some(c => c.key === 'logo') && 
+                     props.columns.some(c => c.key === 'name') && 
+                     props.columns.some(c => c.key === 'actions') &&
+                     col.key === 'logo') || col.key === 'status' ? 'pl-2 pr-4' : 'px-4',
+                    getCellClasses(col.key)
+                  ]"
+                  :style="{ width: columnWidths[i] }"
                 >
                   <slot :name="`cell-${col.key}`" :row="row">
                     <div class="truncate">{{ row[col.key] }}</div>

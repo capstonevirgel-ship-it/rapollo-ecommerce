@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
-use App\Models\Purchase;
+use App\Models\ProductPurchase;
+use App\Models\TicketPurchase;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\Ticket;
@@ -21,19 +22,32 @@ class DashboardController extends Controller
             $totalCustomers = User::where('role', 'user')->count();
             $totalEvents = Event::count();
             $totalTickets = Ticket::count();
-            $totalOrders = Purchase::count();
+            $totalOrders = ProductPurchase::count();
 
             // Revenue calculations - include all non-cancelled and non-failed purchases
-            $totalRevenue = Purchase::whereNotIn('status', ['cancelled', 'failed'])->sum('total') ?? 0;
-            $monthlyRevenue = Purchase::whereNotIn('status', ['cancelled', 'failed'])
+            $productRevenue = ProductPurchase::whereNotIn('status', ['cancelled', 'failed'])->sum('total') ?? 0;
+            $ticketRevenue = TicketPurchase::whereNotNull('paid_at')->sum('total') ?? 0;
+            $totalRevenue = $productRevenue + $ticketRevenue;
+            
+            $productMonthlyRevenue = ProductPurchase::whereNotIn('status', ['cancelled', 'failed'])
                 ->whereMonth('created_at', Carbon::now()->month)
                 ->whereYear('created_at', Carbon::now()->year)
                 ->sum('total') ?? 0;
+            $ticketMonthlyRevenue = TicketPurchase::whereNotNull('paid_at')
+                ->whereMonth('created_at', Carbon::now()->month)
+                ->whereYear('created_at', Carbon::now()->year)
+                ->sum('total') ?? 0;
+            $monthlyRevenue = $productMonthlyRevenue + $ticketMonthlyRevenue;
 
-            $lastMonthRevenue = Purchase::whereNotIn('status', ['cancelled', 'failed'])
+            $productLastMonthRevenue = ProductPurchase::whereNotIn('status', ['cancelled', 'failed'])
                 ->whereMonth('created_at', Carbon::now()->subMonth()->month)
                 ->whereYear('created_at', Carbon::now()->subMonth()->year)
                 ->sum('total') ?? 0;
+            $ticketLastMonthRevenue = TicketPurchase::whereNotNull('paid_at')
+                ->whereMonth('created_at', Carbon::now()->subMonth()->month)
+                ->whereYear('created_at', Carbon::now()->subMonth()->year)
+                ->sum('total') ?? 0;
+            $lastMonthRevenue = $productLastMonthRevenue + $ticketLastMonthRevenue;
 
             // Growth calculations
             $revenueGrowth = $lastMonthRevenue > 0 
@@ -51,8 +65,8 @@ class DashboardController extends Controller
             );
 
             $orderGrowth = $this->calculateGrowth(
-                Purchase::whereMonth('created_at', Carbon::now()->subMonth())->count(),
-                Purchase::whereMonth('created_at', Carbon::now())->count()
+                ProductPurchase::whereMonth('created_at', Carbon::now()->subMonth())->count(),
+                ProductPurchase::whereMonth('created_at', Carbon::now())->count()
             );
 
             return response()->json([
@@ -88,12 +102,17 @@ class DashboardController extends Controller
                 $date = Carbon::now()->subMonths($i);
                 $months[] = $date->format('M');
                 
-                $revenue = Purchase::whereNotIn('status', ['cancelled', 'failed'])
+                $productRevenue = ProductPurchase::whereNotIn('status', ['cancelled', 'failed'])
                     ->whereMonth('created_at', $date->month)
                     ->whereYear('created_at', $date->year)
                     ->sum('total') ?? 0;
+                $ticketRevenue = TicketPurchase::whereNotNull('paid_at')
+                    ->whereMonth('created_at', $date->month)
+                    ->whereYear('created_at', $date->year)
+                    ->sum('total') ?? 0;
+                $revenue = $productRevenue + $ticketRevenue;
                     
-                $orders = Purchase::whereMonth('created_at', $date->month)
+                $orders = ProductPurchase::whereMonth('created_at', $date->month)
                     ->whereYear('created_at', $date->year)
                     ->count();
 
@@ -126,21 +145,18 @@ class DashboardController extends Controller
                 $date = Carbon::now()->subMonths($i);
                 $months[] = $date->format('M');
                 
-                // Get ticket purchases (type = 'ticket') that are not cancelled or failed
-                $ticketPurchases = Purchase::where('type', 'ticket')
-                    ->whereNotIn('status', ['cancelled', 'failed'])
+                // Get ticket purchases that are paid
+                $ticketPurchases = TicketPurchase::whereNotNull('paid_at')
                     ->whereMonth('created_at', $date->month)
                     ->whereYear('created_at', $date->year)
                     ->get();
 
-                // Calculate ticket sales count (sum of quantities from purchase_items)
-                $sales = DB::table('purchase_items')
-                    ->join('purchases', 'purchase_items.purchase_id', '=', 'purchases.id')
-                    ->where('purchases.type', 'ticket')
-                    ->whereNotIn('purchases.status', ['cancelled', 'failed'])
-                    ->whereMonth('purchases.created_at', $date->month)
-                    ->whereYear('purchases.created_at', $date->year)
-                    ->sum('purchase_items.quantity') ?? 0;
+                // Calculate ticket sales count (count of tickets)
+                $sales = Ticket::whereHas('ticketPurchase', function($q) use ($date) {
+                    $q->whereNotNull('paid_at')
+                      ->whereMonth('created_at', $date->month)
+                      ->whereYear('created_at', $date->year);
+                })->count();
 
                 // Calculate ticket revenue (sum of purchase totals)
                 $revenue = $ticketPurchases->sum('total') ?? 0;
@@ -165,7 +181,7 @@ class DashboardController extends Controller
     public function orderStatusChart()
     {
         try {
-            $statusCounts = Purchase::select('status', DB::raw('count(*) as count'))
+            $statusCounts = ProductPurchase::select('status', DB::raw('count(*) as count'))
                 ->groupBy('status')
                 ->pluck('count', 'status')
                 ->toArray();
@@ -219,15 +235,15 @@ class DashboardController extends Controller
             // Only count purchases that are not cancelled or failed
             $topProducts = DB::table('products')
                 ->leftJoin('product_variants', 'products.id', '=', 'product_variants.product_id')
-                ->leftJoin('purchase_items', 'product_variants.id', '=', 'purchase_items.variant_id')
-                ->leftJoin('purchases', 'purchase_items.purchase_id', '=', 'purchases.id')
+                ->leftJoin('product_purchase_items', 'product_variants.id', '=', 'product_purchase_items.variant_id')
+                ->leftJoin('product_purchases', 'product_purchase_items.product_purchase_id', '=', 'product_purchases.id')
                 ->where(function($query) {
-                    $query->whereNotIn('purchases.status', ['cancelled', 'failed'])
-                          ->orWhereNull('purchases.id');
+                    $query->whereNotIn('product_purchases.status', ['cancelled', 'failed'])
+                          ->orWhereNull('product_purchases.id');
                 })
                 ->select('products.name', 'products.slug')
-                ->selectRaw('COALESCE(SUM(CASE WHEN purchases.status IS NOT NULL AND purchases.status NOT IN (\'cancelled\', \'failed\') THEN purchase_items.quantity ELSE 0 END), 0) as total_sales')
-                ->selectRaw('COALESCE(SUM(CASE WHEN purchases.status IS NOT NULL AND purchases.status NOT IN (\'cancelled\', \'failed\') THEN purchase_items.price * purchase_items.quantity ELSE 0 END), 0) as total_revenue')
+                ->selectRaw('COALESCE(SUM(CASE WHEN product_purchases.status IS NOT NULL AND product_purchases.status NOT IN (\'cancelled\', \'failed\') THEN product_purchase_items.quantity ELSE 0 END), 0) as total_sales')
+                ->selectRaw('COALESCE(SUM(CASE WHEN product_purchases.status IS NOT NULL AND product_purchases.status NOT IN (\'cancelled\', \'failed\') THEN product_purchase_items.price * product_purchase_items.quantity ELSE 0 END), 0) as total_revenue')
                 ->groupBy('products.id', 'products.name', 'products.slug')
                 ->orderBy('total_sales', 'desc')
                 ->limit(5)
@@ -253,7 +269,7 @@ class DashboardController extends Controller
     public function recentOrders()
     {
         try {
-            $recentOrders = Purchase::with(['user'])
+            $recentOrders = ProductPurchase::with(['user'])
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get()

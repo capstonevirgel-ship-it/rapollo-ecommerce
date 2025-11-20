@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained();
             $table->foreignId('variant_id')->constrained('product_variants');
-            $table->foreignId('purchase_id')->constrained('purchases');
+            $table->foreignId('product_purchase_id')->constrained('product_purchases');
             $table->integer('stars'); // 1-5 rating
             $table->text('comment')->nullable();
             $table->timestamps();

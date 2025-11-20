@@ -30,6 +30,13 @@ class EventCommentController extends Controller
      */
     public function store(Request $request, $eventId)
     {
+        // Prevent admins from commenting
+        if (Auth::user()->role === 'admin') {
+            return response()->json([
+                'message' => 'Administrators cannot comment on events. Please use a customer account to post comments.'
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'comment' => 'required|string|max:1000|min:1'
         ]);
@@ -62,6 +69,13 @@ class EventCommentController extends Controller
      */
     public function update(Request $request, $eventId, $commentId)
     {
+        // Prevent admins from updating comments
+        if (Auth::user()->role === 'admin') {
+            return response()->json([
+                'message' => 'Administrators cannot update comments.'
+            ], 403);
+        }
+
         $comment = EventComment::where('event_id', $eventId)
             ->where('user_id', Auth::id())
             ->findOrFail($commentId);
@@ -94,6 +108,13 @@ class EventCommentController extends Controller
      */
     public function destroy($eventId, $commentId)
     {
+        // Prevent admins from deleting comments
+        if (Auth::user()->role === 'admin') {
+            return response()->json([
+                'message' => 'Administrators cannot delete comments.'
+            ], 403);
+        }
+
         $comment = EventComment::where('event_id', $eventId)
             ->where('user_id', Auth::id())
             ->findOrFail($commentId);

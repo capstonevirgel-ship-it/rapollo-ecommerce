@@ -76,6 +76,15 @@ const formatTime = (dateString: string) => {
 }
 
 const openBookingModal = (event: Event) => {
+  // Prevent admins from booking tickets
+  if (authStore.isAdmin) {
+    warning(
+      'Admin Restriction',
+      'Administrators cannot purchase tickets. Please use a customer account to buy tickets.'
+    )
+    return
+  }
+
   if (!authStore.isAuthenticated) {
     navigateTo('/login')
     return
@@ -94,6 +103,15 @@ const closeBookingModal = () => {
 }
 
 const proceedToPayment = async () => {
+  // Prevent admins from purchasing tickets
+  if (authStore.isAdmin) {
+    warning(
+      'Admin Restriction',
+      'Administrators cannot purchase tickets. Please use a customer account to buy tickets.'
+    )
+    return
+  }
+
   if (!bookingEvent.value) return
   
   // Validate ticket quantity
@@ -261,12 +279,18 @@ const canBookTickets = (event: Event) => {
             <!-- Action Buttons -->
             <div class="flex space-x-2">
               <button
-                v-if="canBookTickets(event)"
+                v-if="canBookTickets(event) && !authStore.isAdmin"
                 @click="openBookingModal(event)"
                 class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2"
               >
                 Book Tickets
               </button>
+              <div
+                v-else-if="canBookTickets(event) && authStore.isAdmin"
+                class="flex-1 bg-gray-200 text-gray-600 px-4 py-2 rounded-md text-center"
+              >
+                Admin Cannot Book
+              </div>
               <button
                 v-else-if="isEventFullyBooked(event)"
                 disabled

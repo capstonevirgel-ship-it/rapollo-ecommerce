@@ -93,10 +93,10 @@ class TaxPriceController extends Controller
             $taxPrice = TaxPrice::findOrFail($id);
             
             $validated = $request->validate([
-                'name' => 'required|string|unique:tax_prices,name,' . $id,
-                'rate' => 'required|numeric|min:0|max:100',
+                'name' => 'sometimes|required|string|unique:tax_prices,name,' . $id,
+                'rate' => 'sometimes|required|numeric|min:0|max:100',
                 'description' => 'nullable|string|max:500',
-                'is_active' => 'boolean'
+                'is_active' => 'sometimes|boolean'
             ]);
 
             $taxPrice->update($validated);

@@ -2,6 +2,21 @@
 import type { Event, EventComment } from '~/types'
 import { getImageUrl } from '~/helpers/imageHelper'
 
+// Function to fix image URLs in HTML content
+const fixContentImageUrls = (html: string): string => {
+  if (!html) return html
+  
+  // Replace image URLs that don't have the port or have wrong format
+  return html.replace(
+    /src="(http:\/\/localhost\/storage\/|http:\/\/localhost:8000\/storage\/|\/storage\/)([^"]+)"/g,
+    (match, prefix, path) => {
+      // Extract just the path without /storage/ prefix
+      const cleanPath = path.startsWith('/') ? path.slice(1) : path
+      return `src="${getImageUrl(cleanPath)}"`
+    }
+  )
+}
+
 const route = useRoute()
 const eventStore = useEventStore()
 const eventCommentStore = useEventCommentStore()
@@ -77,6 +92,15 @@ const formatTime = (dateString: string) => {
 
 // Booking functions
 const openBookingModal = () => {
+  // Prevent admins from booking tickets
+  if (authStore.isAdmin) {
+    warning(
+      'Admin Restriction',
+      'Administrators cannot purchase tickets. Please use a customer account to buy tickets.'
+    )
+    return
+  }
+
   if (!authStore.isAuthenticated) {
     navigateTo('/login')
     return
@@ -93,6 +117,15 @@ const closeBookingModal = () => {
 }
 
 const proceedToPayment = async () => {
+  // Prevent admins from purchasing tickets
+  if (authStore.isAdmin) {
+    warning(
+      'Admin Restriction',
+      'Administrators cannot purchase tickets. Please use a customer account to buy tickets.'
+    )
+    return
+  }
+
   if (!event.value) return
   
   // Validate ticket quantity
@@ -164,6 +197,15 @@ const canBookTickets = (event: Event) => {
 
 // Comment functions
 const submitComment = async () => {
+  // Prevent admins from commenting
+  if (authStore.isAdmin) {
+    warning(
+      'Admin Restriction',
+      'Administrators cannot comment on events. Please use a customer account to post comments.'
+    )
+    return
+  }
+
   if (!newComment.value.trim() || !eventId.value) return
   
   commentLoading.value = true
@@ -240,7 +282,7 @@ const setPageMeta = () => {
     useHead({
       title: `${event.value.title} | RAPOLLO`,
       meta: [
-        { name: 'description', content: event.value.description || `Join us for ${event.value.title} - ${formatDate(event.value.date)} at ${event.value.location || 'TBA'}` }
+        { name: 'description', content: event.value.content || `Join us for ${event.value.title} - ${formatDate(event.value.date)} at ${event.value.location || 'TBA'}` }
       ]
     })
   }
@@ -382,10 +424,9 @@ watch(event, (newEvent) => {
       <!-- Details & Booking -->
       <div class="mt-10 grid gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2">
-          <div v-if="event.description" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div v-if="event.content" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
             <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-4">About This Event</h2>
-            <div class="prose max-w-none text-gray-600 leading-relaxed">
-              {{ event.description }}
+            <div class="event-content-preview text-gray-600 leading-relaxed" v-html="fixContentImageUrls(event.content)">
             </div>
           </div>
           <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
@@ -436,12 +477,18 @@ watch(event, (newEvent) => {
             </div>
             <div>
               <button
-                v-if="canBookTickets(event)"
+                v-if="canBookTickets(event) && !authStore.isAdmin"
                 @click="openBookingModal"
                 class="w-full bg-zinc-900 text-white px-6 py-3 rounded-xl font-semibold hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 transition-colors"
               >
                 Book Tickets
               </button>
+              <div
+                v-else-if="canBookTickets(event) && authStore.isAdmin"
+                class="w-full bg-gray-200 text-gray-600 px-6 py-3 rounded-xl font-semibold text-center"
+              >
+                Administrators cannot purchase tickets
+              </div>
               <button
                 v-else-if="isEventFullyBooked(event)"
                 disabled
@@ -465,8 +512,8 @@ watch(event, (newEvent) => {
       <div class="mt-12 bg-white rounded-lg shadow-sm p-8">
           <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-6">Comments</h2>
           
-          <!-- Add Comment Form (Authenticated Users Only) -->
-          <div v-if="authStore.isAuthenticated" class="mb-8">
+          <!-- Add Comment Form (Authenticated Users Only, Not Admins) -->
+          <div v-if="authStore.isAuthenticated && !authStore.isAdmin" class="mb-8">
             <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Share your thoughts</h3>
               <div class="space-y-4">
@@ -489,6 +536,9 @@ watch(event, (newEvent) => {
                 </div>
               </div>
             </div>
+          </div>
+          <div v-else-if="authStore.isAuthenticated && authStore.isAdmin" class="mb-8 bg-gray-100 rounded-lg p-6 border border-gray-200">
+            <p class="text-gray-600 text-center">Administrators cannot comment on events</p>
           </div>
 
           <!-- Login Prompt for Non-Authenticated Users -->
@@ -659,4 +709,86 @@ watch(event, (newEvent) => {
     </Dialog>
   </div>
 </template>
+
+<style scoped>
+.event-content-preview :deep(h1) {
+  font-size: 2em;
+  font-weight: bold;
+  margin-top: 0.67em;
+  margin-bottom: 0.67em;
+  color: #111827;
+}
+
+.event-content-preview :deep(h2) {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-top: 0.83em;
+  margin-bottom: 0.83em;
+  color: #111827;
+}
+
+.event-content-preview :deep(h3) {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  color: #111827;
+}
+
+.event-content-preview :deep(strong),
+.event-content-preview :deep(b) {
+  font-weight: bold;
+}
+
+.event-content-preview :deep(em),
+.event-content-preview :deep(i) {
+  font-style: italic;
+}
+
+.event-content-preview :deep(ul),
+.event-content-preview :deep(ol) {
+  padding-left: 1.5em;
+  margin: 1em 0;
+}
+
+.event-content-preview :deep(ul) {
+  list-style-type: disc;
+}
+
+.event-content-preview :deep(ol) {
+  list-style-type: decimal;
+}
+
+.event-content-preview :deep(li) {
+  margin: 0.5em 0;
+}
+
+.event-content-preview :deep(p) {
+  margin: 1em 0;
+}
+
+.event-content-preview :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 1rem 0;
+  display: block;
+}
+
+.event-content-preview :deep([style*="text-align: left"]) {
+  text-align: left;
+}
+
+.event-content-preview :deep([style*="text-align: center"]) {
+  text-align: center;
+}
+
+.event-content-preview :deep([style*="text-align: right"]) {
+  text-align: right;
+}
+
+.event-content-preview :deep([style*="text-align: justify"]) {
+  text-align: justify;
+}
+</style>
 

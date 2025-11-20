@@ -3,6 +3,7 @@ import type { Ticket, TicketStatistics } from '~/types'
 import AdminActionButton from '@/components/AdminActionButton.vue'
 import DataTable from '@/components/DataTable.vue'
 import Select from '@/components/Select.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { storeToRefs } from 'pinia'
 
 // Use admin layout
@@ -31,37 +32,32 @@ const statistics = ref<TicketStatistics | null>(null)
 
 // Define columns for DataTable
 const ticketColumns = [
-  { label: 'Ticket', key: 'ticket_number' },
-  { label: 'Event', key: 'event_title' },
-  { label: 'Customer', key: 'customer' },
-  { label: 'Price', key: 'price' },
-  { label: 'Status', key: 'status' },
-  { label: 'Booked At', key: 'booked_at' },
-  { label: 'Actions', key: 'actions' }
+  { label: 'Ticket', key: 'ticket_number', width: 16.1667 },
+  { label: 'Event', key: 'event_title', width: 16.1667 },
+  { label: 'Customer', key: 'customer', width: 16.1667 },
+  { label: 'Price', key: 'price'},
+  { label: 'Status', key: 'status', width: 22},
+  { label: 'Booked At', key: 'booked_at', width: 16.1667 }
 ]
 
-// Helper function to safely format revenue
-const formatRevenue = (revenue: number | null | undefined): string => {
-  const value = revenue || 0
-  return typeof value === 'number' ? value.toFixed(2) : '0.00'
-}
-
-// Helper function to safely format price
-const formatPrice = (price: any): string => {
-  if (price === null || price === undefined) return '0.00'
-  const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price)
-  return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
-}
 // State
 const selectedStatus = ref('all')
 
-// Status options for the select
+// Status options for the filter select
 const statusOptions = [
   { value: 'all', label: 'All Status' },
   { value: 'pending', label: 'Pending' },
   { value: 'confirmed', label: 'Confirmed' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'used', label: 'Used' }
+]
+
+// Status options for the update select (without 'all')
+const statusUpdateOptions = [
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'used', label: 'Used' },
+  { value: 'failed', label: 'Failed' }
 ]
 
 // Fetch statistics
@@ -109,34 +105,16 @@ const filteredTickets = computed(() => {
   }))
 })
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'confirmed':
-      return 'text-green-600 bg-green-100'
-    case 'pending':
-      return 'text-yellow-600 bg-yellow-100'
-    case 'cancelled':
-      return 'text-red-600 bg-red-100'
-    case 'used':
-      return 'text-blue-600 bg-blue-100'
-    default:
-      return 'text-gray-600 bg-gray-100'
-  }
+// Helper functions
+const formatRevenue = (revenue: number | null | undefined): string => {
+  const value = revenue || 0
+  return typeof value === 'number' ? value.toFixed(2) : '0.00'
 }
 
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'confirmed':
-      return 'Confirmed'
-    case 'pending':
-      return 'Pending'
-    case 'cancelled':
-      return 'Cancelled'
-    case 'used':
-      return 'Used'
-    default:
-      return status
-  }
+const formatPrice = (price: any): string => {
+  if (price === null || price === undefined) return '0.00'
+  const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price)
+  return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
 }
 
 const formatDate = (dateString: string) => {
@@ -149,9 +127,10 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const updateTicketStatus = async (ticketId: number, newStatus: string) => {
+const updateTicketStatus = async (ticket: any, newStatus: string | number | null) => {
+  if (!newStatus) return
   try {
-    await ticketStore.updateTicketStatus(ticketId, newStatus)
+    await ticketStore.updateTicketStatus(ticket.id, newStatus as string)
     // Refresh data
     await Promise.all([
       fetchTickets(),
@@ -289,14 +268,14 @@ const exportTickets = () => {
 
         <!-- Event -->
         <template #cell-event_title="{ row }">
-          <div class="text-sm text-gray-900">
+          <div class="text-sm text-gray-900 whitespace-normal break-words">
             {{ row.event?.title }}
           </div>
         </template>
 
         <!-- Customer -->
         <template #cell-customer="{ row }">
-          <div>
+          <div class="whitespace-normal break-words">
             <div class="font-medium text-sm text-gray-900">{{ row.user?.user_name }}</div>
             <div class="text-sm text-gray-500">{{ row.user?.email }}</div>
           </div>
@@ -311,27 +290,30 @@ const exportTickets = () => {
 
         <!-- Status -->
         <template #cell-status="{ row }">
-          <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(row.status)]">
-            {{ getStatusText(row.status) }}
-          </span>
+          <div class="w-40">
+            <Select
+              :model-value="row.status"
+              :options="statusUpdateOptions"
+              @update:model-value="updateTicketStatus(row, $event)"
+            >
+              <!-- Custom selected value with badge -->
+              <template #selected="{ option, placeholder }">
+                <StatusBadge v-if="option" :status="String(option.value)" type="ticket" />
+                <span v-else class="text-gray-500">{{ placeholder }}</span>
+              </template>
+              
+              <!-- Custom option with badge -->
+              <template #option="{ option }">
+                <StatusBadge :status="String(option.value)" type="ticket" />
+              </template>
+            </Select>
+          </div>
         </template>
 
         <!-- Booked At -->
         <template #cell-booked_at="{ row }">
-          <div class="text-sm text-gray-500">
+          <div class="text-sm text-gray-500 whitespace-normal break-words">
             {{ formatDate(row.booked_at) }}
-          </div>
-        </template>
-
-        <!-- Actions -->
-        <template #cell-actions="{ row }">
-          <div class="flex space-x-2">
-            <Select
-              :model-value="row.status"
-              :options="statusOptions.filter(opt => opt.value !== 'all')"
-              size="sm"
-              @update:model-value="(value) => updateTicketStatus(row.id, value as string)"
-            />
           </div>
         </template>
       </DataTable>

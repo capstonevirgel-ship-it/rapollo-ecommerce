@@ -17,6 +17,13 @@ class PurchaseController extends Controller
 {
     public function store(Request $request)
     {
+        // Prevent admins from creating purchases
+        if (Auth::user()->role === 'admin') {
+            return response()->json([
+                'message' => 'Administrators cannot proceed to checkout. Please use a customer account to make purchases.'
+            ], 403);
+        }
+
         $validated = $request->validate([
             'items' => 'required|array|min:1',
             'items.*.variant_id' => 'required|integer|exists:product_variants,id',
@@ -139,7 +146,7 @@ class PurchaseController extends Controller
                 'items.variant.product:id,name,slug,subcategory_id',
                 'items.variant.product.subcategory:id,name,slug,category_id',
                 'items.variant.product.subcategory.category:id,name,slug',
-                'items.variant:id,product_id,size_id,color_id,price',
+                'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
                 'items.variant.images:id,variant_id,url',
@@ -169,7 +176,7 @@ class PurchaseController extends Controller
                 'items.variant.product:id,name,slug,subcategory_id',
                 'items.variant.product.subcategory:id,name,slug,category_id',
                 'items.variant.product.subcategory.category:id,name,slug',
-                'items.variant:id,product_id,size_id,color_id,price',
+                'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
                 'items.variant.images:id,variant_id,url',
@@ -205,7 +212,7 @@ class PurchaseController extends Controller
                 'items.variant.product:id,name,slug,subcategory_id',
                 'items.variant.product.subcategory:id,name,slug,category_id',
                 'items.variant.product.subcategory.category:id,name,slug',
-                'items.variant:id,product_id,size_id,color_id,price',
+                'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
                 'items.variant.images:id,variant_id,url',
@@ -263,7 +270,7 @@ class PurchaseController extends Controller
                 'items.variant.product:id,name,slug,subcategory_id',
                 'items.variant.product.subcategory:id,name,slug,category_id',
                 'items.variant.product.subcategory.category:id,name,slug',
-                'items.variant:id,product_id,size_id,color_id,price',
+                'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
                 'items.variant.images:id,variant_id,url',
@@ -366,7 +373,7 @@ class PurchaseController extends Controller
                 'items.variant.product:id,name,slug,subcategory_id',
                 'items.variant.product.subcategory:id,name,slug,category_id',
                 'items.variant.product.subcategory.category:id,name,slug',
-                'items.variant:id,product_id,size_id,color_id,price',
+                'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
                 'items.variant.images:id,variant_id,url',

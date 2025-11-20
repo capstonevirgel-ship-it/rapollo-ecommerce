@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Rating;
-use App\Models\Purchase;
+use App\Models\ProductPurchase;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -52,6 +52,13 @@ class RatingController extends Controller
     {
         $user = Auth::user();
 
+        // Prevent admins from writing reviews
+        if ($user->role === 'admin') {
+            return response()->json([
+                'error' => 'Administrators cannot write reviews. Please use a customer account to write reviews.'
+            ], 403);
+        }
+
         $request->validate([
             'variant_id' => 'required|exists:product_variants,id',
             'stars' => 'required|integer|min:1|max:5',
@@ -61,9 +68,9 @@ class RatingController extends Controller
         $variantId = $request->variant_id;
 
         // Check if user has purchased this product variant
-        $hasPurchased = Purchase::where('user_id', $user->id)
+        $hasPurchased = ProductPurchase::where('user_id', $user->id)
             ->where('status', 'completed')
-            ->whereHas('purchaseItems', function ($query) use ($variantId) {
+            ->whereHas('productPurchaseItems', function ($query) use ($variantId) {
                 $query->where('variant_id', $variantId);
             })
             ->exists();
@@ -90,9 +97,9 @@ class RatingController extends Controller
                 $rating = $existingRating;
             } else {
                 // Get the most recent purchase for this variant
-                $purchase = Purchase::where('user_id', $user->id)
+                $purchase = ProductPurchase::where('user_id', $user->id)
                     ->where('status', 'completed')
-                    ->whereHas('purchaseItems', function ($query) use ($variantId) {
+                    ->whereHas('productPurchaseItems', function ($query) use ($variantId) {
                         $query->where('variant_id', $variantId);
                     })
                     ->orderBy('created_at', 'desc')
@@ -102,7 +109,7 @@ class RatingController extends Controller
                 $rating = Rating::create([
                     'user_id' => $user->id,
                     'variant_id' => $variantId,
-                    'purchase_id' => $purchase->id,
+                    'product_purchase_id' => $purchase->id,
                     'stars' => $request->stars,
                     'comment' => $request->comment
                 ]);
@@ -161,18 +168,18 @@ class RatingController extends Controller
     {
         $user = Auth::user();
 
-        $reviewableProducts = Purchase::with([
-            'purchaseItems.variant.product:id,name,slug,subcategory_id',
-            'purchaseItems.variant.product.subcategory:id,name,slug,category_id',
-            'purchaseItems.variant.product.subcategory.category:id,name,slug',
-            'purchaseItems.variant:id,product_id,size_id,color_id'
+        $reviewableProducts = ProductPurchase::with([
+            'productPurchaseItems.variant.product:id,name,slug,subcategory_id',
+            'productPurchaseItems.variant.product.subcategory:id,name,slug,category_id',
+            'productPurchaseItems.variant.product.subcategory.category:id,name,slug',
+            'productPurchaseItems.variant:id,product_id,size_id,color_id'
         ])
             ->where('user_id', $user->id)
             ->where('status', 'completed')
-            ->whereHas('purchaseItems')
+            ->whereHas('productPurchaseItems')
             ->get()
             ->flatMap(function ($purchase) {
-                return $purchase->purchaseItems->map(function ($item) use ($purchase) {
+                return $purchase->productPurchaseItems->map(function ($item) use ($purchase) {
                     return [
                         'purchase_id' => $purchase->id,
                         'variant_id' => $item->variant_id,
@@ -199,18 +206,18 @@ class RatingController extends Controller
     {
         $user = Auth::user();
 
-        $reviewedProducts = Purchase::with([
-            'purchaseItems.variant.product:id,name,slug,subcategory_id',
-            'purchaseItems.variant.product.subcategory:id,name,slug,category_id',
-            'purchaseItems.variant.product.subcategory.category:id,name,slug',
-            'purchaseItems.variant:id,product_id,size_id,color_id'
+        $reviewedProducts = ProductPurchase::with([
+            'productPurchaseItems.variant.product:id,name,slug,subcategory_id',
+            'productPurchaseItems.variant.product.subcategory:id,name,slug,category_id',
+            'productPurchaseItems.variant.product.subcategory.category:id,name,slug',
+            'productPurchaseItems.variant:id,product_id,size_id,color_id'
         ])
             ->where('user_id', $user->id)
             ->where('status', 'completed')
-            ->whereHas('purchaseItems')
+            ->whereHas('productPurchaseItems')
             ->get()
             ->flatMap(function ($purchase) {
-                return $purchase->purchaseItems->map(function ($item) use ($purchase) {
+                return $purchase->productPurchaseItems->map(function ($item) use ($purchase) {
                     $hasRated = Rating::where('user_id', $purchase->user_id)
                         ->where('variant_id', $item->variant_id)
                         ->exists();

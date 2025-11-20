@@ -449,7 +449,7 @@ watch(brandSlug, () => {
               {{ product.name }}
             </h2>
             <p class="text-primary-600 font-semibold text-lg">
-              ₱{{ product.variants?.[0]?.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+              ₱{{ product.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '0.00' }}
             </p>
           </div>
         </NuxtLink>

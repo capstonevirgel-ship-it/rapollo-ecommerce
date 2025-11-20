@@ -47,10 +47,6 @@ const brandActions = brandStore as unknown as {
   fetchBrands: () => Promise<unknown>
 }
 
-const productActions = productStore as unknown as {
-  fetchProducts: (params?: Record<string, unknown>) => Promise<unknown>
-}
-
 // Fetch events, brands, featured products, hot products, new arrivals, and settings on component mount
 onMounted(async () => {
   try {
@@ -61,25 +57,31 @@ onMounted(async () => {
         eventStore.fetchEvents(),
         brandActions.fetchBrands(),
         settingsStore.fetchSettings(),
-        productActions.fetchProducts({ is_featured: true, per_page: 3 }),
-        productActions.fetchProducts({ is_hot: true, per_page: 4 })
+        productStore.fetchFeaturedProducts(),
+        productStore.fetchTrendingProducts()
       ];
       
       // Wait for all critical data to load
-      await Promise.allSettled(promises);
+      const results = await Promise.allSettled(promises);
       
-      // Set featured products
-      featuredProducts.value = [...productStore.products];
+      // Set featured products (from optimized endpoint)
+      const featuredResult = results[3];
+      if (featuredResult.status === 'fulfilled') {
+        featuredProducts.value = featuredResult.value;
+      }
       isLoadingHero.value = false;
       
-      // Set hot products
-      hotProducts.value = [...productStore.products];
+      // Set hot/trending products (from optimized endpoint)
+      const trendingResult = results[4];
+      if (trendingResult.status === 'fulfilled') {
+        hotProducts.value = trendingResult.value;
+      }
       
       // Fetch new products (below the fold, can load separately)
       isLoadingNewArrivals.value = true;
-      productActions.fetchProducts({ is_new: true, per_page: 5 })
-        .then(() => {
-          newArrivals.value = [...productStore.products];
+      productStore.fetchNewArrivals()
+        .then((data) => {
+          newArrivals.value = data;
           isLoadingNewArrivals.value = false;
         })
         .catch(() => {
@@ -148,10 +150,10 @@ useHead({
             <div class="w-1/2" v-if="featuredProducts[0]">
               <div 
                 class="relative h-[500px] rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
-                @click="() => navigateTo(`/shop/${featuredProducts[0].subcategory?.category?.slug}/${featuredProducts[0].subcategory?.slug}/${featuredProducts[0].slug}`)"
+                @click="() => navigateTo(`/shop/${featuredProducts[0].category_slug}/${featuredProducts[0].subcategory_slug}/${featuredProducts[0].slug}`)"
               >
                 <img 
-                  :src="getImageUrl(featuredProducts[0].images?.[0]?.url || null)" 
+                  :src="getImageUrl(featuredProducts[0].image || null)" 
                   :alt="featuredProducts[0].name"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
@@ -181,10 +183,10 @@ useHead({
               <div 
                 v-if="featuredProducts[1]"
                 class="relative h-[242px] rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
-                @click="() => navigateTo(`/shop/${featuredProducts[1].subcategory?.category?.slug}/${featuredProducts[1].subcategory?.slug}/${featuredProducts[1].slug}`)"
+                @click="() => navigateTo(`/shop/${featuredProducts[1].category_slug}/${featuredProducts[1].subcategory_slug}/${featuredProducts[1].slug}`)"
               >
                 <img 
-                  :src="getImageUrl(featuredProducts[1].images?.[0]?.url || null)" 
+                  :src="getImageUrl(featuredProducts[1].image || null)" 
                   :alt="featuredProducts[1].name"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
@@ -209,10 +211,10 @@ useHead({
               <div 
                 v-if="featuredProducts[2]"
                 class="relative h-[242px] rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
-                @click="() => navigateTo(`/shop/${featuredProducts[2].subcategory?.category?.slug}/${featuredProducts[2].subcategory?.slug}/${featuredProducts[2].slug}`)"
+                @click="() => navigateTo(`/shop/${featuredProducts[2].category_slug}/${featuredProducts[2].subcategory_slug}/${featuredProducts[2].slug}`)"
               >
                 <img 
-                  :src="getImageUrl(featuredProducts[2].images?.[0]?.url || null)" 
+                  :src="getImageUrl(featuredProducts[2].image || null)" 
                   :alt="featuredProducts[2].name"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
@@ -280,21 +282,21 @@ useHead({
             <template #item="{ item }">
               <div class="p-4 h-full">
                 <div class="bg-gray-50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow h-full flex flex-col justify-center">
-                  <div class="aspect-square overflow-hidden flex justify-center">
+                  <div class="aspect-square overflow-hidden">
                     <img 
-                      :src="getImageUrl(item.images?.[0]?.url || null)" 
+                      :src="getImageUrl(item.image || item.images?.[0]?.url || null)" 
                       :alt="item.name" 
-                      class="object-cover w-3/4 h-3/4"
+                      class="object-cover w-full h-full"
                     />
                   </div>
                   <div class="p-4 flex-grow">
                     <h3 class="font-medium text-gray-900 text-lg mb-1">{{ item.name }}</h3>
-                    <p class="text-gray-600">₱{{ item.variants?.[0]?.price?.toFixed(2) || '0.00' }}</p>
+                    <p class="text-gray-600">₱{{ (item.price || 0).toFixed(2) }}</p>
                   </div>
                   <div class="p-4">
                     <button 
                       class="w-full bg-zinc-900 text-white py-2 rounded-md hover:bg-zinc-800 transition-colors cursor-pointer"
-                      @click.stop="() => navigateTo(`/shop/${item.subcategory?.category?.slug}/${item.subcategory?.slug}/${item.slug}`)"
+                      @click.stop="() => navigateTo(`/shop/${item.category_slug || item.subcategory?.category?.slug}/${item.subcategory_slug || item.subcategory?.slug}/${item.slug}`)"
                     >
                       View Details
                     </button>

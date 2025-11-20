@@ -12,7 +12,7 @@ class Ticket extends Model
     protected $fillable = [
         'event_id',
         'user_id',
-        'purchase_id',
+        'ticket_purchase_id',
         'ticket_number',
         'price',
         'status',
@@ -34,9 +34,9 @@ class Ticket extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function purchase()
+    public function ticketPurchase()
     {
-        return $this->belongsTo(Purchase::class);
+        return $this->belongsTo(TicketPurchase::class);
     }
 
     public function generateTicketNumber()

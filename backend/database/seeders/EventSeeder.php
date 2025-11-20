@@ -34,7 +34,7 @@ class EventSeeder extends Seeder
             [
                 'admin_id' => $admin->id,
                 'title' => 'Kumunidad Rap Battle',
-                'description' => 'Join us for an epic rap battle event featuring the best local emcees. Experience the raw energy and creativity of Filipino rap culture. Food stalls and merchandise available.',
+                'content' => 'Join us for an epic rap battle event featuring the best local emcees. Experience the raw energy and creativity of Filipino rap culture. Food stalls and merchandise available.',
                 'date' => Carbon::now()->addDays(30)->format('Y-m-d'),
                 'location' => 'Manila Convention Center',
                 'poster_filename' => 'jun_14_25_kumunidad_4.jpg',
@@ -45,7 +45,7 @@ class EventSeeder extends Seeder
             [
                 'admin_id' => $admin->id,
                 'title' => 'Abri Gana Rap Battle',
-                'description' => 'Witness the intensity of underground rap battles as talented artists showcase their lyrical skills. A night of fierce competition and authentic hip-hop culture.',
+                'content' => 'Witness the intensity of underground rap battles as talented artists showcase their lyrical skills. A night of fierce competition and authentic hip-hop culture.',
                 'date' => Carbon::now()->addDays(45)->format('Y-m-d'),
                 'location' => 'Quezon City Memorial Circle',
                 'poster_filename' => 'mar_25_25_abri_gana_5.jpg',
@@ -56,7 +56,7 @@ class EventSeeder extends Seeder
             [
                 'admin_id' => $admin->id,
                 'title' => 'Laglag Bara Rap Battle - November Edition',
-                'description' => 'The legendary Laglag Bara series continues! Watch as emcees battle it out with their sharpest bars and most creative flows. Limited seating available.',
+                'content' => 'The legendary Laglag Bara series continues! Watch as emcees battle it out with their sharpest bars and most creative flows. Limited seating available.',
                 'date' => Carbon::now()->addDays(15)->format('Y-m-d'),
                 'location' => 'Cultural Center of the Philippines',
                 'poster_filename' => 'nov_13_23_laglag_bara_6.jpg',
@@ -67,7 +67,7 @@ class EventSeeder extends Seeder
             [
                 'admin_id' => $admin->id,
                 'title' => 'Laglag Bara Rap Battle - Anniversary Edition',
-                'description' => 'Celebrate another year of Laglag Bara with this special anniversary edition. Featuring returning champions and surprise guest performances.',
+                'content' => 'Celebrate another year of Laglag Bara with this special anniversary edition. Featuring returning champions and surprise guest performances.',
                 'date' => Carbon::now()->addDays(20)->format('Y-m-d'),
                 'location' => 'SM Mall of Asia Arena',
                 'poster_filename' => 'nov_19_24_laglag_bara_7.jpg',
@@ -78,7 +78,7 @@ class EventSeeder extends Seeder
             [
                 'admin_id' => $admin->id,
                 'title' => 'Laglag Bara Rap Battle - October Showdown',
-                'description' => 'The October edition brings fresh talent and seasoned veterans to the stage. Experience the evolution of Filipino rap battle culture.',
+                'content' => 'The October edition brings fresh talent and seasoned veterans to the stage. Experience the evolution of Filipino rap battle culture.',
                 'date' => Carbon::now()->addDays(10)->format('Y-m-d'),
                 'location' => 'Araneta Coliseum',
                 'poster_filename' => 'oct_22_25_laglag_bara_8.jpg',
@@ -89,7 +89,7 @@ class EventSeeder extends Seeder
             [
                 'admin_id' => $admin->id,
                 'title' => 'Amihanan Rap Battle',
-                'description' => 'From the north comes Amihanan - a showcase of Northern Luzon\'s finest rap talent. Discover new voices and witness regional rap styles.',
+                'content' => 'From the north comes Amihanan - a showcase of Northern Luzon\'s finest rap talent. Discover new voices and witness regional rap styles.',
                 'date' => Carbon::now()->addDays(25)->format('Y-m-d'),
                 'location' => 'Baguio Convention Center',
                 'poster_filename' => 'sep_1_25_amihanan_4.jpg',

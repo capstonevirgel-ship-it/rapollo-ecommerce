@@ -251,7 +251,7 @@ const stockStatus = computed(() => {
 })
 
 const isOutOfStock = computed(() => !currentVariant.value || (currentVariant.value.stock || 0) === 0)
-const currentPrice = computed(() => currentVariant.value?.price || product.value?.variants?.[0]?.price || 0)
+const currentPrice = computed(() => product.value?.price || 0)
 
 // Computed property for maximum available quantity considering cart
 const maxAvailableQuantity = computed(() => {
@@ -297,6 +297,15 @@ const validateQuantity = () => {
 }
 
 const addToCart = async () => {
+  // Prevent admins from adding to cart
+  if (authStore.isAdmin) {
+    warning(
+      "Admin Restriction",
+      "Administrators cannot add items to cart. Please use a customer account to make purchases."
+    )
+    return
+  }
+
   if (!product.value || !currentVariant.value) {
     // Show warning if size selection is required
     if (availableSizes.value.length > 0 && !selectedSize.value) {
@@ -367,7 +376,7 @@ const addToCart = async () => {
           product_id: product.value.id,
           color_id: currentVariant.value.color_id,
           size_id: currentVariant.value.size_id,
-          price: currentVariant.value.price,
+          price: product.value?.price || 0,
           stock: currentVariant.value.stock,
           sku: currentVariant.value.sku,
           created_at: '',
@@ -539,6 +548,7 @@ const addToCart = async () => {
 
           <!-- Add to Cart Button -->
           <button
+            v-if="!authStore.isAdmin"
             :disabled="isOutOfStock || (isClient && maxAvailableQuantity === 0)"
             :class="[
               'w-full px-6 py-3 font-medium rounded transition cursor-pointer',
@@ -550,6 +560,9 @@ const addToCart = async () => {
           >
             {{ isOutOfStock ? 'Out of Stock' : (isClient && maxAvailableQuantity === 0) ? 'Already in Cart' : 'Add to Cart' }}
           </button>
+          <div v-else class="w-full px-6 py-3 bg-gray-200 text-gray-600 rounded text-center font-medium">
+            Administrators cannot add items to cart
+          </div>
         </div>
       </div>
 
@@ -584,7 +597,7 @@ const addToCart = async () => {
                 <div class="p-4">
                   <h3 class="font-medium text-gray-900">{{ item.name }}</h3>
                   <p class="text-primary-600 font-semibold">
-                    ₱{{ item.price?.toFixed(2) ?? item.variants?.[0]?.price?.toFixed(2) }}
+                    ₱{{ item.price?.toFixed(2) ?? 0 }}
                   </p>
                 </div>
             </div>
