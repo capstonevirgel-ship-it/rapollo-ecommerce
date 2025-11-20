@@ -11,3 +11,4 @@ export * from "./size";
 export * from "./settings";
 export * from "./notification";
 export * from "./purchase";
+export * from "./auth";

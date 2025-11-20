@@ -2,6 +2,7 @@
 import { defineStore } from "pinia";
 import { useCustomFetch } from "~/composables/useCustomFetch";
 import { useCartStore } from "~/stores/cart";
+import type { ForgotPasswordRequest, ResetPasswordRequest } from "~/types";
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -134,6 +135,44 @@ export const useAuthStore = defineStore('auth', {
                 
                 this.$reset();
                 return navigateTo('/login');
+            }
+        },
+
+        async forgotPassword(email: string) {
+            this.loading = true;
+            this.error = null;
+
+            try {
+                const response = await useCustomFetch('/forgot-password', {
+                    method: 'POST',
+                    body: { email } as ForgotPasswordRequest
+                }) as any;
+                
+                return response;
+            } catch (error: any) {
+                this.error = error.data?.message || error.message || 'Failed to send password reset link';
+                throw error;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async resetPassword(data: ResetPasswordRequest) {
+            this.loading = true;
+            this.error = null;
+
+            try {
+                const response = await useCustomFetch('/reset-password', {
+                    method: 'POST',
+                    body: data
+                }) as any;
+                
+                return response;
+            } catch (error: any) {
+                this.error = error.data?.message || error.message || 'Failed to reset password';
+                throw error;
+            } finally {
+                this.loading = false;
             }
         }
     },

@@ -36,6 +36,8 @@ export interface ProductPayload {
   is_hot?: boolean
   is_new?: boolean
   base_price?: number
+  stock?: number
+  sku?: string
   images?: File[] // For create
   new_images?: File[] // For update
   existing_image_ids?: number[] // Image IDs to keep
@@ -50,6 +52,8 @@ export interface ProductPayload {
 export interface Product {
   price?: number
   base_price?: number
+  stock?: number
+  sku?: string | null
   id: number
   subcategory_id: number
   brand_id: number
@@ -97,14 +101,14 @@ export interface Product {
   variants: {
     id: number
     product_id: number
-    color_id: number
-    size_id: number
+    color_id: number | null
+    size_id: number | null
     stock: number
-    sku: string
+    sku: string | null
     created_at: string
     updated_at: string
-    color: { id: number; name: string; hex_code: string }
-    size: { id: number; name: string; description: string | null }
+    color: { id: number; name: string; hex_code: string } | null
+    size: { id: number; name: string; description: string | null } | null
     images: {
       id: number
       product_id: number
@@ -124,4 +128,7 @@ export interface Product {
 
   // Eager-loaded default color
   default_color?: { id: number; name: string; hex_code: string } | null
+
+  // Eager-loaded sizes
+  sizes?: { id: number; name: string; slug: string; description: string | null; sort_order: number | null }[]
 }

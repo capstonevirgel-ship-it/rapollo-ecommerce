@@ -147,7 +147,20 @@ export const useCartStore = defineStore("cart", {
           if (!import.meta.client) return payload
 
           const guestCart: Cart[] = this.loadGuestCart()
-          const index = guestCart.findIndex((item) => item.variant_id === payload.variant_id)
+          
+          // For guest cart, find existing item by variant_id or product_id
+          let index = -1
+          if (payload.variant_id) {
+            index = guestCart.findIndex((item) => item.variant_id === payload.variant_id)
+          } else if (payload.product_id) {
+            // Find by product_id and null color_id/size_id (default variant)
+            index = guestCart.findIndex((item) => 
+              item.variant?.product_id === payload.product_id && 
+              !item.variant?.color_id && 
+              !item.variant?.size_id
+            )
+          }
+          
           if (index !== -1) {
             guestCart[index].quantity += payload.quantity
             if (guestCart[index].quantity <= 0) {
@@ -155,8 +168,14 @@ export const useCartStore = defineStore("cart", {
             }
           } else if (payload.quantity > 0) {
             // Use the provided guestItem if available, otherwise build one
-            const itemToAdd = guestItem || this.buildGuestCartItem(payload.variant_id, payload.quantity)
-            guestCart.push(itemToAdd)
+            if (guestItem) {
+              guestCart.push(guestItem)
+            } else if (payload.variant_id) {
+              const itemToAdd = this.buildGuestCartItem(payload.variant_id, payload.quantity)
+              guestCart.push(itemToAdd)
+            }
+            // Note: For product_id without guestItem, we can't build a proper cart item
+            // This should only happen when guestItem is provided
           }
 
           localStorage.setItem(GUEST_CART_KEY, JSON.stringify(guestCart))
@@ -198,7 +217,8 @@ export const useCartStore = defineStore("cart", {
           body: payload,
         })
 
-        const index = this.cart.findIndex((item) => item.variant_id === payload.variant_id)
+        // Find existing item by variant_id (works for both variant_id and product_id cases)
+        const index = this.cart.findIndex((item) => item.variant_id === data.variant_id)
         if (index !== -1) {
           this.cart[index] = data
         } else {
@@ -360,7 +380,12 @@ export const useCartStore = defineStore("cart", {
         // Process each guest cart item - backend now handles the logic properly
         for (const guestItem of guestCart) {
           console.log(`🛒 Syncing item ${guestItem.variant_id} with quantity ${guestItem.quantity}`)
-          await this.store({ variant_id: guestItem.variant_id, quantity: guestItem.quantity })
+          // Use variant_id if available, otherwise use product_id from variant
+          if (guestItem.variant_id) {
+            await this.store({ variant_id: guestItem.variant_id, quantity: guestItem.quantity })
+          } else if (guestItem.variant?.product_id) {
+            await this.store({ product_id: guestItem.variant.product_id, quantity: guestItem.quantity })
+          }
         }
 
         localStorage.removeItem(GUEST_CART_KEY)

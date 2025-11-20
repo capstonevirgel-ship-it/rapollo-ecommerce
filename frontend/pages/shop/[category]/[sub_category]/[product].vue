@@ -89,6 +89,11 @@ onMounted(() => {
 
 // Computed properties for variant management
 const availableColors = computed(() => {
+  // If product has no variants, return empty array
+  if (!product.value?.variants || product.value.variants.length === 0) {
+    return []
+  }
+  
   const colors: Array<{ id: string; name: string; hex: string; variant?: any; isDefault?: boolean }> = []
   
   // Add default/main product color if available
@@ -102,26 +107,36 @@ const availableColors = computed(() => {
   }
   
   // Add variant colors
-  if (product.value?.variants) {
-    const variantColors = new Map()
-    product.value.variants.forEach(variant => {
-      if (variant.color) {
-        variantColors.set(variant.color.id, {
-          id: variant.color.id.toString(),
-          name: variant.color.name,
-          hex: variant.color.hex_code,
-          variant: variant
-        })
-      }
-    })
-    colors.push(...Array.from(variantColors.values()))
-  }
+  const variantColors = new Map()
+  product.value.variants.forEach(variant => {
+    if (variant.color) {
+      variantColors.set(variant.color.id, {
+        id: variant.color.id.toString(),
+        name: variant.color.name,
+        hex: variant.color.hex_code,
+        variant: variant
+      })
+    }
+  })
+  colors.push(...Array.from(variantColors.values()))
   
   return colors
 })
 
 const availableSizes = computed(() => {
-  if (!product.value?.variants) return []
+  // If product has no variants, check if product has direct sizes
+  if (!product.value?.variants || product.value.variants.length === 0) {
+    // Return sizes directly from product.sizes if available
+    if (product.value?.sizes && product.value.sizes.length > 0) {
+      return product.value.sizes.map(size => ({
+        id: size.id,
+        name: size.name,
+        stock: product.value?.stock || 0, // Use product stock for all sizes
+        variant: null // No variant for products without variants
+      }))
+    }
+    return []
+  }
   
   // If default color is selected or no color is selected, show all sizes
   if (!selectedColor.value || selectedColor.value === 'default') {
@@ -157,7 +172,10 @@ const availableSizes = computed(() => {
 })
 
 const currentVariant = computed(() => {
-  if (!product.value?.variants) return null
+  // If product has no variants, return null (will be handled by cart)
+  if (!product.value?.variants || product.value.variants.length === 0) {
+    return null
+  }
   
   // If default color is selected
   if (selectedColor.value === 'default') {
@@ -242,6 +260,14 @@ const currentImages = computed(() => {
 })
 
 const stockStatus = computed(() => {
+  // If product has no variants, use product stock
+  if (!product.value?.variants || product.value.variants.length === 0) {
+    const stock = product.value?.stock || 0
+    if (stock === 0) return { status: 'out', label: 'Out of Stock', class: 'text-red-600' }
+    if (stock <= 5) return { status: 'low', label: `Only ${stock} left!`, class: 'text-orange-600' }
+    return { status: 'in', label: `${stock} in stock`, class: 'text-green-600' }
+  }
+  
   if (!currentVariant.value) return { status: 'out', label: 'Select options', class: 'text-gray-600' }
   
   const stock = currentVariant.value.stock || 0
@@ -250,11 +276,41 @@ const stockStatus = computed(() => {
   return { status: 'in', label: `${stock} in stock`, class: 'text-green-600' }
 })
 
-const isOutOfStock = computed(() => !currentVariant.value || (currentVariant.value.stock || 0) === 0)
+const isOutOfStock = computed(() => {
+  // If product has no variants, check product stock
+  if (!product.value?.variants || product.value.variants.length === 0) {
+    return (product.value?.stock || 0) === 0
+  }
+  return !currentVariant.value || (currentVariant.value.stock || 0) === 0
+})
 const currentPrice = computed(() => product.value?.price || 0)
 
 // Computed property for maximum available quantity considering cart
 const maxAvailableQuantity = computed(() => {
+  // If product has no variants, use product stock
+  if (!product.value?.variants || product.value.variants.length === 0) {
+    const availableStock = product.value?.stock || 0
+    
+    // Only check cart on client side to avoid hydration mismatch
+    if (isClient.value) {
+      // For products without variants, check cart by product_id and size_id if size is selected
+      const existingCartItem = cartStore.cart.find((item: any) => {
+        const matchesProduct = item.variant?.product_id === product.value?.id
+        if (availableSizes.value.length > 0 && selectedSize.value) {
+          // Product has sizes - check by size_id
+          return matchesProduct && item.variant?.size_id === selectedSize.value && !item.variant?.color_id
+        } else {
+          // Product has no sizes - check for items without color_id and size_id
+          return matchesProduct && !item.variant?.color_id && !item.variant?.size_id
+        }
+      })
+      const currentCartQuantity = existingCartItem ? existingCartItem.quantity : 0
+      return availableStock - currentCartQuantity
+    }
+    
+    return availableStock
+  }
+  
   if (!currentVariant.value) return 0
   
   const availableStock = currentVariant.value.stock
@@ -306,7 +362,112 @@ const addToCart = async () => {
     return
   }
 
-  if (!product.value || !currentVariant.value) {
+  if (!product.value) {
+    return
+  }
+
+  // Handle products without variants
+  const hasNoVariants = !product.value.variants || product.value.variants.length === 0
+  
+  if (hasNoVariants) {
+    // Check if size is required but not selected
+    if (availableSizes.value.length > 0 && !selectedSize.value) {
+      warning(
+        "Size Required",
+        "Please select a size before adding to cart."
+      )
+      return
+    }
+
+    // Check product stock
+    if ((product.value.stock || 0) === 0) {
+      warning("Out of Stock", "This product is currently out of stock.")
+      return
+    }
+
+    // Check if adding this quantity would exceed available stock
+    const availableStock = product.value.stock || 0
+    const requestedQuantity = selectedQuantity.value
+    
+    // Get current cart quantity for this product (client-side only)
+    // For products with sizes but no variants, check by product_id and size_id
+    let currentCartQuantity = 0
+    if (isClient.value) {
+      const existingCartItem = cartStore.cart.find((item: any) => {
+        const matchesProduct = item.variant?.product_id === product.value?.id
+        const matchesSize = availableSizes.value.length > 0 
+          ? (item.variant?.size_id === selectedSize.value)
+          : (!item.variant?.color_id && !item.variant?.size_id)
+        return matchesProduct && matchesSize
+      })
+      currentCartQuantity = existingCartItem ? existingCartItem.quantity : 0
+    }
+    const totalQuantity = currentCartQuantity + requestedQuantity
+
+    // Check if total quantity would exceed stock
+    if (totalQuantity > availableStock) {
+      warning(
+        "Stock Exceeded", 
+        `You already have ${currentCartQuantity} of this item in your cart. Adding ${requestedQuantity} more would exceed the available stock of ${availableStock}. Please adjust your quantity.`
+      )
+      return
+    }
+
+    try {
+      if (authStore.isAuthenticated) {
+        // Logged in: use store method with product_id and size_id if size is selected
+        if (availableSizes.value.length > 0 && selectedSize.value) {
+          await cartStore.store({ product_id: product.value.id, size_id: selectedSize.value, quantity: selectedQuantity.value })
+        } else {
+          await cartStore.store({ product_id: product.value.id, quantity: selectedQuantity.value })
+        }
+      } else {
+        // Guest: create proper guest item with virtual variant
+        const selectedSizeObj = availableSizes.value.length > 0 && selectedSize.value
+          ? availableSizes.value.find(s => s.id === selectedSize.value)
+          : null
+        
+        const guestItem = {
+          id: 0,
+          user_id: 0,
+          variant_id: 0, // Will be set after variant is created
+          quantity: selectedQuantity.value,
+          created_at: '',
+          updated_at: '',
+          variant: {
+            id: 0,
+            product_id: product.value.id,
+            color_id: null,
+            size_id: selectedSize.value || null,
+            price: product.value?.price || 0,
+            stock: product.value.stock || 0,
+            sku: product.value.sku || '',
+            created_at: '',
+            updated_at: '',
+            product: product.value,
+            color: null,
+            size: selectedSizeObj ? { id: selectedSizeObj.id, name: selectedSizeObj.name, description: null } : null,
+            images: product.value.images?.filter(img => !img.variant_id) || []
+          }
+        }
+        
+        if (availableSizes.value.length > 0 && selectedSize.value) {
+          await cartStore.addToCart({ product_id: product.value.id, size_id: selectedSize.value, quantity: selectedQuantity.value }, false, guestItem as any)
+        } else {
+          await cartStore.addToCart({ product_id: product.value.id, quantity: selectedQuantity.value }, false, guestItem as any)
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to add to cart:', error)
+      if (error.data?.message) {
+        alert(error.data.message)
+      }
+    }
+    return
+  }
+
+  // Handle products with variants
+  if (!currentVariant.value) {
     // Show warning if size selection is required
     if (availableSizes.value.length > 0 && !selectedSize.value) {
       warning(
@@ -467,8 +628,8 @@ const addToCart = async () => {
 
           <p class="text-gray-700 leading-relaxed mb-6">{{ product.description }}</p>
 
-          <!-- Color Selection -->
-          <div v-if="availableColors.length > 0" class="mb-4">
+          <!-- Color Selection (only show if product has variants) -->
+          <div v-if="product.variants && product.variants.length > 0 && availableColors.length > 0" class="mb-4">
             <h3 class="text-sm font-medium text-gray-700 mb-2">Color</h3>
             <div class="flex gap-2">
               <button
@@ -487,7 +648,7 @@ const addToCart = async () => {
             </div>
           </div>
 
-          <!-- Size Selection -->
+          <!-- Size Selection (show if product has sizes, either from variants or direct sizes) -->
           <div v-if="availableSizes.length > 0" class="mb-4">
             <h3 class="text-sm font-medium text-gray-700 mb-2">Size</h3>
             <div class="flex flex-wrap gap-2">
@@ -527,21 +688,30 @@ const addToCart = async () => {
                 v-model.number="selectedQuantity"
                 type="number"
                 min="1"
-                :max="isClient ? maxAvailableQuantity : currentVariant?.stock || 1"
+                :max="isClient ? maxAvailableQuantity : (product.variants && product.variants.length > 0 ? currentVariant?.stock : product.stock) || 1"
                 class="w-24 text-center border border-gray-300 rounded px-2 py-1 appearance-none"
                 @input="validateQuantity"
               />
               <button
-                @click="selectedQuantity = Math.min(isClient ? maxAvailableQuantity : currentVariant?.stock || 1, selectedQuantity + 1)"
-                :disabled="isClient ? selectedQuantity >= maxAvailableQuantity : selectedQuantity >= (currentVariant?.stock || 1)"
+                @click="selectedQuantity = Math.min(isClient ? maxAvailableQuantity : (product.variants && product.variants.length > 0 ? currentVariant?.stock : product.stock) || 1, selectedQuantity + 1)"
+                :disabled="isClient ? selectedQuantity >= maxAvailableQuantity : selectedQuantity >= ((product.variants && product.variants.length > 0 ? currentVariant?.stock : product.stock) || 1)"
                 class="w-8 h-8 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span class="text-lg font-bold">+</span>
               </button>
             </div>
             <ClientOnly>
-              <p v-if="maxAvailableQuantity < (currentVariant?.stock || 0)" class="text-xs text-orange-600 mt-1">
+              <p v-if="product.variants && product.variants.length > 0 && maxAvailableQuantity < (currentVariant?.stock || 0)" class="text-xs text-orange-600 mt-1">
                 {{ cartStore.cart.find((item: any) => item.variant_id === currentVariant?.id)?.quantity || 0 }} already in cart
+              </p>
+              <p v-else-if="(!product.variants || product.variants.length === 0) && maxAvailableQuantity < (product.stock || 0)" class="text-xs text-orange-600 mt-1">
+                {{ cartStore.cart.find((item: any) => {
+                  const matchesProduct = item.variant?.product_id === product.id
+                  if (availableSizes.length > 0 && selectedSize) {
+                    return matchesProduct && item.variant?.size_id === selectedSize && !item.variant?.color_id
+                  }
+                  return matchesProduct && !item.variant?.color_id && !item.variant?.size_id
+                })?.quantity || 0 }} already in cart
               </p>
             </ClientOnly>
           </div>

@@ -1,7 +1,8 @@
 import type { Product } from './product'
 
 export interface CartPayload {
-  variant_id: number
+  variant_id?: number
+  product_id?: number
   quantity: number
 }
 
@@ -16,11 +17,11 @@ export interface Cart {
   variant: {
     id: number
     product_id: number
-    color_id: number
-    size_id: number
+    color_id: number | null
+    size_id: number | null
     price: number
     stock: number
-    sku: string
+    sku: string | null
     created_at: string
     updated_at: string
 
@@ -29,12 +30,12 @@ export interface Cart {
       id: number
       name: string
       hex_code: string
-    }
+    } | null
     size: {
       id: number
       name: string
       description: string | null
-    }
+    } | null
     images: {
       id: number
       product_id: number

@@ -122,6 +122,7 @@ class ProductController extends Controller
             'brand',
             'defaultColor',
             'subcategory.category', 
+            'sizes',
             'variants.color',
             'variants.size',
             'variants.images',
@@ -167,6 +168,8 @@ class ProductController extends Controller
             
             // Product price (for products without variants)
             'base_price'        => 'nullable|numeric|min:0',
+            'stock'             => 'nullable|integer|min:0',
+            'sku'               => 'nullable|string|max:50|unique:products,sku',
             
             // Default color
             'default_color_id'   => 'nullable|integer|exists:colors,id',
@@ -235,13 +238,22 @@ class ProductController extends Controller
                 $productBasePrice = $validated['base_price'];
             }
 
+            // Generate unique slug
+            $baseSlug = Str::slug($validated['name']);
+            $slug = $baseSlug;
+            $counter = 1;
+            while (Product::where('slug', $slug)->withTrashed()->exists()) {
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+            }
+
             // Create product
             $product = Product::create([
                 'subcategory_id'   => $validated['subcategory_id'],
                 'brand_id'         => $brandId,
                 'default_color_id' => $defaultColorId,
                 'name'             => $validated['name'],
-                'slug'             => Str::slug($validated['name']),
+                'slug'             => $slug,
                 'description'      => $validated['description'] ?? null,
                 'meta_title'       => $validated['meta_title'] ?? null,
                 'meta_description' => $validated['meta_description'] ?? null,
@@ -253,6 +265,8 @@ class ProductController extends Controller
                 'is_hot'           => $validated['is_hot'] ?? false,
                 'is_new'           => $validated['is_new'] ?? false,
                 'base_price'       => $productBasePrice,
+                'stock'            => $validated['stock'] ?? 0,
+                'sku'              => $validated['sku'] ?? null,
             ]);
 
             // Product-level images
@@ -344,7 +358,7 @@ class ProductController extends Controller
 
             return response()->json([
                 'message' => 'Product created successfully',
-                'product' => $product->load('brand', 'variants.color', 'variants.size', 'images'),
+                'product' => $product->load('brand', 'defaultColor', 'subcategory.category', 'sizes', 'variants.color', 'variants.size', 'variants.images', 'images'),
             ], 201);
 
         } catch (\Exception $e) {
@@ -378,6 +392,8 @@ class ProductController extends Controller
                 
                 // Product price
                 'base_price'        => 'nullable|numeric|min:0',
+                'stock'             => 'nullable|integer|min:0',
+                'sku'               => 'nullable|string|max:50|unique:products,sku,' . $product->id,
                 
                 // Default color
                 'default_color_id'   => 'nullable|integer|exists:colors,id',
@@ -424,7 +440,15 @@ class ProductController extends Controller
 
             // Update slug if name changed
             if (isset($validated['name']) && $validated['name'] !== $product->name) {
-                $validated['slug'] = Str::slug($validated['name']);
+                $baseSlug = Str::slug($validated['name']);
+                $slug = $baseSlug;
+                $counter = 1;
+                // Check for uniqueness excluding current product
+                while (Product::where('slug', $slug)->where('id', '!=', $product->id)->withTrashed()->exists()) {
+                    $slug = $baseSlug . '-' . $counter;
+                    $counter++;
+                }
+                $validated['slug'] = $slug;
             }
 
             // Handle default color
@@ -657,7 +681,7 @@ class ProductController extends Controller
 
             return response()->json([
                 'message' => 'Product updated successfully',
-                'product' => $product->load('brand', 'defaultColor', 'variants.color', 'variants.size', 'variants.images', 'images', 'sizes'),
+                'product' => $product->load('brand', 'defaultColor', 'subcategory.category', 'sizes', 'variants.color', 'variants.size', 'variants.images', 'images'),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {

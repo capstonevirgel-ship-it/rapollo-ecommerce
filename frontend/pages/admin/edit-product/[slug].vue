@@ -64,9 +64,10 @@ const defaultColorName = ref("");
 const defaultColorHex = ref("#000000");
 const defaultColorMode = ref<'select' | 'custom'>('select');
 
-// Master base price and stock
+// Master base price, stock, and sku
 const masterBasePrice = ref<number>(0);
 const masterStock = ref<number>(10);
+const masterSku = ref<string>("");
 
 // Computed final price with tax
 const masterFinalPrice = computed(() => {
@@ -232,6 +233,8 @@ onMounted(async () => {
     seoCanonicalUrl.value = product.canonical_url || ''
     seoRobots.value = product.robots || 'index,follow'
     masterBasePrice.value = product.base_price || 0
+    masterStock.value = product.stock || 10
+    masterSku.value = product.sku || ''
     
     // Existing images - filter out variant images (only product-level images)
     existingImages.value = (product.images || []).filter((img: any) => !img.variant_id).map((img: any) => ({
@@ -568,6 +571,8 @@ async function updateProduct() {
       canonical_url: seoCanonicalUrl.value,
       robots: seoRobots.value,
       base_price: masterBasePrice.value > 0 ? masterBasePrice.value : undefined,
+      stock: masterStock.value > 0 ? masterStock.value : undefined,
+      sku: masterSku.value.trim() || undefined,
       existing_image_ids: existingImages.value.map(img => img.id), // IDs to keep
       images_to_delete: imagesToDelete.value,
       new_images: newImages.value,
@@ -575,8 +580,8 @@ async function updateProduct() {
       primary_new_image_index: primaryNewImageIndex.value,
       sizes: selectedSizes.value,
       default_color_id: defaultColorId.value || undefined,
-      default_color_name: defaultColorMode === 'custom' && defaultColorName.value ? defaultColorName.value : undefined,
-      default_color_hex: defaultColorMode === 'custom' && defaultColorHex.value ? defaultColorHex.value : undefined,
+      default_color_name: defaultColorName.value ? defaultColorName.value : undefined,
+      default_color_hex: defaultColorHex.value && defaultColorHex.value !== '#000000' ? defaultColorHex.value : undefined,
       variants: validVariants.length > 0 ? validVariants : undefined,
     });
 
@@ -797,6 +802,18 @@ async function updateProduct() {
                   />
                   <p class="text-xs text-gray-500 mt-1">Default stock for variants without sizes</p>
                 </div>
+              </div>
+
+              <!-- SKU -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">SKU</label>
+                <input 
+                  v-model="masterSku" 
+                  type="text" 
+                  placeholder="Enter product SKU (optional)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                />
+                <p class="text-xs text-gray-500 mt-1">Stock Keeping Unit for products without variants</p>
               </div>
             </div>
           </div>

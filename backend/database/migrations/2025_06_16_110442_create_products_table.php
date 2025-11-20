@@ -27,6 +27,8 @@ return new class extends Migration
             $table->boolean('is_new')->default(false);
             $table->decimal('base_price', 10, 2)->nullable(); // Base price before tax (for products without variants)
             $table->decimal('price', 10, 2)->nullable(); // Final price (base_price + taxes) (for products without variants)
+            $table->integer('stock')->default(0); // Stock for products without variants
+            $table->string('sku', 50)->unique()->nullable(); // SKU for products without variants
             $table->timestamps();
             $table->softDeletes();
         });

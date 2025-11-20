@@ -14,7 +14,7 @@ class Product extends Model
         'subcategory_id', 'brand_id', 'default_color_id', 'name', 'slug', 'description',
         'meta_title', 'meta_description', 'meta_keywords', 'canonical_url',
         'robots', 'is_active', 'is_featured', 'is_hot', 'is_new',
-        'base_price', 'price'
+        'base_price', 'price', 'stock', 'sku'
     ];
 
     protected $casts = [
@@ -74,5 +74,50 @@ class Product extends Model
                 $product->calculateFinalPrice();
             }
         });
+    }
+
+    /**
+     * Check if product has sufficient stock
+     */
+    public function hasStock(int $quantity = 1): bool
+    {
+        return $this->stock >= $quantity;
+    }
+
+    /**
+     * Check if product is out of stock
+     */
+    public function isOutOfStock(): bool
+    {
+        return $this->stock <= 0;
+    }
+
+    /**
+     * Check if product is low on stock
+     */
+    public function isLowStock(int $threshold = 10): bool
+    {
+        return $this->stock > 0 && $this->stock <= $threshold;
+    }
+
+    /**
+     * Decrement stock
+     */
+    public function decrementStock(int $quantity): bool
+    {
+        if (!$this->hasStock($quantity)) {
+            return false;
+        }
+
+        $this->decrement('stock', $quantity);
+        return true;
+    }
+
+    /**
+     * Increment stock (for returns/cancellations)
+     */
+    public function incrementStock(int $quantity): void
+    {
+        $this->increment('stock', $quantity);
     }
 }

@@ -49,9 +49,10 @@ const defaultColorName = ref("");
 const defaultColorHex = ref("#000000");
 const defaultColorMode = ref<'select' | 'custom'>('select');
 
-// Master base price and stock
+// Master base price, stock, and sku
 const masterBasePrice = ref<number>(0);
 const masterStock = ref<number>(10);
+const masterSku = ref<string>("");
 
 // Computed final price with tax
 const masterFinalPrice = computed(() => {
@@ -391,10 +392,12 @@ async function submitProduct() {
       primary_image_index: primaryProductImageIndex.value,
       sizes: selectedSizes.value,
       default_color_id: defaultColorId.value || undefined,
-      default_color_name: defaultColorMode === 'custom' && defaultColorName.value ? defaultColorName.value : undefined,
-      default_color_hex: defaultColorMode === 'custom' && defaultColorHex.value ? defaultColorHex.value : undefined,
+      default_color_name: defaultColorName.value ? defaultColorName.value : undefined,
+      default_color_hex: defaultColorHex.value && defaultColorHex.value !== '#000000' ? defaultColorHex.value : undefined,
       // Always send base_price if provided (variants inherit from product)
       base_price: masterBasePrice.value > 0 ? masterBasePrice.value : undefined,
+      stock: masterStock.value > 0 ? masterStock.value : undefined,
+      sku: masterSku.value.trim() || undefined,
       variants: validVariants.length > 0 ? validVariants : undefined, // Send undefined if no variants
     });
 
@@ -413,6 +416,7 @@ async function submitProduct() {
     selectedSizes.value = [];
     masterBasePrice.value = 0;
     masterStock.value = 10;
+    masterSku.value = "";
     variants.value = [];
     newBrandMode.value = false;
     newBrandName.value = "";
@@ -680,9 +684,21 @@ async function submitProduct() {
                   <p class="text-xs text-gray-500 mt-1">Default stock for variants without sizes</p>
                 </div>
               </div>
+
+              <!-- SKU -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">SKU</label>
+                <input 
+                  v-model="masterSku" 
+                  type="text" 
+                  placeholder="Enter product SKU (optional)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                />
+                <p class="text-xs text-gray-500 mt-1">Stock Keeping Unit for products without variants</p>
+              </div>
+            </div>
+          </div>
         </div>
-        </div>
-      </div>
 
         <!-- Media & Images -->
         <div class="bg-white rounded-lg border border-gray-200">

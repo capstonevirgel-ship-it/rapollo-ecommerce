@@ -89,6 +89,24 @@ export const useProductStore = defineStore("product", {
         formData.append("base_price", String(payload.base_price));
       }
 
+      // Product stock and sku (for products without variants)
+      if (payload.stock !== undefined && payload.stock !== null) {
+        formData.append("stock", String(payload.stock));
+      }
+      if (payload.sku !== undefined && payload.sku !== null && payload.sku !== '') {
+        formData.append("sku", payload.sku);
+      }
+
+      // Default color
+      if (payload.default_color_id !== undefined && payload.default_color_id !== null) {
+        formData.append("default_color_id", String(payload.default_color_id));
+      } else if (payload.default_color_name) {
+        formData.append("default_color_name", payload.default_color_name);
+        if (payload.default_color_hex) {
+          formData.append("default_color_hex", payload.default_color_hex);
+        }
+      }
+
       // Sizes
       if (payload.sizes) {
         payload.sizes.forEach(sizeId => formData.append("sizes[]", String(sizeId)));
@@ -194,10 +212,23 @@ export const useProductStore = defineStore("product", {
         formData.append("base_price", String(payload.base_price));
       }
 
+      // Product stock and sku (for products without variants)
+      if (payload.stock !== undefined && payload.stock !== null) {
+        formData.append("stock", String(payload.stock));
+      }
+      if (payload.sku !== undefined && payload.sku !== null && payload.sku !== '') {
+        formData.append("sku", payload.sku);
+      }
+
       // Default color
-      if (payload.default_color_id !== undefined) formData.append("default_color_id", String(payload.default_color_id));
-      if (payload.default_color_name) formData.append("default_color_name", payload.default_color_name);
-      if (payload.default_color_hex) formData.append("default_color_hex", payload.default_color_hex);
+      if (payload.default_color_id !== undefined && payload.default_color_id !== null) {
+        formData.append("default_color_id", String(payload.default_color_id));
+      } else if (payload.default_color_name) {
+        formData.append("default_color_name", payload.default_color_name);
+        if (payload.default_color_hex) {
+          formData.append("default_color_hex", payload.default_color_hex);
+        }
+      }
 
       // Sizes
       if (payload.sizes) {
