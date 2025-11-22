@@ -48,6 +48,7 @@ const passwordForm = reactive({
 const avatarFile = ref<File | null>(null)
 const avatarPreview = ref<string | null>(null)
 const avatarObjectUrl = ref<string | null>(null)
+const avatarInput = ref<HTMLInputElement | null>(null)
 
 const clearAvatarPreview = () => {
   if (avatarObjectUrl.value) {
@@ -153,9 +154,11 @@ const saveProfile = async () => {
         body: formData
       })
       avatarPath = uploadResponse?.avatar_path || avatarPath
-      if (uploadResponse?.avatar_url) {
-        avatarPreview.value = uploadResponse.avatar_url
-      }
+      // Update form with new avatar path
+      form.avatar_url = avatarPath
+      // Clear preview and file since it's now saved
+      clearAvatarPreview()
+      avatarFile.value = null
     }
 
     const address = addressModel.value || {}
@@ -220,7 +223,47 @@ const handleDeleteAccount = () => {
           <div class="bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6 border-b border-gray-100 p-6">
               <div class="flex items-center gap-4">
-
+                <!-- Avatar with Camera Icon -->
+                <div class="relative">
+                  <div class="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center">
+                    <img
+                      v-if="currentAvatar"
+                      :src="currentAvatar"
+                      :alt="form.user_name || 'User'"
+                      class="w-full h-full object-cover"
+                    />
+                    <span
+                      v-else
+                      class="text-2xl font-winner-extra-bold text-white"
+                    >
+                      {{ userInitials }}
+                    </span>
+                    
+                    <!-- Camera Icon Overlay (only shown in edit mode) -->
+                    <div
+                      v-if="isEditing"
+                      class="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer transition-opacity hover:bg-black/60"
+                      @click="avatarInput?.click()"
+                    >
+                      <Icon name="mdi:camera" class="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  
+                  <!-- Hidden File Input -->
+                  <input
+                    v-if="isEditing"
+                    ref="avatarInput"
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    @change="handleAvatarChange"
+                  />
+                </div>
+                
+                <div>
+                  <h3 class="text-lg font-bold text-gray-900">{{ form.user_name || 'User' }}</h3>
+                  <p class="text-sm text-gray-600">{{ email || 'No email' }}</p>
+                </div>
               </div>
 
               <button

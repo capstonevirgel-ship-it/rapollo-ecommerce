@@ -13,46 +13,49 @@ class ProductVariantSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * NOTE: Only products with MULTIPLE COLORS should have variants.
+     * Products with single color (even with sizes) should NOT have variants.
      */
     public function run(): void
     {
         // Get colors
         $black = Color::where('name', 'Black')->first();
         $white = Color::where('name', 'White')->first();
-        $blue = Color::where('name', 'Blue')->first();
         $red = Color::where('name', 'Red')->first();
-        $gray = Color::where('name', 'Gray')->first();
-        $navy = Color::where('name', 'Navy')->first();
-        $beige = Color::where('name', 'Beige')->first();
         $brown = Color::where('name', 'Brown')->first();
 
         // Get sizes
-        $xs = Size::where('name', 'XS')->first();
         $s = Size::where('name', 'S')->first();
         $m = Size::where('name', 'M')->first();
         $l = Size::where('name', 'L')->first();
         $xl = Size::where('name', 'XL')->first();
-        $size6 = Size::where('name', '6')->first();
-        $size7 = Size::where('name', '7')->first();
-        $size8 = Size::where('name', '8')->first();
-        $size9 = Size::where('name', '9')->first();
-        $size10 = Size::where('name', '10')->first();
-        $size11 = Size::where('name', '11')->first();
-        $size12 = Size::where('name', '12')->first();
-        $oneSize = Size::where('name', 'One Size')->first();
 
-        // Get Rapollo products
+        // Get products that HAVE MULTIPLE COLORS (these need variants)
+        // NOTE: We only create variants for NON-DEFAULT colors
+        // The default color is handled by the product itself, so we don't create variants for it
         $fliptopTee = Product::where('slug', 'fliptop-collaboration-t-shirt')->first();
-        $rxpandaTee = Product::where('slug', 'rxpanda-collaboration-t-shirt')->first();
-        $turbohecticTee = Product::where('slug', 'turbohectic-collaboration-t-shirt')->first();
         $ubecTee = Product::where('slug', 'ubec-classic-t-shirt')->first();
-        $sweatshirt = Product::where('slug', 'premium-sweatshirt')->first();
-        $socks = Product::where('slug', 'athletic-socks')->first();
-        $towel = Product::where('slug', 'sports-towel')->first();
+
+        // Products WITHOUT variants (single color or single item) are NOT included:
+        // - rxpanda-collaboration-t-shirt (Black only)
+        // - turbohectic-collaboration-t-shirt (Black only)
+        // - premium-sweatshirt (White only)
+        // - athletic-socks (Red only)
+        // - sports-towel (Black only)
+        // - classic-sports-watch (single item)
+        // - premium-leather-watch (single item)
+        // - smart-fitness-tracker (single item)
+        // - classic-baseball-cap (single item)
+        // - elegant-silver-necklace (single item)
+        // - classic-gold-bracelet (single item)
 
         // Variants inherit price from product - no price fields needed
         $variants = [
-            // FlipTop Collaboration T-Shirt variants (Black main + Red/Brown variants)
+            // ============================================
+            // FlipTop Collaboration T-Shirt
+            // HAS VARIANTS: Black (main), Red, Brown
+            // ============================================
             ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'stock' => 50, 'sku' => 'NKE-FLIP-BLK-S'],
             ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'stock' => 75, 'sku' => 'NKE-FLIP-BLK-M'],
             ['product_id' => $fliptopTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'stock' => 60, 'sku' => 'NKE-FLIP-BLK-L'],
@@ -64,37 +67,19 @@ class ProductVariantSeeder extends Seeder
             ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $m->id, 'stock' => 35, 'sku' => 'NKE-FLIP-BRN-M'],
             ['product_id' => $fliptopTee->id, 'color_id' => $brown->id, 'size_id' => $l->id, 'stock' => 30, 'sku' => 'NKE-FLIP-BRN-L'],
 
-            // RxPanda Collaboration T-Shirt variants (Black only)
-            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'stock' => 30, 'sku' => 'ADD-RXP-BLK-S'],
-            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'stock' => 50, 'sku' => 'ADD-RXP-BLK-M'],
-            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'stock' => 40, 'sku' => 'ADD-RXP-BLK-L'],
-            ['product_id' => $rxpandaTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'stock' => 25, 'sku' => 'ADD-RXP-BLK-XL'],
-
-            // TurboHectic Collaboration T-Shirt variants (Black only)
-            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $s->id, 'stock' => 30, 'sku' => 'PUM-TURBO-BLK-S'],
-            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $m->id, 'stock' => 50, 'sku' => 'PUM-TURBO-BLK-M'],
-            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $l->id, 'stock' => 40, 'sku' => 'PUM-TURBO-BLK-L'],
-            ['product_id' => $turbohecticTee->id, 'color_id' => $black->id, 'size_id' => $xl->id, 'stock' => 25, 'sku' => 'PUM-TURBO-BLK-XL'],
-
-            // Ubec Classic T-Shirt variants (White main + Brown variants)
+            // ============================================
+            // Ubec Classic T-Shirt
+            // Default color: White (needs variants for stock tracking per size)
+            // HAS VARIANTS: White (default), Brown
+            // ============================================
+            // White variants (default color - needed for stock tracking)
             ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $s->id, 'stock' => 20, 'sku' => 'UNQ-UBEC-WHT-S'],
             ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $m->id, 'stock' => 35, 'sku' => 'UNQ-UBEC-WHT-M'],
             ['product_id' => $ubecTee->id, 'color_id' => $white->id, 'size_id' => $l->id, 'stock' => 30, 'sku' => 'UNQ-UBEC-WHT-L'],
+            // Brown variants
             ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $s->id, 'stock' => 15, 'sku' => 'UNQ-UBEC-BRN-S'],
             ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $m->id, 'stock' => 25, 'sku' => 'UNQ-UBEC-BRN-M'],
-            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $l->id, 'stock' => 20, 'sku' => 'UNQ-UBEC-BRN-L'],
-
-            // Premium Sweatshirt variants (White only)
-            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $s->id, 'stock' => 15, 'sku' => 'ZAR-SWEAT-WHT-S'],
-            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $m->id, 'stock' => 25, 'sku' => 'ZAR-SWEAT-WHT-M'],
-            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $l->id, 'stock' => 20, 'sku' => 'ZAR-SWEAT-WHT-L'],
-            ['product_id' => $sweatshirt->id, 'color_id' => $white->id, 'size_id' => $xl->id, 'stock' => 15, 'sku' => 'ZAR-SWEAT-WHT-XL'],
-
-            // Athletic Socks variants (Red only)
-            ['product_id' => $socks->id, 'color_id' => $red->id, 'size_id' => $oneSize->id, 'stock' => 100, 'sku' => 'HM-SOCK-RED-OS'],
-
-            // Sports Towel variants (Black only)
-            ['product_id' => $towel->id, 'color_id' => $black->id, 'size_id' => $oneSize->id, 'stock' => 25, 'sku' => 'NKE-TOWEL-BLK-OS']
+            ['product_id' => $ubecTee->id, 'color_id' => $brown->id, 'size_id' => $l->id, 'stock' => 20, 'sku' => 'UNQ-UBEC-BRN-L']
         ];
 
         foreach ($variants as $variant) {

@@ -127,6 +127,25 @@ const formatDate = (dateString: string) => {
   })
 }
 
+const formatDateForCSV = (dateString: string) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
+const getDownloadDate = () => {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const updateTicketStatus = async (ticket: any, newStatus: string | number | null) => {
   if (!newStatus) return
   try {
@@ -153,7 +172,7 @@ const exportTickets = () => {
       `"${ticket.user?.email || ''}"`,
       ticket.price,
       ticket.status,
-      ticket.booked_at
+      formatDateForCSV(ticket.booked_at)
     ].join(','))
   ].join('\n')
 
@@ -161,7 +180,7 @@ const exportTickets = () => {
   const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'tickets-export.csv'
+  a.download = `tickets-export-${getDownloadDate()}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
 }

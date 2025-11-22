@@ -22,8 +22,12 @@ class ProductController extends Controller
             'subcategory.category', 
             'variants.color',
             'variants.size',
-            'variants.images',
-            'images'
+            'variants.images' => function($query) {
+                $query->orderBy('is_primary', 'desc')->orderBy('sort_order', 'asc');
+            },
+            'images' => function($query) {
+                $query->orderBy('is_primary', 'desc')->orderBy('sort_order', 'asc');
+            }
         ]);
 
         // Filter by is_active - default to true (active products only) for public requests
@@ -125,8 +129,12 @@ class ProductController extends Controller
             'sizes',
             'variants.color',
             'variants.size',
-            'variants.images',
-            'images'
+            'variants.images' => function($query) {
+                $query->orderBy('is_primary', 'desc')->orderBy('sort_order', 'asc');
+            },
+            'images' => function($query) {
+                $query->orderBy('is_primary', 'desc')->orderBy('sort_order', 'asc');
+            }
         ])->where('slug', $slug)->first();
 
         if (!$product) {
@@ -143,6 +151,42 @@ class ProductController extends Controller
         }
 
         return response()->json($product);
+    }
+
+    /**
+     * Get related products from the same subcategory
+     * Excludes the current product and ensures no duplicates
+     */
+    public function getRelatedProducts($slug)
+    {
+        $product = Product::where('slug', $slug)->first();
+
+        if (!$product) {
+            return response()->json([
+                'message' => 'Product not found'
+            ], 404);
+        }
+
+        // Get related products from the same subcategory
+        $relatedProducts = Product::with([
+            'brand',
+            'images' => function($query) {
+                $query->orderBy('is_primary', 'desc')
+                      ->orderBy('sort_order', 'asc')
+                      ->limit(1); // Only get primary image
+            }
+        ])
+        ->where('subcategory_id', $product->subcategory_id)
+        ->where('id', '!=', $product->id) // Exclude current product
+        ->where('is_active', true) // Only active products
+        ->distinct() // Ensure no duplicates at database level
+        ->limit(12) // Limit to 12 products
+        ->get()
+        ->unique('id') // Additional deduplication by ID
+        ->unique('slug') // Additional deduplication by slug
+        ->values(); // Re-index array
+
+        return response()->json($relatedProducts);
     }
 
     public function store(Request $request)
@@ -170,6 +214,8 @@ class ProductController extends Controller
             'base_price'        => 'nullable|numeric|min:0',
             'stock'             => 'nullable|integer|min:0',
             'sku'               => 'nullable|string|max:50|unique:products,sku',
+            'size_stocks'       => 'nullable|array', // Stock per size for products without color variants
+            'size_stocks.*'     => 'integer|min:0',
             
             // Default color
             'default_color_id'   => 'nullable|integer|exists:colors,id',
@@ -286,7 +332,23 @@ class ProductController extends Controller
                 $product->sizes()->attach($validated['sizes']);
             }
 
-            // Variants
+            // If product has sizes but no color variants, create size-only variants
+            if (!empty($validated['sizes']) && empty($validated['variants'])) {
+                foreach ($validated['sizes'] as $sizeId) {
+                    // Use stock from size_stocks if provided, otherwise use product stock
+                    $stock = $validated['size_stocks'][$sizeId] ?? ($validated['stock'] ?? 0);
+                    
+                    // Create variant with size but no color (for products with sizes but no color variants)
+                    $product->variants()->create([
+                        'color_id'  => $defaultColorId, // Use default color if available, otherwise null
+                        'size_id'   => $sizeId,
+                        'stock'     => $stock,
+                        'sku'       => (!empty($validated['sku'])) ? ($validated['sku'] . '-' . $sizeId) : null,
+                    ]);
+                }
+            }
+
+            // Variants (color variants)
             if (!empty($validated['variants'])) {
                 foreach ($validated['variants'] as $variantData) {
                     // Handle color: check existing by name & hex first

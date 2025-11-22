@@ -34,8 +34,12 @@ onMounted(async () => {
   }
 })
 
-const getProductImage = (product: any) => {
-  // This would need to be implemented based on your product image structure
+const getProductImage = (item: ReviewableProduct) => {
+  // Use product_image from the response if available
+  if (item.product_image) {
+    return getImageUrl(item.product_image, 'product')
+  }
+  // Fallback to default product image
   return getImageUrl(null, 'product')
 }
 
@@ -107,9 +111,10 @@ const navigateToProduct = (product: ReviewableProduct) => {
               <!-- Product Image -->
               <div class="aspect-w-16 aspect-h-12 bg-gray-200">
                 <img
-                  :src="getProductImage(item.product)"
+                  :src="getProductImage(item)"
                   :alt="item.product.name"
                   class="w-full h-48 object-cover"
+                  @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.src = getImageUrl('', 'product') }"
                 />
               </div>
 

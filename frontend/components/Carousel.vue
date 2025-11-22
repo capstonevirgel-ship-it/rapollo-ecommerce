@@ -63,7 +63,16 @@ const carouselTrackRef = ref<HTMLElement | null>(null)
 
 const windowWidth = ref(0)
 
-const clonedItems = computed(() => [...props.items, ...props.items, ...props.items])
+// Only clone items if we have more items than what we're showing (for infinite scroll)
+// Otherwise, just use the items as-is to avoid duplicates
+const clonedItems = computed(() => {
+  if (props.items.length <= responsiveItemsToShow.value) {
+    // Not enough items for infinite scroll, return items as-is
+    return props.items
+  }
+  // Enough items for infinite scroll, clone for seamless looping
+  return [...props.items, ...props.items, ...props.items]
+})
 
 const actualIndex = computed(() => currentIndex.value % props.items.length)
 
@@ -133,6 +142,13 @@ const updateTransform = () => {
 const next = () => {
   if (isDragging.value) return
   
+  // If not enough items for infinite scroll, just loop normally
+  if (props.items.length <= responsiveItemsToShow.value) {
+    currentIndex.value = (currentIndex.value + props.itemsToScroll) % props.items.length
+    updateTransform()
+    return
+  }
+  
   const animate = () => {
     currentIndex.value += props.itemsToScroll
     updateTransform()
@@ -155,6 +171,13 @@ const next = () => {
 
 const prev = () => {
   if (isDragging.value) return
+  
+  // If not enough items for infinite scroll, just loop normally
+  if (props.items.length <= responsiveItemsToShow.value) {
+    currentIndex.value = (currentIndex.value - props.itemsToScroll + props.items.length) % props.items.length
+    updateTransform()
+    return
+  }
   
   const animate = () => {
     currentIndex.value -= props.itemsToScroll
@@ -235,32 +258,44 @@ const touchEnd = () => {
   if (Math.abs(movedBy) > threshold) {
     if (movedBy < -threshold) {
       // Swiped left - go to next
-      currentIndex.value += props.itemsToScroll
+      if (props.items.length <= responsiveItemsToShow.value) {
+        currentIndex.value = (currentIndex.value + props.itemsToScroll) % props.items.length
+      } else {
+        currentIndex.value += props.itemsToScroll
+      }
     } else if (movedBy > threshold) {
       // Swiped right - go to previous
-      currentIndex.value -= props.itemsToScroll
+      if (props.items.length <= responsiveItemsToShow.value) {
+        currentIndex.value = (currentIndex.value - props.itemsToScroll + props.items.length) % props.items.length
+      } else {
+        currentIndex.value -= props.itemsToScroll
+      }
     }
     
-    // Handle infinite scroll wrap-around
-    if (currentIndex.value >= props.items.length * 2) {
-      setTimeout(() => {
-        if (!carouselTrackRef.value) return
-        carouselTrackRef.value.style.transition = 'none'
-        currentIndex.value = props.items.length
-        updateTransform()
-        void carouselTrackRef.value.offsetHeight
-        carouselTrackRef.value.style.transition = transitionStyle.value
-      }, props.transitionDuration)
-    } else if (currentIndex.value < props.items.length) {
-      setTimeout(() => {
-        if (!carouselTrackRef.value) return
-        carouselTrackRef.value.style.transition = 'none'
-        currentIndex.value = props.items.length * 2 - 1
-        updateTransform()
-        void carouselTrackRef.value.offsetHeight
-        carouselTrackRef.value.style.transition = transitionStyle.value
-      }, props.transitionDuration)
+    // Handle infinite scroll wrap-around (only if we have enough items)
+    if (props.items.length > responsiveItemsToShow.value) {
+      if (currentIndex.value >= props.items.length * 2) {
+        setTimeout(() => {
+          if (!carouselTrackRef.value) return
+          carouselTrackRef.value.style.transition = 'none'
+          currentIndex.value = props.items.length
+          updateTransform()
+          void carouselTrackRef.value.offsetHeight
+          carouselTrackRef.value.style.transition = transitionStyle.value
+        }, props.transitionDuration)
+      } else if (currentIndex.value < props.items.length) {
+        setTimeout(() => {
+          if (!carouselTrackRef.value) return
+          carouselTrackRef.value.style.transition = 'none'
+          currentIndex.value = props.items.length * 2 - 1
+          updateTransform()
+          void carouselTrackRef.value.offsetHeight
+          carouselTrackRef.value.style.transition = transitionStyle.value
+        }, props.transitionDuration)
+      }
     }
+    
+    updateTransform()
   }
 
   currentTranslate.value = 0
@@ -286,7 +321,12 @@ const onMouseLeave = () => {
 onMounted(() => {
   windowWidth.value = window.innerWidth
   window.addEventListener('resize', handleResize)
-  currentIndex.value = props.items.length
+  // Only set to middle if we have enough items for infinite scroll
+  if (props.items.length > responsiveItemsToShow.value) {
+    currentIndex.value = props.items.length
+  } else {
+    currentIndex.value = 0
+  }
   
   // Use nextTick to ensure refs are ready
   nextTick(() => {

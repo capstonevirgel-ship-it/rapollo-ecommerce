@@ -21,7 +21,8 @@ export const useRatingStore = defineStore("rating", {
         const response = await useCustomFetch<any>("/api/ratings", {
           query: { variant_id: variantId }
         })
-        this.ratings = response.data
+        // Handle both paginated and non-paginated responses
+        this.ratings = Array.isArray(response) ? response : (response.data || [])
         return response
       } catch (err: any) {
         this.error = err.data?.message || err.message || "Failed to fetch ratings"
@@ -97,8 +98,10 @@ export const useRatingStore = defineStore("rating", {
       
       try {
         const response = await useCustomFetch<ReviewableProduct[]>("/api/ratings/reviewed-products")
-        this.reviewableProducts = response
-        return response
+        // Handle both array and wrapped responses
+        const products = Array.isArray(response) ? response : (response.data || [])
+        this.reviewableProducts = products
+        return products
       } catch (err: any) {
         this.error = err.data?.message || err.message || "Failed to fetch reviewed products"
         throw err
@@ -112,21 +115,24 @@ export const useRatingStore = defineStore("rating", {
       this.error = null
       
       try {
-        const response = await useCustomFetch<Rating>("/api/ratings", {
+        const response = await useCustomFetch<{ message: string; rating: Rating }>("/api/ratings", {
           method: "POST",
           body: payload
         })
         
+        // Extract the rating from the response
+        const rating = response.rating || response as any
+        
         // Update local state
-        const existingIndex = this.ratings.findIndex(r => r.variant_id === payload.variant_id && r.user_id === response.user_id)
+        const existingIndex = this.ratings.findIndex(r => r.variant_id === payload.variant_id && r.user_id === rating.user_id)
         if (existingIndex !== -1) {
-          this.ratings[existingIndex] = response
+          this.ratings[existingIndex] = rating
         } else {
-          this.ratings.unshift(response)
+          this.ratings.unshift(rating)
         }
         
-        this.userRating = response
-        return response
+        this.userRating = rating
+        return rating
       } catch (err: any) {
         // Don't set global error for submission errors - let the component handle it
         throw err

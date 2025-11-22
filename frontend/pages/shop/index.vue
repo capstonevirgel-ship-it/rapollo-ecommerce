@@ -2,6 +2,8 @@
 import { onMounted, computed, ref, watch, nextTick } from "vue"
 import { useProductStore } from "@/stores/product"
 import { useBrandStore } from "@/stores/brand"
+import { useCategoryStore } from "@/stores/category"
+import { useSubcategoryStore } from "@/stores/subcategory"
 import ProductFilters from "@/components/ProductFilters.vue"
 import Pagination from "@/components/Pagination.vue"
 import { getImageUrl } from "@/utils/imageHelper"
@@ -15,6 +17,8 @@ definePageMeta({
 // ---------------------
 const productStore = useProductStore()
 const brandStore = useBrandStore()
+const categoryStore = useCategoryStore()
+const subcategoryStore = useSubcategoryStore()
 
 // ---------------------
 // Route & Query
@@ -120,19 +124,31 @@ const fetchData = async () => {
     console.log('Fetching products with params:', params)
     const response: any = await (productStore as any).fetchProducts(params)
     console.log('Products fetched:', response?.data?.length || 0, 'items')
+    console.log('Pagination response:', response)
 
-    // If API returns meta, set pagination
-    if (response?.meta) {
+    // Laravel pagination response has pagination data at root level
+    if (response?.current_page !== undefined) {
       pagination.value = {
-        total: response.meta.total,
-        per_page: response.meta.per_page,
-        current_page: response.meta.current_page,
-        total_pages: response.meta.last_page
+        total: response.total || 0,
+        per_page: response.per_page || perPage,
+        current_page: response.current_page || 1,
+        total_pages: response.last_page || 1
       }
-    } else {
-      // fallback if no meta (just one page)
+      // Sync currentPage with API response
+      currentPage.value = response.current_page || 1
+    } else if (response?.meta) {
+      // Fallback for meta structure (if used elsewhere)
       pagination.value = {
-        total: response?.length || 0,
+        total: response.meta.total || 0,
+        per_page: response.meta.per_page || perPage,
+        current_page: response.meta.current_page || 1,
+        total_pages: response.meta.last_page || 1
+      }
+      currentPage.value = response.meta.current_page || 1
+    } else {
+      // fallback if no pagination data (just one page)
+      pagination.value = {
+        total: response?.data?.length || response?.length || 0,
         per_page: perPage,
         current_page: currentPage.value,
         total_pages: 1
@@ -195,6 +211,38 @@ const hasActiveFilters = computed(() => {
          filters.value.brands.length > 0
 })
 
+// Computed properties to get filter objects from stores
+const activeCategories = computed(() => {
+  return filters.value.categories
+    .map(slug => categoryStore.categories.find(cat => cat.slug === slug))
+    .filter(Boolean)
+})
+
+const activeSubcategories = computed(() => {
+  return filters.value.subcategories
+    .map(slug => subcategoryStore.subcategories.find(sub => sub.slug === slug))
+    .filter(Boolean)
+})
+
+const activeBrands = computed(() => {
+  return filters.value.brands
+    .map(slug => brandStore.brands.find(brand => brand.slug === slug))
+    .filter(Boolean)
+})
+
+// Helper functions to remove filters
+const removeCategory = (slug: string) => {
+  filters.value.categories = filters.value.categories.filter(s => s !== slug)
+}
+
+const removeSubcategory = (slug: string) => {
+  filters.value.subcategories = filters.value.subcategories.filter(s => s !== slug)
+}
+
+const removeBrand = (slug: string) => {
+  filters.value.brands = filters.value.brands.filter(s => s !== slug)
+}
+
 // ---------------------
 // Methods
 // ---------------------
@@ -209,8 +257,21 @@ const updateFilters = (newFilters: ProductFilters) => {
   }
 }
 
-const clearFilters = () => {
+const clearFilters = async () => {
+  // Reset pagination to page 1 first
+  currentPage.value = 1
+  
+  // Clear URL query parameters (especially brand) before resetting filters
+  if (route.query.brand) {
+    await router.replace({ path: '/shop', query: {} })
+    // Wait a bit for route to update
+    await nextTick()
+  }
+  
+  // Set flag to prevent watcher from firing during reset
   isUpdatingFilters.value = true
+  
+  // Reset all filters
   filters.value = {
     search: '',
     is_featured: false,
@@ -222,9 +283,15 @@ const clearFilters = () => {
     subcategories: [],
     brands: []
   }
-  nextTick(() => {
-    isUpdatingFilters.value = false
-  })
+  
+  // Wait for next tick to ensure filters are updated
+  await nextTick()
+  
+  // Reset flag - this will allow watchers to fire
+  isUpdatingFilters.value = false
+  
+  // Explicitly fetch all products (without any filters)
+  await fetchData()
 }
 
 const toggleFilters = () => {
@@ -237,10 +304,14 @@ const toggleFilters = () => {
 onMounted(async () => {
   console.log('Shop page mounted, starting data fetch...')
   try {
-    // Fetch brands first to get brand info
-    console.log('Fetching brands...')
-    await (brandStore as any).fetchBrands()
-    console.log('Brands fetched:', brandStore.brands.length)
+    // Fetch filter data first
+    console.log('Fetching filter data...')
+    await Promise.all([
+      (brandStore as any).fetchBrands(),
+      (categoryStore as any).fetchCategories(),
+      (subcategoryStore as any).fetchSubcategories()
+    ])
+    console.log('Filter data fetched - Brands:', brandStore.brands.length, 'Categories:', categoryStore.categories.length, 'Subcategories:', subcategoryStore.subcategories.length)
     
     console.log('Fetching products...')
     await fetchData()
@@ -375,6 +446,51 @@ watch(brandSlug, () => {
                 </svg>
               </button>
             </span>
+            <!-- Category Badges -->
+            <span
+              v-for="category in activeCategories"
+              :key="category.slug"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+            >
+              {{ category.name }}
+              <button @click="removeCategory(category.slug)" class="ml-1 text-indigo-600 hover:text-indigo-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+            <!-- Subcategory Badges -->
+            <span
+              v-for="subcategory in activeSubcategories"
+              :key="subcategory.slug"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800"
+            >
+              {{ subcategory.name }}
+              <button @click="removeSubcategory(subcategory.slug)" class="ml-1 text-teal-600 hover:text-teal-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+            <!-- Brand Badges with Logo -->
+            <span
+              v-for="brand in activeBrands"
+              :key="brand.slug"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800"
+            >
+              <img
+                v-if="brand.logo_url"
+                :src="getImageUrl(brand.logo_url, 'brand')"
+                :alt="brand.name"
+                class="w-3 h-3 mr-1 object-contain"
+              />
+              {{ brand.name }}
+              <button @click="removeBrand(brand.slug)" class="ml-1 text-cyan-600 hover:text-cyan-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
             <button
               v-if="hasActiveFilters"
               @click="clearFilters"
@@ -481,8 +597,8 @@ watch(brandSlug, () => {
 
           <!-- Pagination -->
           <Pagination
-            v-if="!isLoading && pagination.total_pages > 1"
-            :current-page="pagination.current_page"
+            v-if="!isLoading && products.length > 0 && pagination.total_pages > 0"
+            :current-page="currentPage"
             :total-pages="pagination.total_pages"
             @page-change="handlePageChange"
           />

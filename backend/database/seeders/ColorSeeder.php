@@ -24,6 +24,8 @@ class ColorSeeder extends Seeder
             ['name' => 'Purple', 'hex_code' => '#800080'],
             ['name' => 'Pink', 'hex_code' => '#FFC0CB'],
             ['name' => 'Gray', 'hex_code' => '#808080'],
+            ['name' => 'Silver', 'hex_code' => '#C0C0C0'],
+            ['name' => 'Gold', 'hex_code' => '#FFD700'],
             ['name' => 'Navy', 'hex_code' => '#000080'],
             ['name' => 'Brown', 'hex_code' => '#A52A2A'],
             ['name' => 'Beige', 'hex_code' => '#F5F5DC'],

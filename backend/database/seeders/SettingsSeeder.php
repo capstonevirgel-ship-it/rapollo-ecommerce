@@ -152,7 +152,7 @@ class SettingsSeeder extends Seeder
             ],
             [
                 'key' => 'store_city',
-                'value' => 'Mandaue',
+                'value' => 'City of Mandaue',
                 'type' => 'string',
                 'group' => 'store',
                 'description' => 'Store city/municipality',

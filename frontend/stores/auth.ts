@@ -6,7 +6,7 @@ import type { ForgotPasswordRequest, ResetPasswordRequest } from "~/types";
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
-        user: null as null | {id: number, user_name: string, email: string, role: string},
+        user: null as null | {id: number, user_name: string, email: string, role: string, is_suspended?: boolean},
         isAuthenticated: false,
         loading: false,
         error: null as string | null,
@@ -14,6 +14,7 @@ export const useAuthStore = defineStore('auth', {
 
     getters: {
         isAdmin: (state) => state.user?.role === 'admin',
+        isSuspended: (state) => state.user?.is_suspended === true,
     },
 
     actions: {
@@ -100,7 +101,7 @@ export const useAuthStore = defineStore('auth', {
 
         async fetchUser() {
             try {
-                const user = await useCustomFetch<{ id: number; user_name: string; email: string; role: string }>('/api/user');
+                const user = await useCustomFetch<{ id: number; user_name: string; email: string; role: string; is_suspended?: boolean }>('/api/user');
                 this.user = user;
                 this.isAuthenticated = true;
                 // After authenticating, sync any guest cart items to DB and refresh

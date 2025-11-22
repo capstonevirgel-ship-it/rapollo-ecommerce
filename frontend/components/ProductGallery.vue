@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { getImageUrl } from '~/utils/imageHelper'
+import { getImageUrl, getPrimaryImage } from '~/utils/imageHelper'
 import TrendingSkeleton from '~/components/skeleton/TrendingSkeleton.vue'
 
 interface Product {
@@ -134,7 +134,7 @@ onUnmounted(() => {
         >
 
           <img
-            :src="getImageUrl(products[currentIndex].image || products[currentIndex].images?.[0]?.url || null)"
+            :src="getImageUrl(products[currentIndex].image || getPrimaryImage(products[currentIndex].images) || null)"
             :alt="products[currentIndex].name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -154,7 +154,7 @@ onUnmounted(() => {
             ]"
           >
             <img
-              :src="getImageUrl(product.image || product.images?.[0]?.url || null)"
+              :src="getImageUrl(product.image || getPrimaryImage(product.images) || null)"
               :alt="product.name"
               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />

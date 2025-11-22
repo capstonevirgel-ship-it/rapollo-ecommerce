@@ -171,13 +171,39 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
+  // Cancel order
+  const cancelOrder = async (orderId: number) => {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await useCustomFetch(`/api/product-purchases/${orderId}/cancel`, {
+        method: 'PUT'
+      })
+      
+      // Update local state
+      const order = orders.value.find(o => o.id === orderId)
+      if (order) {
+        order.status = 'cancelled'
+      }
+      
+      return response
+    } catch (err: any) {
+      error.value = err.data?.message || err.data?.error || err.message || 'Failed to cancel order'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     orders,
     pagination,
     loading,
     error,
     fetchOrders,
-    updateOrderStatus
+    updateOrderStatus,
+    cancelOrder
   }
 })
 

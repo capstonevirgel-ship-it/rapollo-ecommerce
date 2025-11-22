@@ -31,6 +31,7 @@ const menuItems = ref([
   },
   { link: '/admin/events', label: 'Events', icon: 'calendar' },
   { link: '/admin/tickets', label: 'Tickets', icon: 'ticket' },
+  { link: '/admin/users', label: 'Users', icon: 'account-group' },
   { link: '/admin/notifications', label: 'Notifications', icon: 'bell' },
   { link: '/admin/settings', label: 'Settings', icon: 'cog' }
 ]);

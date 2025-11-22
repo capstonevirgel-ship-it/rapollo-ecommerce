@@ -1,16 +1,49 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
+import { getImageUrl } from '~/utils/imageHelper'
 
 const authStore = useAuthStore()
 const route = useRoute()
 
-// Get user initials for avatar
-const getInitials = computed(() => {
-  if (authStore.user?.user_name) {
-    return authStore.user.user_name.substring(0, 2).toUpperCase()
+// Profile data for avatar
+const userProfile = ref<any>(null)
+
+const fetchUserProfile = async () => {
+  if (!authStore.isAuthenticated) {
+    userProfile.value = null
+    return
   }
-  return 'U'
+  
+  try {
+    const profile = await $fetch('/api/profile')
+    userProfile.value = profile
+  } catch (err) {
+    console.error('Failed to fetch user profile:', err)
+    userProfile.value = null
+  }
+}
+
+const userAvatar = computed(() => {
+  if (userProfile.value?.avatar_url) {
+    return getImageUrl(userProfile.value.avatar_url, 'default')
+  }
+  return null
+})
+
+// Watch for authentication changes
+watch(() => authStore.isAuthenticated, (isAuth) => {
+  if (isAuth) {
+    fetchUserProfile()
+  } else {
+    userProfile.value = null
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  if (authStore.isAuthenticated) {
+    fetchUserProfile()
+  }
 })
 
 // Get join date (this would come from user data in a real app)
@@ -74,8 +107,12 @@ const getIconComponent = (iconName: string) => {
   <div class="p-6">
     <!-- Avatar Section -->
     <div class="flex flex-col items-center mb-6">
-      <div class="w-24 h-24 bg-gradient-to-br from-gray-900 to-gray-700 rounded-full flex items-center justify-center text-white text-2xl font-winner-extra-bold mb-4">
-        {{ getInitials }}
+      <div class="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center text-white text-2xl font-winner-extra-bold mb-4">
+        <img
+          :src="userAvatar || '/uploads/avatar_placeholder.png'"
+          :alt="authStore.user?.user_name || 'User'"
+          class="w-full h-full object-cover"
+        />
       </div>
       <h2 class="text-lg font-bold text-gray-900">{{ authStore.user?.user_name }}</h2>
       <p class="text-sm text-gray-600">{{ authStore.user?.email }}</p>

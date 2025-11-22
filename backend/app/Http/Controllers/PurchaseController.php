@@ -179,8 +179,16 @@ class PurchaseController extends Controller
                 'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
-                'items.variant.images:id,variant_id,url',
-                'items.variant.product.images:id,product_id,url',
+                'items.variant.images' => function($query) {
+                    $query->select('id', 'variant_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
+                'items.variant.product.images' => function($query) {
+                    $query->select('id', 'product_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
                 'payment'
             ])
             ->findOrFail($id);

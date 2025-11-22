@@ -3,7 +3,7 @@ import Breadcrumbs from '@/components/navigation/Breadcrumbs.vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useSubcategoryStore } from '~/stores/subcategory'
-import { getImageUrl } from '~/utils/imageHelper'
+import { getImageUrl, getPrimaryImage } from '~/utils/imageHelper'
 import { onMounted, ref } from 'vue'
 
 const route = useRoute()
@@ -89,7 +89,7 @@ const formatPrice = (price: number | undefined | null): string => {
           <!-- Product image -->
           <div class="relative overflow-hidden">
             <img
-              :src="getImageUrl(product.images?.[0]?.url, 'product')"
+              :src="getImageUrl(getPrimaryImage(product.images) || null, 'product')"
               :alt="product.name"
               class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
             />

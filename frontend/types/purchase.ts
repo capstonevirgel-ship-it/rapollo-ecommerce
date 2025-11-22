@@ -5,6 +5,11 @@ export interface User {
   role: string
   created_at: string
   updated_at: string
+  profile?: {
+    id: number
+    user_id: number
+    avatar_url: string | null
+  }
 }
 
 export interface ProductPurchase {

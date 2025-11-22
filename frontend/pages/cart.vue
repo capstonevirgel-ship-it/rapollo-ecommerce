@@ -255,6 +255,16 @@ const proceedToCheckout = async () => {
     await navigateTo('/login')
     return
   }
+  
+  // Check if user is suspended
+  if (authStore.isSuspended) {
+    warning(
+      'Account Suspended',
+      'Your account has been suspended. You cannot proceed with checkout. Please contact support if you believe this is an error.'
+    )
+    return
+  }
+  
   if (!selectedCartItems.value.length) {
     warning('No Items Selected', 'Please select at least one item to checkout.')
     return

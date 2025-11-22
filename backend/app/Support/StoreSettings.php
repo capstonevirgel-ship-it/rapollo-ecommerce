@@ -53,6 +53,9 @@ class StoreSettings
             return null;
         }
         $normalized = strtolower(trim($city));
+        // Handle "City of X" format -> "X"
+        $normalized = preg_replace('/^city\s+of\s+/', '', $normalized);
+        // Handle "X City" format -> "X"
         $normalized = preg_replace('/\s+city$/', '', $normalized);
         return $normalized ?: null;
     }

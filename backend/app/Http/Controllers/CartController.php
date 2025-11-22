@@ -12,7 +12,17 @@ class CartController extends Controller
 {
     public function index()
     {
-        $items = Cart::with('variant.product', 'variant.product.images', 'variant.color', 'variant.size', 'variant.images')
+        $items = Cart::with([
+            'variant.product',
+            'variant.product.images' => function($query) {
+                $query->orderBy('is_primary', 'desc')->orderBy('sort_order', 'asc');
+            },
+            'variant.color',
+            'variant.size',
+            'variant.images' => function($query) {
+                $query->orderBy('is_primary', 'desc')->orderBy('sort_order', 'asc');
+            }
+        ])
             ->where('user_id', Auth::id())
             ->get();
 

@@ -22,6 +22,44 @@ const notificationStore = useNotificationStore()
 const settingsStore = useSettingsStore()
 const route = useRoute()
 
+// Profile data for avatar
+const userProfile = ref<any>(null)
+const isLoadingProfile = ref(false)
+
+const fetchUserProfile = async () => {
+  if (!authStore.isAuthenticated) {
+    userProfile.value = null
+    return
+  }
+  
+  isLoadingProfile.value = true
+  try {
+    const profile = await $fetch('/api/profile')
+    userProfile.value = profile
+  } catch (err) {
+    console.error('Failed to fetch user profile:', err)
+    userProfile.value = null
+  } finally {
+    isLoadingProfile.value = false
+  }
+}
+
+const userAvatar = computed(() => {
+  if (userProfile.value?.avatar_url) {
+    return getImageUrl(userProfile.value.avatar_url, 'default')
+  }
+  return null
+})
+
+// Watch for authentication changes
+watch(() => authStore.isAuthenticated, (isAuth) => {
+  if (isAuth) {
+    fetchUserProfile()
+  } else {
+    userProfile.value = null
+  }
+}, { immediate: true })
+
 const lastScrollY = ref(0)
 const isHeaderVisible = ref(true)
 
@@ -278,7 +316,7 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
               class="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-800 transition-colors"
             >
               <img 
-                src="/uploads/avatar_placeholder.png" 
+                :src="userAvatar || '/uploads/avatar_placeholder.png'" 
                 :alt="authStore.user?.user_name || 'User'"
                 class="w-8 h-8 rounded-full object-cover border-2 border-gray-600 hover:border-white transition-colors"
               />
@@ -363,11 +401,13 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
               <div v-if="authStore.isAuthenticated" class="space-y-3">
                 <!-- User Profile -->
                 <div class="flex items-center space-x-3 px-4 py-3 bg-zinc-800/30 rounded-xl">
-                  <img 
-                    src="/uploads/avatar_placeholder.png" 
-                    :alt="authStore.user?.user_name || 'User'"
-                    class="w-10 h-10 rounded-full object-cover border-2 border-zinc-700"
-                  />
+                  <div class="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center border-2 border-zinc-700">
+                    <img 
+                      :src="userAvatar || '/uploads/avatar_placeholder.png'" 
+                      :alt="authStore.user?.user_name || 'User'"
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
                   <div class="flex-1">
                     <p class="text-white font-medium text-base">{{ authStore.user?.user_name }}</p>
                     <p class="text-gray-400 text-sm">{{ authStore.user?.email }}</p>
@@ -486,11 +526,13 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
         <!-- Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-200">
           <div class="flex items-center space-x-3">
-            <img 
-              src="/uploads/avatar_placeholder.png" 
-              :alt="authStore.user?.user_name || 'User'"
-              class="w-12 h-12 rounded-full object-cover"
-            />
+            <div class="relative w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center">
+              <img 
+                :src="userAvatar || '/uploads/avatar_placeholder.png'" 
+                :alt="authStore.user?.user_name || 'User'"
+                class="w-full h-full object-cover"
+              />
+            </div>
             <div>
               <h3 class="text-lg font-semibold text-gray-900">{{ authStore.user?.user_name || 'User' }}</h3>
               <p class="text-sm text-gray-500">{{ authStore.user?.email }}</p>

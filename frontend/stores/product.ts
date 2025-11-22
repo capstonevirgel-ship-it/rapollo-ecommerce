@@ -62,6 +62,16 @@ export const useProductStore = defineStore("product", {
       }
     },
 
+    async fetchRelatedProducts(slug: string) {
+      try {
+        const data = await useCustomFetch<Product[]>(`/api/products/${slug}/related`, { method: "GET" });
+        return Array.isArray(data) ? data : [];
+      } catch (error: any) {
+        console.error('Failed to fetch related products:', error);
+        return [];
+      }
+    },
+
     async createProduct(payload: ProductPayload) {
       this.loading = true;
       this.error = null;

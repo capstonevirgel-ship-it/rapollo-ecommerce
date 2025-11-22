@@ -3,8 +3,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePurchaseStore } from '~/stores/purchase'
 import { useTaxStore } from '~/stores/tax'
-import { getImageUrl } from '~/utils/imageHelper'
+import { useOrderStore } from '~/stores/order'
+import { useAlert } from '~/composables/useAlert'
+import { getImageUrl, getPrimaryVariantImage } from '~/utils/imageHelper'
 import PayMongoBranding from '@/components/PayMongoBranding.vue'
+import Dialog from '@/components/Dialog.vue'
 
 definePageMeta({
   layout: 'default',
@@ -22,9 +25,14 @@ useHead({
 const route = useRoute()
 const purchaseStore = usePurchaseStore()
 const taxStore = useTaxStore()
+const orderStore = useOrderStore()
+const { success, error: showError } = useAlert()
 const order = ref<any>(null)
-const loading = ref(false)
+const loading = ref(true)
 const error = ref<string | null>(null)
+
+const showCancelDialog = ref(false)
+const isCancelling = ref(false)
 
 const orderId = computed(() => route.params.id as string)
 
@@ -104,6 +112,34 @@ const fetchOrder = async () => {
   }
 }
 
+const openCancelDialog = () => {
+  showCancelDialog.value = true
+}
+
+const closeCancelDialog = () => {
+  showCancelDialog.value = false
+}
+
+const cancelOrder = async () => {
+  if (!order.value) return
+
+  isCancelling.value = true
+
+  try {
+    await orderStore.cancelOrder(order.value.id)
+    success('Order Cancelled', 'Your order has been cancelled successfully.')
+    // Refresh order
+    await fetchOrder()
+  } catch (err: any) {
+    console.error('Error cancelling order:', err)
+    const errorMessage = err?.data?.message || err?.data?.error || err?.message || 'Failed to cancel order. Please try again.'
+    showError('Cancellation Failed', errorMessage)
+  } finally {
+    isCancelling.value = false
+    closeCancelDialog()
+  }
+}
+
 // Get tax amount from order (stored when order was created)
 const getTaxAmount = () => {
   if (order.value?.shipping_address?.tax_amount !== undefined) {
@@ -173,7 +209,7 @@ onMounted(async () => {
           </div>
 
           <!-- Error State -->
-          <div v-else-if="error || !order" class="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div v-else-if="error || (!loading && !order)" class="bg-red-50 border border-red-200 rounded-lg p-6">
             <div class="flex">
               <svg class="w-5 h-5 text-red-600 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
@@ -191,7 +227,16 @@ onMounted(async () => {
           <div v-else class="space-y-6">
             <!-- Order Summary -->
             <div class="bg-white rounded-xl shadow border border-gray-200 p-6">
-              <h2 class="text-xl font-semibold text-gray-900 mb-4">Order Summary</h2>
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold text-gray-900">Order Summary</h2>
+                <button
+                  v-if="order.status === 'pending'"
+                  @click="openCancelDialog"
+                  class="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                >
+                  Cancel Order
+                </button>
+              </div>
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div> 
                   <p class="text-sm text-gray-500">Status</p>
@@ -230,7 +275,7 @@ onMounted(async () => {
                     <!-- Product Image -->
                     <div class="flex-shrink-0">
                       <img 
-                        :src="getImageUrl(item.variant?.images?.[0]?.url || item.variant?.product?.images?.[0]?.url || '')"
+                        :src="getImageUrl(getPrimaryVariantImage(item.variant, item.variant?.product) || '', 'product')"
                         :alt="item.variant?.product?.name || 'Product'"
                         class="w-20 h-20 object-cover rounded-lg border border-gray-200"
                         @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.src = getImageUrl('', 'product') }"
@@ -331,6 +376,43 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- Cancel Confirmation Dialog -->
+    <Dialog v-model="showCancelDialog" title="Cancel Order">
+      <div class="flex flex-col items-center text-center">
+        <!-- Warning Icon -->
+        <div class="mb-4 flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100">
+          <Icon name="mdi:alert" class="text-[3rem] text-yellow-600" />
+        </div>
+
+        <!-- Confirmation Message -->
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+          Are you sure you want to cancel this order?
+        </h3>
+        <p class="text-sm text-gray-600 mb-6">
+          This action cannot be undone. Your order will be cancelled and you may be subject to our cancellation policy.
+        </p>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 w-full">
+          <button
+            @click="closeCancelDialog"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="cancelOrder"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            <span v-if="isCancelling">Cancelling...</span>
+            <span v-else>Cancel Order</span>
+          </button>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 

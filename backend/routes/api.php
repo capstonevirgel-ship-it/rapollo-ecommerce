@@ -27,6 +27,7 @@ use App\Http\Controllers\PsgcController;
 use App\Http\Controllers\ShippingResolverController;
 use App\Http\Controllers\EventCommentController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -68,10 +69,11 @@ Route::get('settings/group/{group}', [SettingsController::class, 'getByGroup']);
 Route::get('settings/{key}', [SettingsController::class, 'show']);
 
 Route::get('products', [ProductController::class, 'index']);
-Route::get('products/{slug}', [ProductController::class, 'show']);
 Route::get('products/homepage/featured', [ProductController::class, 'getFeaturedProducts']);
 Route::get('products/homepage/trending', [ProductController::class, 'getTrendingProducts']);
 Route::get('products/homepage/new-arrivals', [ProductController::class, 'getNewArrivals']);
+Route::get('products/{slug}/related', [ProductController::class, 'getRelatedProducts']);
+Route::get('products/{slug}', [ProductController::class, 'show']);
 
 Route::get('events', [EventController::class, 'index']);
 Route::get('events/{id}', [EventController::class, 'show']);
@@ -171,6 +173,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('product-purchases/admin/all', [ProductPurchaseController::class, 'adminIndex']);
     Route::get('product-purchases/admin/{id}', [ProductPurchaseController::class, 'adminShow']);
     Route::put('product-purchases/{id}/status', [ProductPurchaseController::class, 'updateStatus']);
+    Route::put('product-purchases/{id}/cancel', [ProductPurchaseController::class, 'cancel']);
     
     // Orders (product purchases only)
     Route::get('orders/admin', [ProductPurchaseController::class, 'adminOrders']);
@@ -244,5 +247,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('profile', [ProfileController::class, 'show']);
     Route::put('profile', [ProfileController::class, 'update']);
     Route::post('profile/avatar', [ProfileController::class, 'uploadAvatar']);
+
+    // Admin User Management (admin only)
+    Route::prefix('admin/users')->group(function () {
+        Route::get('', [AdminUserController::class, 'index']);
+        Route::get('{id}', [AdminUserController::class, 'show']);
+        Route::put('{id}/suspend', [AdminUserController::class, 'suspend']);
+        Route::put('{id}/unsuspend', [AdminUserController::class, 'unsuspend']);
+        Route::get('{id}/transactions', [AdminUserController::class, 'transactions']);
+    });
 });
 

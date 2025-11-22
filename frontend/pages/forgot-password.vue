@@ -89,36 +89,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen flex bg-gray-50">
-    <!-- Left Side - Promotional Section -->
-    <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-gray-900 via-black to-gray-800 relative overflow-hidden">
-      <!-- Background Pattern -->
-      <div class="absolute inset-0 opacity-20">
-        <div class="absolute inset-0" style="background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0); background-size: 30px 30px;"></div>
-      </div>
-      
-      <!-- Geometric Shapes -->
-      <div class="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full opacity-30"></div>
-      <div class="absolute bottom-32 right-16 w-24 h-24 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg transform rotate-45 opacity-20"></div>
-      <div class="absolute top-1/2 right-20 w-16 h-16 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full opacity-40"></div>
-      
-      <!-- Content -->
-      <div class="relative z-10 flex flex-col justify-center px-12 text-white">
-        <div class="max-w-md">
-          <h1 class="text-4xl font-bold mb-6 leading-tight">
-            Reset Your 
-            <span class="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300">Password</span>
-          </h1>
-          <p class="text-xl text-gray-300 leading-relaxed">
-            Enter your email address and we'll send you a link to reset your password.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Side - Forgot Password Form -->
-    <div class="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-20 xl:px-24">
-      <div class="mx-auto w-full max-w-sm lg:w-96">
+  <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8">
+    <!-- Centered Form Card -->
+    <div class="w-full max-w-md">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
         <!-- Back to Login Link -->
         <div class="mb-6">
           <NuxtLink 
@@ -136,10 +110,7 @@ onMounted(() => {
         <div class="text-center">
           <h2 class="text-3xl font-bold text-gray-900">Forgot Password</h2>
           <p class="mt-2 text-sm text-gray-600">
-            Remember your password? 
-            <NuxtLink to="/login" class="font-medium text-zinc-900 hover:text-zinc-700">
-              Sign in
-            </NuxtLink>
+            Enter your email address and we'll send you a link to reset your password.
           </p>
         </div>
 

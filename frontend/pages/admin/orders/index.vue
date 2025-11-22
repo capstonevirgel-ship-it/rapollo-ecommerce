@@ -7,6 +7,7 @@ import Select from '@/components/Select.vue'
 import AdminActionButton from '@/components/AdminActionButton.vue'
 import DataTable from '@/components/DataTable.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import Dialog from '@/components/Dialog.vue'
 import { useRouter } from 'vue-router'
 
 definePageMeta({
@@ -32,6 +33,10 @@ const selectedStatus = ref('all')
 const currentPage = ref(1)
 const perPage = ref(20)
 const selectedIds = ref<number[]>([])
+
+const showCancelDialog = ref(false)
+const cancellingOrder = ref<{ id: number; order_id: string } | null>(null)
+const isCancelling = ref(false)
 
 // Options
 const statusOptions = [
@@ -96,6 +101,23 @@ const formatDate = (dateString: string) => {
   })
 }
 
+const formatDateForCSV = (dateString: string) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getDownloadDate = () => {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const getOrderId = (purchase: any) => {
   return `#${purchase.id.toString().padStart(4, '0')}`
 }
@@ -113,31 +135,31 @@ const viewOrder = (purchase: any) => {
   router.push(`/admin/orders/${purchase.id}`)
 }
 
-const downloadInvoice = (purchase: any) => {
-  // Download invoice
-  console.log('Download invoice for order:', purchase.id)
-}
-
 const exportOrders = () => {
   // Simple CSV export
   const headers = ['Order ID', 'Customer', 'Email', 'Amount', 'Status', 'Date']
   const csvContent = [
     headers.join(','),
-    ...filteredOrders.value.map(order => [
-      order.order_id,
-      `"${order.customer}"`,
-      `"${order.customer_email}"`,
-      order.amount.replace(/[₱,]/g, ''), // Remove currency symbols and commas
-      order.status,
-      order.date
-    ].join(','))
+    ...filteredOrders.value.map(order => {
+      // Get the raw order to access created_at
+      const rawOrder = order.raw_order
+      const orderDate = rawOrder?.created_at || ''
+      return [
+        order.order_id,
+        `"${order.customer}"`,
+        `"${order.customer_email}"`,
+        order.amount.replace(/[₱,]/g, ''), // Remove currency symbols and commas
+        order.status,
+        formatDateForCSV(orderDate)
+      ].join(',')
+    })
   ].join('\n')
 
   const blob = new Blob([csvContent], { type: 'text/csv' })
   const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'orders-export.csv'
+  a.download = `orders-export-${getDownloadDate()}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
 }
@@ -150,6 +172,37 @@ const updateOrderStatus = async (order: any, newStatus: string | number | null) 
   } catch (err) {
     console.error('Failed to update order status:', err)
     error('Update Failed', 'Failed to update order status. Please try again.')
+  }
+}
+
+const openCancelDialog = (order: any) => {
+  cancellingOrder.value = { id: order.id, order_id: getOrderId(order) }
+  showCancelDialog.value = true
+}
+
+const closeCancelDialog = () => {
+  showCancelDialog.value = false
+  cancellingOrder.value = null
+}
+
+const cancelOrder = async () => {
+  if (!cancellingOrder.value) return
+
+  isCancelling.value = true
+  const orderToCancel = { ...cancellingOrder.value }
+
+  try {
+    await orderStore.cancelOrder(orderToCancel.id)
+    success('Order Cancelled', `Order ${orderToCancel.order_id} has been cancelled successfully.`)
+    // Refresh orders
+    await fetchOrders()
+  } catch (err: any) {
+    console.error('Error cancelling order:', err)
+    const errorMessage = err?.data?.message || err?.data?.error || err?.message || 'Failed to cancel order. Please try again.'
+    error('Cancellation Failed', errorMessage)
+  } finally {
+    isCancelling.value = false
+    closeCancelDialog()
   }
 }
 
@@ -185,14 +238,6 @@ onMounted(() => {
       <div>
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Orders</h1>
         <p class="text-sm sm:text-base text-gray-600 mt-1">Manage and track all customer orders</p>
-      </div>
-      <div class="flex items-center space-x-3">
-        <button class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50">
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Export
-        </button>
       </div>
     </div>
 
@@ -335,15 +380,53 @@ onMounted(() => {
             @click="viewOrder(row.raw_order)"
           />
           <AdminActionButton
-            icon="mdi:download"
-            text="Invoice"
-            variant="success"
+            v-if="row.status === 'pending' || row.status === 'processing'"
+            icon="mdi:cancel"
+            text="Cancel"
+            variant="danger"
             size="sm"
-            @click="downloadInvoice(row.raw_order)"
+            @click="openCancelDialog(row.raw_order)"
           />
         </div>
       </template>
     </DataTable>
+
+    <!-- Cancel Confirmation Dialog -->
+    <Dialog v-model="showCancelDialog" title="Cancel Order">
+      <div class="flex flex-col items-center text-center">
+        <!-- Warning Icon -->
+        <div class="mb-4 flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100">
+          <Icon name="mdi:alert" class="text-[3rem] text-yellow-600" />
+        </div>
+
+        <!-- Confirmation Message -->
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+          Are you sure you want to cancel this order?
+        </h3>
+        <p class="text-sm text-gray-600 mb-6">
+          This action cannot be undone. The order will be cancelled and the customer may be subject to our cancellation policy.
+        </p>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 w-full">
+          <button
+            @click="closeCancelDialog"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="cancelOrder"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            <span v-if="isCancelling">Cancelling...</span>
+            <span v-else>Cancel Order</span>
+          </button>
+        </div>
+      </div>
+    </Dialog>
   </div>
   <template #fallback>
     <div class="p-6 space-y-6">

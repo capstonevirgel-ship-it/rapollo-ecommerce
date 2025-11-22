@@ -126,6 +126,15 @@ const proceedToPayment = async () => {
     return
   }
 
+  // Check if user is suspended
+  if (authStore.isSuspended) {
+    warning(
+      'Account Suspended',
+      'Your account has been suspended. You cannot purchase tickets. Please contact support if you believe this is an error.'
+    )
+    return
+  }
+
   if (!event.value) return
   
   // Validate ticket quantity
@@ -568,8 +577,12 @@ watch(event, (newEvent) => {
               <!-- Comment Header -->
               <div class="flex items-start justify-between mb-3">
                 <div class="flex items-center space-x-3">
-                  <div class="w-10 h-10 bg-zinc-300 rounded-full flex items-center justify-center text-zinc-800 font-semibold">
-                    {{ comment.user?.user_name?.charAt(0).toUpperCase() || 'U' }}
+                  <div class="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center flex-shrink-0">
+                    <img
+                      :src="comment.user?.profile?.avatar_url ? getImageUrl(comment.user.profile.avatar_url) : '/uploads/avatar_placeholder.png'"
+                      :alt="comment.user?.user_name || 'User'"
+                      class="w-full h-full object-cover"
+                    />
                   </div>
                   <div>
                     <div class="font-semibold text-gray-900">{{ comment.user?.user_name || 'Anonymous' }}</div>

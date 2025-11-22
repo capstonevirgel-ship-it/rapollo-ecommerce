@@ -53,6 +53,7 @@ const defaultColorMode = ref<'select' | 'custom'>('select');
 const masterBasePrice = ref<number>(0);
 const masterStock = ref<number>(10);
 const masterSku = ref<string>("");
+const productSizeStocks = ref<{ [sizeId: number]: number }>({}); // Stock per size for products without variants
 
 // Computed final price with tax
 const masterFinalPrice = computed(() => {
@@ -71,9 +72,6 @@ const seoKeywords = ref("");
 const seoCanonicalUrl = ref("");
 const seoRobots = ref("index,follow");
 
-// Inline brand
-const newBrandMode = ref(false);
-const newBrandName = ref("");
 
 // Variants
 type Variant = {
@@ -142,6 +140,33 @@ const groupedSubcategories = computed(() => {
   }));
 });
 
+// Flattened subcategories for Select component with group headers
+const subcategoryOptions = computed(() => {
+  const options: Array<{ value: number | string; label: string; categoryName?: string; disabled?: boolean; isHeader?: boolean }> = [];
+  
+  groupedSubcategories.value.forEach(group => {
+    // Add category header (non-selectable)
+    options.push({
+      value: `__header_${group.categoryName}`,
+      label: group.categoryName,
+      categoryName: group.categoryName,
+      disabled: true,
+      isHeader: true
+    } as { value: string; label: string; categoryName: string; disabled: boolean; isHeader: boolean });
+    
+    // Add subcategories
+    group.subcategories.forEach(sub => {
+      options.push({
+        value: sub.id,
+        label: sub.name,
+        categoryName: group.categoryName
+      } as { value: number; label: string; categoryName: string });
+    });
+  });
+  
+  return options;
+});
+
 // Accordion sections
 const accordionSections = [
   { id: 'basic', title: 'Basic Information', icon: 'mdi:information', required: true },
@@ -155,7 +180,18 @@ const accordionSections = [
 const isAccordionComplete = (sectionId: string) => {
   switch (sectionId) {
     case 'basic':
-      return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterStock.value >= 0;
+      // If sizes are selected but no variants, check that all sizes have stock
+      if (selectedSizes.value.length > 0 && variants.value.length === 0) {
+        const allSizesHaveStock = selectedSizes.value.every(sizeId => 
+          productSizeStocks.value[sizeId] !== undefined && productSizeStocks.value[sizeId] >= 0
+        );
+        return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterSku.value.trim() !== '' && allSizesHaveStock;
+      }
+      // If no sizes selected, check masterStock
+      if (selectedSizes.value.length === 0) {
+        return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterStock.value >= 0 && masterSku.value.trim() !== '';
+      }
+      return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterSku.value.trim() !== '';
     case 'media':
       return images.value.length > 0;
     case 'variants':
@@ -193,8 +229,8 @@ const canSubmit = computed(() => {
 
 // Load brands/subcategories/sizes on mount
 onMounted(async () => {
-  await brandStore.fetchBrands();
-  await subcategoryStore.fetchSubcategories();
+  await (brandStore as any).fetchBrands();
+  await (subcategoryStore as any).fetchSubcategories();
   await sizeStore.fetchSizes();
   try {
     await taxStore.fetchTaxPrices();
@@ -357,13 +393,12 @@ async function submitProduct() {
       error("Validation Error", "Please select a subcategory");
       return;
     }
+    if (!masterSku.value.trim()) {
+      error("Validation Error", "Please enter a product SKU");
+      return;
+    }
 
     let finalBrandId = brandId.value as number | null;
-
-    if (newBrandMode.value && newBrandName.value.trim()) {
-      const created = await brandStore.createBrand({ name: newBrandName.value });
-      finalBrandId = created.id;
-    }
 
     // Determine if we have valid variants
     const validVariants = variants.value.length > 0
@@ -378,7 +413,7 @@ async function submitProduct() {
         }))
       : [];
 
-    await productStore.createProduct({
+    await (productStore as any).createProduct({
       subcategory_id: subcategoryId.value,
       brand_id: finalBrandId || undefined,
       name: name.value,
@@ -396,8 +431,14 @@ async function submitProduct() {
       default_color_hex: defaultColorHex.value && defaultColorHex.value !== '#000000' ? defaultColorHex.value : undefined,
       // Always send base_price if provided (variants inherit from product)
       base_price: masterBasePrice.value > 0 ? masterBasePrice.value : undefined,
-      stock: masterStock.value > 0 ? masterStock.value : undefined,
-      sku: masterSku.value.trim() || undefined,
+      // Stock: use size_stocks if sizes are selected and no variants, otherwise use masterStock
+      stock: (selectedSizes.value.length > 0 && variants.value.length === 0) 
+        ? undefined 
+        : (masterStock.value > 0 ? masterStock.value : undefined),
+      size_stocks: (selectedSizes.value.length > 0 && variants.value.length === 0)
+        ? productSizeStocks.value
+        : undefined,
+      sku: masterSku.value.trim(),
       variants: validVariants.length > 0 ? validVariants : undefined, // Send undefined if no variants
     });
 
@@ -417,9 +458,8 @@ async function submitProduct() {
     masterBasePrice.value = 0;
     masterStock.value = 10;
     masterSku.value = "";
+    productSizeStocks.value = {};
     variants.value = [];
-    newBrandMode.value = false;
-    newBrandName.value = "";
     
     // Reset default color
     defaultColorId.value = null;
@@ -544,56 +584,35 @@ async function submitProduct() {
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <!-- Subcategory -->
       <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Subcategory *</label>
-                  <div class="relative">
-                    <select 
-                      v-model="subcategoryId" 
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                    >
-                      <option disabled value="">Select a subcategory</option>
-                      <optgroup v-for="group in groupedSubcategories" :key="group.categoryName" :label="group.categoryName">
-                        <option v-for="sub in group.subcategories" :key="sub.id" :value="sub.id">
-            {{ sub.name }}
-          </option>
-                      </optgroup>
-        </select>
-                  </div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Subcategory *</label>
+        <Select
+          v-model="subcategoryId"
+          :options="subcategoryOptions"
+          placeholder="Select a subcategory"
+          class="w-full"
+        >
+          <template #selected="{ option }">
+            <span v-if="option">{{ option.label }}</span>
+          </template>
+          <template #option="{ option }">
+            <div v-if="(option as any).isHeader" class="w-full">
+              <span class="text-sm font-semibold text-gray-700">{{ option.label }}</span>
+            </div>
+            <div v-else class="flex items-start gap-2 w-full min-w-0 pl-4">
+              <span class="text-gray-900 break-words flex-1 min-w-0 leading-snug" style="word-break: break-word; overflow-wrap: break-word;">{{ option.label }}</span>
+            </div>
+          </template>
+        </Select>
       </div>
 
                 <!-- Brand -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Brand</label>
-                  <div v-if="!newBrandMode">
-                    <Select
-                      v-model="brandId"
-                      :options="[
-                        ...brandStore.brands.map(b => ({ value: b.id, label: b.name })),
-                        { value: '__new', label: '+ Add new brand' }
-                      ]"
-                      placeholder="Select a brand"
-                    />
-                    <button 
-                      v-if="brandId === '__new'"
-                      @click="newBrandMode = true; brandId = null;"
-                      class="mt-2 text-sm text-zinc-900 hover:text-zinc-700"
-                    >
-                      Create new brand
-                    </button>
-                  </div>
-                  <div v-else class="flex gap-2">
-                    <input 
-                      v-model="newBrandName" 
-                      type="text" 
-                      placeholder="Enter brand name"
-                      class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                    />
-                    <button 
-                      @click="newBrandMode = false; newBrandName = '';"
-                      class="px-3 py-2 text-gray-600 hover:text-gray-700"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  <Select
+                    v-model="brandId"
+                    :options="brandStore.brands.map(b => ({ value: b.id, label: b.name }))"
+                    placeholder="Select a brand"
+                  />
                 </div>
       </div>
 
@@ -611,7 +630,7 @@ async function submitProduct() {
                       }
                     }"
                     :options="availableColors.map(c => ({ value: c.name, label: c.name }))"
-                    placeholder="Select default color (optional)"
+                    placeholder="Select default color"
                     class="flex-1"
                   />
                   <div v-else class="flex items-center gap-2 flex-1">
@@ -653,27 +672,26 @@ async function submitProduct() {
                 <p class="text-xs text-gray-500 mt-1">Select all sizes this product can come in. You can remove specific sizes per variant later.</p>
               </div>
 
-              <!-- Price and Stock -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Master Base Price -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Base Price (Before Tax) *</label>
-                  <div class="relative">
-                    <span class="absolute left-3 top-2 text-gray-500">₱</span>
-                    <input 
-                      v-model="masterBasePrice" 
-                      type="number" 
-                      step="0.01" 
-                      placeholder="0.00"
-                      class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                    />
-                  </div>
-                  <p class="text-xs text-gray-500 mt-1">Base price before tax. Final price: <span class="font-semibold text-zinc-900">₱{{ masterFinalPrice.toFixed(2) }}</span></p>
+              <!-- Price -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Base Price (Before Tax) *</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-2 text-gray-500">₱</span>
+                  <input 
+                    v-model="masterBasePrice" 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0.00"
+                    class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                  />
                 </div>
+                <p class="text-xs text-gray-500 mt-1">Base price before tax. Final price: <span class="font-semibold text-zinc-900">₱{{ masterFinalPrice.toFixed(2) }}</span></p>
+              </div>
 
-                <!-- Master Stock -->
+              <!-- Default Stock (only show if no sizes selected) -->
+              <div v-if="selectedSizes.length === 0">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Default Stock *</label>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Default Stock *</label>
                   <input 
                     v-model="masterStock" 
                     type="number" 
@@ -681,20 +699,39 @@ async function submitProduct() {
                     placeholder="0"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                   />
-                  <p class="text-xs text-gray-500 mt-1">Default stock for variants without sizes</p>
                 </div>
+                <p class="text-xs text-gray-500 mt-1">Stock for products without sizes</p>
+              </div>
+
+              <!-- Stock per Size (show when sizes are selected and no variants exist) -->
+              <div v-if="selectedSizes.length > 0 && variants.length === 0">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Stock per Size *</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div v-for="sizeId in selectedSizes" :key="sizeId" class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600 w-16">{{ getSizeName(sizeId) }}:</label>
+                    <input 
+                      :value="productSizeStocks[sizeId] || 0"
+                      @input="productSizeStocks[sizeId] = parseInt(($event.target as HTMLInputElement).value) || 0"
+                      type="number" 
+                      min="0"
+                      placeholder="0"
+                      class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                    />
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Set individual stock quantities for each size</p>
               </div>
 
               <!-- SKU -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">SKU</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">SKU *</label>
                 <input 
                   v-model="masterSku" 
                   type="text" 
-                  placeholder="Enter product SKU (optional)"
+                  placeholder="Enter product SKU"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                 />
-                <p class="text-xs text-gray-500 mt-1">Stock Keeping Unit for products without variants</p>
+                <p class="text-xs text-gray-500 mt-1">Stock Keeping Unit</p>
               </div>
             </div>
           </div>

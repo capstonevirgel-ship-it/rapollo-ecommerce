@@ -2,23 +2,22 @@
 import Breadcrumbs from '@/components/navigation/Breadcrumbs.vue'
 import Carousel from '@/components/Carousel.vue'
 import ProductReview from '@/components/ProductReview.vue'
+import RelatedProductsSkeleton from '@/components/skeleton/RelatedProductsSkeleton.vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useProductStore } from '~/stores/product'
-import { useSubcategoryStore } from '~/stores/subcategory'
 import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from "~/stores/auth"
 import { useAlert } from '~/composables/useAlert'
 import { onMounted, ref } from 'vue'
 
-import { getImageUrl } from '~/utils/imageHelper'
+import { getImageUrl, getPrimaryImage } from '~/utils/imageHelper'
 
 const route = useRoute()
 const { category, sub_category: subSlug, product: productSlug } = route.params
 
 // Stores
 const productStore = useProductStore()
-const subcategoryStore = useSubcategoryStore()
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 const { warning } = useAlert()
@@ -28,23 +27,41 @@ const { product, loading, error } = storeToRefs(productStore)
 // Local state for data fetching
 const isDataLoaded = ref(false)
 const relatedProducts = ref<any[]>([])
+const isLoadingRelatedProducts = ref(false)
 
 // Fetch product data on component mount
 onMounted(async () => {
   try {
     await (productStore as any).fetchProduct(productSlug as string)
     
-    // Auto-select default color if available
+    // Auto-select default color if available (for both products with and without variants)
     if ((product.value as any)?.default_color) {
       selectedColor.value = 'default'
     }
     
-    // Related products from same subcategory
-    if (product.value?.subcategory_id) {
-      await (subcategoryStore as any).fetchSubcategoryById(product.value.subcategory_id)
-      relatedProducts.value = subcategoryStore.subcategory?.products
-        ?.filter(p => p.slug !== productSlug)
-        .map((p, index) => ({ ...p, id: index })) || []
+    // Reset size and quantity when product loads (keep color selection)
+    selectedSize.value = null
+    selectedQuantity.value = 1
+    
+    // Related products from same subcategory using dedicated endpoint
+    if (product.value?.slug) {
+      isLoadingRelatedProducts.value = true
+      try {
+        const related = await (productStore as any).fetchRelatedProducts(product.value.slug)
+        // Additional frontend deduplication as safety measure
+        const uniqueProducts = new Map()
+        related.forEach((p: any) => {
+          if (p && p.id && !uniqueProducts.has(p.id)) {
+            uniqueProducts.set(p.id, p)
+          }
+        })
+        relatedProducts.value = Array.from(uniqueProducts.values())
+      } catch (error) {
+        console.error('Failed to fetch related products:', error)
+        relatedProducts.value = []
+      } finally {
+        isLoadingRelatedProducts.value = false
+      }
     }
     
     isDataLoaded.value = true
@@ -89,14 +106,9 @@ onMounted(() => {
 
 // Computed properties for variant management
 const availableColors = computed(() => {
-  // If product has no variants, return empty array
-  if (!product.value?.variants || product.value.variants.length === 0) {
-    return []
-  }
-  
   const colors: Array<{ id: string; name: string; hex: string; variant?: any; isDefault?: boolean }> = []
   
-  // Add default/main product color if available
+  // Always add default/main product color if available (even if no variants)
   if ((product.value as any)?.default_color) {
     colors.push({
       id: 'default',
@@ -106,10 +118,16 @@ const availableColors = computed(() => {
     })
   }
   
-  // Add variant colors
+  // If product has no variants, return only the default color
+  if (!product.value?.variants || product.value.variants.length === 0) {
+    return colors
+  }
+  
+  // Add variant colors (exclude default color to avoid duplicates)
+  const defaultColorId = (product.value as any)?.default_color?.id
   const variantColors = new Map()
   product.value.variants.forEach(variant => {
-    if (variant.color) {
+    if (variant.color && variant.color.id !== defaultColorId) {
       variantColors.set(variant.color.id, {
         id: variant.color.id.toString(),
         name: variant.color.name,
@@ -138,17 +156,47 @@ const availableSizes = computed(() => {
     return []
   }
   
-  // If default color is selected or no color is selected, show all sizes
-  if (!selectedColor.value || selectedColor.value === 'default') {
+  // Check if any variants have colors - if not, show all sizes regardless of color
+  const hasColorVariants = product.value.variants.some(v => v.color && v.color.id !== null)
+  
+  // If no color variants exist, show all sizes from all variants
+  if (!hasColorVariants) {
     const sizes = new Map()
     product.value.variants.forEach(variant => {
       if (variant.size) {
-        sizes.set(variant.size.id, {
-          id: variant.size.id,
-          name: variant.size.name,
-          stock: variant.stock,
-          variant: variant
-        })
+        // If size already exists, keep the one with higher stock
+        const existingSize = sizes.get(variant.size.id)
+        if (!existingSize || variant.stock > existingSize.stock) {
+          sizes.set(variant.size.id, {
+            id: variant.size.id,
+            name: variant.size.name,
+            stock: variant.stock,
+            variant: variant
+          })
+        }
+      }
+    })
+    return Array.from(sizes.values())
+  }
+  
+  // If default color is selected or no color is selected, show sizes from default color variants only
+  if (!selectedColor.value || selectedColor.value === 'default') {
+    const defaultColorId = (product.value as any)?.default_color?.id
+    const sizes = new Map()
+    product.value.variants.forEach(variant => {
+      // Only show sizes from variants that match the default color (or variants without color if no default)
+      if (variant.size) {
+        const colorMatches = defaultColorId 
+          ? variant.color?.id === defaultColorId 
+          : !variant.color || variant.color.id === null
+        if (colorMatches) {
+          sizes.set(variant.size.id, {
+            id: variant.size.id,
+            name: variant.size.name,
+            stock: variant.stock,
+            variant: variant
+          })
+        }
       }
     })
     return Array.from(sizes.values())
@@ -177,6 +225,25 @@ const currentVariant = computed(() => {
     return null
   }
   
+  // Check if any variants have colors - if not, handle size-only variants
+  const hasColorVariants = product.value.variants.some(v => v.color && v.color.id !== null)
+  
+  // If no color variants exist, only check for size selection
+  if (!hasColorVariants) {
+    if (availableSizes.value.length > 0) {
+      // If sizes are available, require size selection
+      if (!selectedSize.value) {
+        return null // No variant selected until size is chosen
+      }
+      // Find variant with the selected size (no color required)
+      return product.value.variants.find(variant => 
+        variant.size?.id === selectedSize.value && (!variant.color || variant.color.id === null)
+      ) || null
+    }
+    // If no sizes available, return first variant
+    return product.value.variants[0] || null
+  }
+  
   // If default color is selected
   if (selectedColor.value === 'default') {
     // If sizes are available, require size selection
@@ -184,13 +251,16 @@ const currentVariant = computed(() => {
       if (!selectedSize.value) {
         return null // No variant selected until size is chosen
       }
-      // Find variant with the selected size (any color since default shows all sizes)
+      // Find variant with the selected size and default color
+      const defaultColorId = (product.value as any)?.default_color?.id
       return product.value.variants.find(variant => 
-        variant.size?.id === selectedSize.value
+        variant.size?.id === selectedSize.value &&
+        variant.color?.id === defaultColorId
       ) || null
     }
-    // If no sizes available, return first variant
-    return product.value.variants[0] || null
+    // If no sizes available, return first variant with default color
+    const defaultColorId = (product.value as any)?.default_color?.id
+    return product.value.variants.find(variant => variant.color?.id === defaultColorId) || product.value.variants[0] || null
   }
   
   // If a specific variant color is selected
@@ -274,6 +344,46 @@ const stockStatus = computed(() => {
   if (stock === 0) return { status: 'out', label: 'Out of Stock', class: 'text-red-600' }
   if (stock <= 5) return { status: 'low', label: `Only ${stock} left!`, class: 'text-orange-600' }
   return { status: 'in', label: `${stock} in stock`, class: 'text-green-600' }
+})
+
+const buttonText = computed(() => {
+  // For products with variants
+  if (product.value?.variants && product.value.variants.length > 0) {
+    // If no variant is selected, show "Select options"
+    if (!currentVariant.value) {
+      return 'Select options'
+    }
+    
+    // If out of stock
+    if (isOutOfStock.value) {
+      return 'Out of Stock'
+    }
+    
+    // If already in cart (max quantity reached)
+    if (isClient.value && maxAvailableQuantity.value === 0) {
+      return 'Already in Cart'
+    }
+    
+    return 'Add to Cart'
+  }
+  
+  // For products without variants
+  // If sizes are available but not selected
+  if (availableSizes.value.length > 0 && !selectedSize.value) {
+    return 'Select options'
+  }
+  
+  // If out of stock
+  if (isOutOfStock.value) {
+    return 'Out of Stock'
+  }
+  
+  // If already in cart (max quantity reached)
+  if (isClient.value && maxAvailableQuantity.value === 0) {
+    return 'Already in Cart'
+  }
+  
+  return 'Add to Cart'
 })
 
 const isOutOfStock = computed(() => {
@@ -616,20 +726,67 @@ const addToCart = async () => {
             ₱{{ currentPrice.toFixed(2) }}
           </p>
 
+          <!-- Filter Badges -->
+          <div v-if="product.subcategory || product.brand" class="flex flex-wrap gap-2 mb-4">
+            <!-- Category Badge -->
+            <span
+              v-if="product.subcategory?.category"
+              class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
+            >
+              <Icon name="mdi:tag" class="w-4 h-4 mr-1.5" />
+              {{ product.subcategory.category.name }}
+            </span>
+
+            <!-- Subcategory Badge -->
+            <span
+              v-if="product.subcategory"
+              class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
+            >
+              <Icon name="mdi:tag-multiple" class="w-4 h-4 mr-1.5" />
+              {{ product.subcategory.name }}
+            </span>
+
+            <!-- Brand Badge with Logo -->
+            <span
+              v-if="product.brand"
+              class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
+            >
+              <img
+                v-if="product.brand.logo_url"
+                :src="getImageUrl(product.brand.logo_url, 'brand')"
+                :alt="product.brand.name"
+                class="w-4 h-4 mr-1.5 object-contain"
+              />
+              {{ product.brand.name }}
+            </span>
+          </div>
+
           <!-- Stock Indicator -->
           <div class="mb-4">
-            <p :class="['text-sm font-medium', stockStatus.class]">
-              <span v-if="stockStatus.status === 'out'" class="inline-block mr-1">❌</span>
-              <span v-else-if="stockStatus.status === 'low'" class="inline-block mr-1">⚠️</span>
-              <span v-else class="inline-block mr-1">✅</span>
+            <p :class="['text-sm font-medium flex items-center', stockStatus.class]">
+              <Icon 
+                v-if="stockStatus.status === 'out'" 
+                name="mdi:close-circle" 
+                class="inline-block mr-1.5 w-4 h-4" 
+              />
+              <Icon 
+                v-else-if="stockStatus.status === 'low'" 
+                name="mdi:alert-circle" 
+                class="inline-block mr-1.5 w-4 h-4" 
+              />
+              <Icon 
+                v-else 
+                name="mdi:check-circle" 
+                class="inline-block mr-1.5 w-4 h-4" 
+              />
               {{ stockStatus.label }}
             </p>
           </div>
 
           <p class="text-gray-700 leading-relaxed mb-6">{{ product.description }}</p>
 
-          <!-- Color Selection (only show if product has variants) -->
-          <div v-if="product.variants && product.variants.length > 0 && availableColors.length > 0" class="mb-4">
+          <!-- Color Selection (show if product has a default color or color variants) -->
+          <div v-if="availableColors.length > 0" class="mb-4">
             <h3 class="text-sm font-medium text-gray-700 mb-2">Color</h3>
             <div class="flex gap-2">
               <button
@@ -704,9 +861,9 @@ const addToCart = async () => {
               <p v-if="product.variants && product.variants.length > 0 && maxAvailableQuantity < (currentVariant?.stock || 0)" class="text-xs text-orange-600 mt-1">
                 {{ cartStore.cart.find((item: any) => item.variant_id === currentVariant?.id)?.quantity || 0 }} already in cart
               </p>
-              <p v-else-if="(!product.variants || product.variants.length === 0) && maxAvailableQuantity < (product.stock || 0)" class="text-xs text-orange-600 mt-1">
+              <p v-else-if="product && (!product.variants || product.variants.length === 0) && maxAvailableQuantity < (product.stock || 0)" class="text-xs text-orange-600 mt-1">
                 {{ cartStore.cart.find((item: any) => {
-                  const matchesProduct = item.variant?.product_id === product.id
+                  const matchesProduct = item.variant?.product_id === product?.id
                   if (availableSizes.length > 0 && selectedSize) {
                     return matchesProduct && item.variant?.size_id === selectedSize && !item.variant?.color_id
                   }
@@ -719,16 +876,16 @@ const addToCart = async () => {
           <!-- Add to Cart Button -->
           <button
             v-if="!authStore.isAdmin"
-            :disabled="isOutOfStock || (isClient && maxAvailableQuantity === 0)"
+            :disabled="(product.variants && product.variants.length > 0 ? !currentVariant : (availableSizes.length > 0 && !selectedSize)) || isOutOfStock || (isClient && maxAvailableQuantity === 0)"
             :class="[
-              'w-full px-6 py-3 font-medium rounded transition cursor-pointer',
-              (isOutOfStock || (isClient && maxAvailableQuantity === 0))
+              'w-full px-6 py-3 font-medium rounded transition',
+              ((product.variants && product.variants.length > 0 ? !currentVariant : (availableSizes.length > 0 && !selectedSize)) || isOutOfStock || (isClient && maxAvailableQuantity === 0))
                 ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                : 'bg-zinc-800 text-white hover:bg-zinc-700 cursor-pointer'
             ]"
             @click="addToCart"
           >
-            {{ isOutOfStock ? 'Out of Stock' : (isClient && maxAvailableQuantity === 0) ? 'Already in Cart' : 'Add to Cart' }}
+            {{ buttonText }}
           </button>
           <div v-else class="w-full px-6 py-3 bg-gray-200 text-gray-600 rounded text-center font-medium">
             Administrators cannot add items to cart
@@ -745,9 +902,15 @@ const addToCart = async () => {
       </div>
 
       <!-- Related Products -->
-      <div v-if="relatedProducts.length" class="mt-12">
+      <div v-if="isLoadingRelatedProducts || relatedProducts.length" class="mt-12">
         <h2 class="text-2xl font-semibold mb-4">Related Products</h2>
+        
+        <!-- Skeleton Loader -->
+        <RelatedProductsSkeleton v-if="isLoadingRelatedProducts" />
+        
+        <!-- Related Products Carousel -->
         <Carousel
+          v-else-if="relatedProducts.length"
           :items="relatedProducts"
           :items-to-show="3"
           :autoplay="false"
@@ -759,7 +922,7 @@ const addToCart = async () => {
                 :to="`/shop/${category}/${subSlug}/${item.slug}`"
               >
                 <img
-                  :src="getImageUrl(item.images?.[0]?.url)"
+                  :src="getImageUrl(getPrimaryImage(item.images) || null)"
                   :alt="item.name"
                   class="w-full h-48 object-cover rounded-t mb-3"
                 />

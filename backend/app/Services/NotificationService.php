@@ -61,4 +61,26 @@ class NotificationService
             $options
         );
     }
+
+    public static function createSuspensionNotification(User $user, string $reason, bool $isSuspended): void
+    {
+        if ($isSuspended) {
+            $title = 'Account Suspended';
+            $message = "Your account has been suspended. Reason: {$reason}. Please contact support if you believe this is an error.";
+        } else {
+            $title = 'Account Suspension Lifted';
+            $message = 'Your account suspension has been lifted. You can now proceed with purchases.';
+        }
+
+        Notification::createForUser(
+            $user->id,
+            $title,
+            $message,
+            'system',
+            [
+                'action_url' => '/profile',
+                'action_text' => 'View Profile'
+            ]
+        );
+    }
 }

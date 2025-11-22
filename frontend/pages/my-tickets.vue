@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Ticket } from '~/types'
+import Dialog from '@/components/Dialog.vue'
 
 // Use default layout for customer tickets
 definePageMeta({
@@ -16,6 +17,11 @@ useHead({
 
 const ticketStore = useTicketStore()
 const authStore = useAuthStore()
+const { success, error } = useAlert()
+
+const showCancelDialog = ref(false)
+const cancellingTicket = ref<{ id: number; ticket_number: string } | null>(null)
+const isCancelling = ref(false)
 
 // Check authentication and fetch user if needed
 if (!authStore.isAuthenticated) {
@@ -52,15 +58,33 @@ const formatPrice = (price: any): string => {
   return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
 }
 
-const cancelTicket = async (ticketId: number) => {
-  if (confirm('Are you sure you want to cancel this ticket?')) {
-    try {
-      await ticketStore.cancelTicket(ticketId)
-      // Refresh tickets
-      await ticketStore.fetchTickets()
-    } catch (error) {
-      console.error('Error cancelling ticket:', error)
-    }
+const openCancelDialog = (ticket: Ticket) => {
+  cancellingTicket.value = { id: ticket.id, ticket_number: ticket.ticket_number }
+  showCancelDialog.value = true
+}
+
+const closeCancelDialog = () => {
+  showCancelDialog.value = false
+  cancellingTicket.value = null
+}
+
+const cancelTicket = async () => {
+  if (!cancellingTicket.value) return
+
+  isCancelling.value = true
+  const ticketToCancel = { ...cancellingTicket.value }
+
+  try {
+    await ticketStore.cancelTicket(ticketToCancel.id)
+    success('Ticket Cancelled', 'Your ticket has been cancelled successfully.')
+    await ticketStore.fetchTickets()
+  } catch (err: any) {
+    console.error('Error cancelling ticket:', err)
+    const errorMessage = err?.data?.message || err?.data?.error || err?.message || 'Failed to cancel ticket. Please try again.'
+    error('Cancellation Failed', errorMessage)
+  } finally {
+    isCancelling.value = false
+    closeCancelDialog()
   }
 }
 </script>
@@ -150,7 +174,7 @@ const cancelTicket = async (ticketId: number) => {
                   <div class="flex space-x-2">
                     <button
                       v-if="ticket.status === 'confirmed'"
-                      @click="cancelTicket(ticket.id)"
+                      @click="openCancelDialog(ticket)"
                       class="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                     >
                       Cancel Ticket
@@ -170,5 +194,42 @@ const cancelTicket = async (ticketId: number) => {
         </div>
       </div>
     </div>
+
+    <!-- Cancel Confirmation Dialog -->
+    <Dialog v-model="showCancelDialog" title="Cancel Ticket">
+      <div class="flex flex-col items-center text-center">
+        <!-- Warning Icon -->
+        <div class="mb-4 flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100">
+          <Icon name="mdi:alert" class="text-[3rem] text-yellow-600" />
+        </div>
+
+        <!-- Confirmation Message -->
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+          Are you sure you want to cancel this ticket?
+        </h3>
+        <p class="text-sm text-gray-600 mb-6">
+          This action cannot be undone. Your ticket will be cancelled and you may be subject to our cancellation policy.
+        </p>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 w-full">
+          <button
+            @click="closeCancelDialog"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="cancelTicket"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            <span v-if="isCancelling">Cancelling...</span>
+            <span v-else>Cancel Ticket</span>
+          </button>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>

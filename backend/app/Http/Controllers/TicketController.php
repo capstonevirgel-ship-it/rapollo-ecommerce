@@ -81,10 +81,21 @@ class TicketController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+        
         // Prevent admins from purchasing tickets
-        if (Auth::user()->role === 'admin') {
+        if ($user->role === 'admin') {
             return response()->json([
                 'error' => 'Administrators cannot purchase tickets. Please use a customer account to buy tickets.'
+            ], 403);
+        }
+
+        // Check if user is suspended
+        if ($user->isSuspended()) {
+            return response()->json([
+                'error' => 'Your account has been suspended. You cannot purchase tickets. Please contact support if you believe this is an error.',
+                'message' => 'account_suspended',
+                'suspension_reason' => $user->suspension_reason,
             ], 403);
         }
 
@@ -190,12 +201,22 @@ class TicketController extends Controller
             ->where('user_id', Auth::id())
             ->firstOrFail();
 
-        if ($ticket->status === 'used') {
-            return response()->json(['error' => 'Cannot cancel a used ticket'], 400);
+        // Only allow cancellation when status is 'confirmed'
+        if ($ticket->status !== 'confirmed') {
+            return response()->json([
+                'error' => 'Only confirmed tickets can be cancelled',
+                'message' => 'This ticket cannot be cancelled because its status is not confirmed.'
+            ], 400);
         }
 
         $ticket->status = 'cancelled';
         $ticket->save();
+
+        // Check for auto-suspension after cancellation
+        $user = $ticket->user;
+        if ($user && $user->role === 'user') {
+            \App\Services\UserSuspensionService::checkAndSuspendIfNeeded($user);
+        }
 
         return response()->json([
             'message' => 'Ticket cancelled successfully',
@@ -229,10 +250,21 @@ class TicketController extends Controller
      */
     public function createPaymentIntent(Request $request)
     {
+        $user = Auth::user();
+        
         // Prevent admins from purchasing tickets
-        if (Auth::user()->role === 'admin') {
+        if ($user->role === 'admin') {
             return response()->json([
                 'error' => 'Administrators cannot purchase tickets. Please use a customer account to buy tickets.'
+            ], 403);
+        }
+
+        // Check if user is suspended
+        if ($user->isSuspended()) {
+            return response()->json([
+                'error' => 'Your account has been suspended. You cannot purchase tickets. Please contact support if you believe this is an error.',
+                'message' => 'account_suspended',
+                'suspension_reason' => $user->suspension_reason,
             ], 403);
         }
 

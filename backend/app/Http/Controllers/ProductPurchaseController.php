@@ -17,10 +17,21 @@ class ProductPurchaseController extends Controller
 {
     public function store(Request $request)
     {
+        $user = Auth::user();
+        
         // Prevent admins from creating purchases
-        if (Auth::user()->role === 'admin') {
+        if ($user->role === 'admin') {
             return response()->json([
                 'message' => 'Administrators cannot proceed to checkout. Please use a customer account to make purchases.'
+            ], 403);
+        }
+
+        // Check if user is suspended
+        if ($user->isSuspended()) {
+            return response()->json([
+                'message' => 'Your account has been suspended. You cannot proceed with checkout. Please contact support if you believe this is an error.',
+                'error' => 'account_suspended',
+                'suspension_reason' => $user->suspension_reason,
             ], 403);
         }
 
@@ -35,7 +46,6 @@ class ProductPurchaseController extends Controller
             DB::beginTransaction();
 
             // Ensure profile address is complete before proceeding
-            $user = Auth::user();
             $profile = Profile::firstOrCreate(['user_id' => $user->id]);
             $requiredAddressFields = ['barangay', 'city', 'province', 'zipcode'];
             foreach ($requiredAddressFields as $field) {
@@ -177,8 +187,16 @@ class ProductPurchaseController extends Controller
                 'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
-                'items.variant.images:id,variant_id,url',
-                'items.variant.product.images:id,product_id,url',
+                'items.variant.images' => function($query) {
+                    $query->select('id', 'variant_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
+                'items.variant.product.images' => function($query) {
+                    $query->select('id', 'product_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
                 'payment'
             ])
             ->findOrFail($id);
@@ -213,8 +231,16 @@ class ProductPurchaseController extends Controller
                 'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
-                'items.variant.images:id,variant_id,url',
-                'items.variant.product.images:id,product_id,url',
+                'items.variant.images' => function($query) {
+                    $query->select('id', 'variant_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
+                'items.variant.product.images' => function($query) {
+                    $query->select('id', 'product_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
                 'payment'
             ]);
 
@@ -268,8 +294,16 @@ class ProductPurchaseController extends Controller
                 'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
-                'items.variant.images:id,variant_id,url',
-                'items.variant.product.images:id,product_id,url',
+                'items.variant.images' => function($query) {
+                    $query->select('id', 'variant_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
+                'items.variant.product.images' => function($query) {
+                    $query->select('id', 'product_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
                 'payment'
             ]);
 
@@ -318,8 +352,17 @@ class ProductPurchaseController extends Controller
             ]);
 
             $purchase = ProductPurchase::findOrFail($id);
+            $oldStatus = $purchase->status;
             $purchase->status = $request->status;
             $purchase->save();
+
+            // Check for auto-suspension if status changed to 'cancelled'
+            if ($oldStatus !== 'cancelled' && $request->status === 'cancelled') {
+                $purchaseUser = $purchase->user;
+                if ($purchaseUser && $purchaseUser->role === 'user') {
+                    \App\Services\UserSuspensionService::checkAndSuspendIfNeeded($purchaseUser);
+                }
+            }
 
             return response()->json([
                 'message' => 'Purchase status updated successfully',
@@ -356,8 +399,16 @@ class ProductPurchaseController extends Controller
                 'items.variant:id,product_id,size_id,color_id',
                 'items.variant.size:id,name',
                 'items.variant.color:id,name',
-                'items.variant.images:id,variant_id,url',
-                'items.variant.product.images:id,product_id,url',
+                'items.variant.images' => function($query) {
+                    $query->select('id', 'variant_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
+                'items.variant.product.images' => function($query) {
+                    $query->select('id', 'product_id', 'url', 'is_primary')
+                        ->orderBy('is_primary', 'desc')
+                        ->orderBy('sort_order', 'asc');
+                },
                 'payment'
             ])->findOrFail($id);
 
@@ -367,6 +418,83 @@ class ProductPurchaseController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to fetch purchase details',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Cancel a product purchase
+     */
+    public function cancel($id)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Unauthorized'
+                ], 401);
+            }
+
+            $purchase = ProductPurchase::findOrFail($id);
+
+            // Check if user owns the purchase or is admin
+            if ($purchase->user_id !== $user->id && $user->role !== 'admin') {
+                return response()->json([
+                    'error' => 'Unauthorized. You can only cancel your own orders.'
+                ], 403);
+            }
+
+            // Define non-cancellable statuses
+            $nonCancellableStatuses = ['shipped', 'delivered', 'completed'];
+            
+            // Check if current status is non-cancellable
+            if (in_array($purchase->status, $nonCancellableStatuses)) {
+                return response()->json([
+                    'error' => 'Cannot cancel order',
+                    'message' => 'Orders with status ' . $purchase->status . ' cannot be cancelled.'
+                ], 400);
+            }
+
+            // Role-based validation
+            if ($user->role === 'admin') {
+                // Admin can cancel if status is 'pending' or 'processing'
+                if (!in_array($purchase->status, ['pending', 'processing'])) {
+                    return response()->json([
+                        'error' => 'Cannot cancel order',
+                        'message' => 'Admin can only cancel orders with status pending or processing.'
+                    ], 400);
+                }
+            } else {
+                // Customer can only cancel if status is 'pending'
+                if ($purchase->status !== 'pending') {
+                    return response()->json([
+                        'error' => 'Cannot cancel order',
+                        'message' => 'You can only cancel orders with pending status.'
+                    ], 400);
+                }
+            }
+
+            // Update status to cancelled
+            $oldStatus = $purchase->status;
+            $purchase->status = 'cancelled';
+            $purchase->save();
+
+            // Check for auto-suspension if status changed to 'cancelled'
+            if ($oldStatus !== 'cancelled') {
+                $purchaseUser = $purchase->user;
+                if ($purchaseUser && $purchaseUser->role === 'user') {
+                    \App\Services\UserSuspensionService::checkAndSuspendIfNeeded($purchaseUser);
+                }
+            }
+
+            return response()->json([
+                'message' => 'Order cancelled successfully',
+                'data' => $purchase->load(['items.variant.product', 'payment'])
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to cancel order',
                 'message' => $e->getMessage()
             ], 500);
         }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 interface Props {
   title: string
   value: string | number
@@ -19,6 +21,46 @@ const props = withDefaults(defineProps<Props>(), {
   valueColor: 'text-gray-900'
 })
 
+const formatNumber = (num: number | string): string => {
+  // If it's already a string (e.g., currency), return as is
+  if (typeof num === 'string') {
+    return num
+  }
+
+  // Handle numbers
+  const absNum = Math.abs(num)
+  
+  // 7-9 digits: format as millions (M)
+  if (absNum >= 1000000 && absNum < 1000000000) {
+    const millions = num / 1000000
+    // Show 1 decimal place if needed, otherwise show as integer
+    const formatted = millions % 1 === 0 
+      ? millions.toString() 
+      : millions.toFixed(1).replace(/\.?0+$/, '')
+    return `${formatted}m`
+  }
+  
+  // 4-6 digits: format as thousands (K)
+  if (absNum >= 1000 && absNum < 1000000) {
+    const thousands = num / 1000
+    // Show 1 decimal place if needed, otherwise show as integer
+    const formatted = thousands % 1 === 0 
+      ? thousands.toString() 
+      : thousands.toFixed(1).replace(/\.?0+$/, '')
+    return `${formatted}k`
+  }
+  
+  // Less than 1000: return as is
+  return num.toString()
+}
+
+const formattedValue = computed(() => {
+  if (typeof props.value === 'number') {
+    return formatNumber(props.value)
+  }
+  return props.value
+})
+
 const getGrowthColor = (growth: number) => {
   return growth >= 0 ? 'text-green-600' : 'text-red-600'
 }
@@ -34,7 +76,7 @@ const getGrowthIcon = (growth: number) => {
       <div class="flex-1 min-w-0">
         <p class="text-xs sm:text-sm font-medium text-gray-600">{{ title }}</p>
         <p :class="['text-xl sm:text-2xl lg:text-3xl font-bold truncate', valueColor]">
-          {{ value }}
+          {{ formattedValue }}
         </p>
         <div v-if="growth !== undefined" class="flex flex-col sm:flex-row sm:items-center mt-2 gap-1 sm:gap-0">
           <span :class="['text-xs sm:text-sm font-medium', getGrowthColor(growth)]">

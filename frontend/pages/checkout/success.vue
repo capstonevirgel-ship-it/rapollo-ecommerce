@@ -5,7 +5,7 @@ import { useCartStore } from '~/stores/cart'
 import { usePurchaseStore } from '~/stores/purchase'
 import { useTicketStore } from '~/stores/ticket'
 import Carousel from '~/components/Carousel.vue'
-import { getImageUrl } from '~/utils/imageHelper'
+import { getImageUrl, getPrimaryVariantImage } from '~/utils/imageHelper'
 
 // Define page meta
 definePageMeta({
@@ -534,7 +534,7 @@ const getProductItemTotalPrice = (item: any) => {
               >
                 <div class="flex-shrink-0">
                   <img 
-                    :src="getImageUrl(item.variant?.images?.[0]?.url || item.variant?.product?.images?.[0]?.url || '')"
+                    :src="getImageUrl(getPrimaryVariantImage(item.variant, item.variant?.product) || '', 'product')"
                     :alt="item.variant?.product?.name || 'Product'"
                     class="w-16 h-16 object-cover rounded-lg border border-gray-200"
                     @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.src = getImageUrl('', 'product') }"

@@ -10,6 +10,11 @@ export interface Rating {
   user?: {
     id: number
     user_name: string
+    profile?: {
+      id: number
+      user_id: number
+      avatar_url: string | null
+    }
   }
   variant?: {
     id: number
@@ -63,6 +68,7 @@ export interface ReviewableProduct {
   quantity: number
   purchased_at: string
   has_rated: boolean
+  product_image?: string | null
 }
 
 export interface RatingPayload {

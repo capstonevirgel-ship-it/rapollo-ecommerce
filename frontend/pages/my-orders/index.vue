@@ -3,7 +3,10 @@ import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { usePurchaseStore } from '~/stores/purchase'
 import { useRatingStore } from '~/stores/rating'
-import { getImageUrl } from '~/utils/imageHelper'
+import { useOrderStore } from '~/stores/order'
+import { useAlert } from '~/composables/useAlert'
+import { getImageUrl, getPrimaryVariantImage } from '~/utils/imageHelper'
+import Dialog from '@/components/Dialog.vue'
 
 // Define page meta
 definePageMeta({
@@ -22,9 +25,15 @@ useHead({
 const authStore = useAuthStore()
 const purchaseStore = usePurchaseStore()
 const ratingStore = useRatingStore()
+const orderStore = useOrderStore()
+const { success, error } = useAlert()
 const orders = ref<any[]>([])
 const isLoading = ref(false)
 const reviewedVariants = ref<Set<number>>(new Set())
+
+const showCancelDialog = ref(false)
+const cancellingOrder = ref<{ id: number } | null>(null)
+const isCancelling = ref(false)
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -100,6 +109,38 @@ const navigateToProduct = (item: any) => {
 
 const navigateToOrderDetails = (orderId: number) => {
   navigateTo(`/my-orders/${orderId}`)
+}
+
+const openCancelDialog = (order: any) => {
+  cancellingOrder.value = { id: order.id }
+  showCancelDialog.value = true
+}
+
+const closeCancelDialog = () => {
+  showCancelDialog.value = false
+  cancellingOrder.value = null
+}
+
+const cancelOrder = async () => {
+  if (!cancellingOrder.value) return
+
+  isCancelling.value = true
+  const orderToCancel = { ...cancellingOrder.value }
+
+  try {
+    await orderStore.cancelOrder(orderToCancel.id)
+    success('Order Cancelled', 'Your order has been cancelled successfully.')
+    // Refresh orders
+    const response = await $fetch('/api/product-purchases') as { data: any[] }
+    orders.value = response.data || []
+  } catch (err: any) {
+    console.error('Error cancelling order:', err)
+    const errorMessage = err?.data?.message || err?.data?.error || err?.message || 'Failed to cancel order. Please try again.'
+    error('Cancellation Failed', errorMessage)
+  } finally {
+    isCancelling.value = false
+    closeCancelDialog()
+  }
 }
 
 onMounted(async () => {
@@ -206,7 +247,7 @@ onMounted(async () => {
                   >
                     <div class="relative">
                       <img
-                        :src="getImageUrl(item.variant?.images?.[0]?.url || item.variant?.product?.images?.[0]?.url || '')"
+                        :src="getImageUrl(getPrimaryVariantImage(item.variant, item.variant?.product) || '', 'product')"
                         :alt="item.variant?.product?.name || 'Product'"
                         class="w-20 h-20 object-cover rounded-lg shadow-sm border border-gray-200"
                         @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.src = getImageUrl('', 'product') }"
@@ -273,6 +314,13 @@ onMounted(async () => {
                       View Details
                     </button>
                     <button
+                      v-if="order.status === 'pending'"
+                      @click="openCancelDialog(order)"
+                      class="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                    >
+                      Cancel Order
+                    </button>
+                    <button
                       v-if="order.status === 'processing' || order.status === 'completed'"
                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                     >
@@ -286,6 +334,43 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- Cancel Confirmation Dialog -->
+    <Dialog v-model="showCancelDialog" title="Cancel Order">
+      <div class="flex flex-col items-center text-center">
+        <!-- Warning Icon -->
+        <div class="mb-4 flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100">
+          <Icon name="mdi:alert" class="text-[3rem] text-yellow-600" />
+        </div>
+
+        <!-- Confirmation Message -->
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+          Are you sure you want to cancel this order?
+        </h3>
+        <p class="text-sm text-gray-600 mb-6">
+          This action cannot be undone. Your order will be cancelled and you may be subject to our cancellation policy.
+        </p>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 w-full">
+          <button
+            @click="closeCancelDialog"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="cancelOrder"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            <span v-if="isCancelling">Cancelling...</span>
+            <span v-else>Cancel Order</span>
+          </button>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 

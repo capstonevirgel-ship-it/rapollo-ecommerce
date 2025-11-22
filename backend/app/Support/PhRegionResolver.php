@@ -36,9 +36,13 @@ class PhRegionResolver
         $origin = strtolower(trim((string) $storeOriginCity));
         $originProv = strtolower(trim((string) $storeOriginProvince));
 
-        // Normalize " city" suffix for comparison
-        $cityNorm = preg_replace('/\s+city$/', '', (string) $city);
-        $originCityNorm = preg_replace('/\s+city$/', '', (string) $origin);
+        // Normalize city names for comparison
+        // Handle "City of X" format -> "X"
+        $cityNorm = preg_replace('/^city\s+of\s+/', '', (string) $city);
+        $cityNorm = preg_replace('/\s+city$/', '', $cityNorm);
+        // Handle "X City" format -> "X"
+        $originCityNorm = preg_replace('/^city\s+of\s+/', '', (string) $origin);
+        $originCityNorm = preg_replace('/\s+city$/', '', $originCityNorm);
 
         if ($originCityNorm && $cityNorm && $cityNorm === $originCityNorm) {
             return 'local';

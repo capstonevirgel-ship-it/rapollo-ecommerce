@@ -36,41 +36,53 @@ const changePage = (page: number | string) => {
 </script>
 
 <template>
-  <div class="flex justify-center mt-8 space-x-2">
-    <!-- Prev -->
+  <div class="flex items-center justify-center mt-12 mb-8 gap-1">
+    <!-- Previous Button -->
     <button
-      class="px-3 py-1 rounded-md border text-sm"
       :disabled="props.currentPage === 1"
       @click="changePage(props.currentPage - 1)"
+      class="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white text-gray-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-gray-400 active:scale-95"
+      :class="props.currentPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer'"
+      aria-label="Previous page"
     >
-      Prev
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
     </button>
 
-    <!-- Pages -->
-    <button
-      v-for="(page, i) in pages"
-      :key="i"
-      class="px-3 py-1 rounded-md border text-sm"
-      :class="[
-        page === props.currentPage
-          ? 'bg-primary-600 text-white border-primary-600'
-          : page === '...'
-          ? 'cursor-default text-gray-400 border-gray-200'
-          : 'hover:bg-gray-100'
-      ]"
-      :disabled="page === '...'"
-      @click="changePage(page)"
-    >
-      {{ page }}
-    </button>
+    <!-- Page Numbers -->
+    <div class="flex items-center gap-1">
+      <button
+        v-for="(page, i) in pages"
+        :key="i"
+        @click="changePage(page)"
+        :disabled="page === '...'"
+        class="flex items-center justify-center min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm transition-all duration-200"
+        :class="[
+          page === props.currentPage
+            ? 'bg-zinc-800 text-white shadow-md scale-105 cursor-default'
+            : page === '...'
+            ? 'text-gray-400 cursor-default pointer-events-none'
+            : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 active:scale-95 cursor-pointer'
+        ]"
+        :aria-label="page === '...' ? 'More pages' : `Go to page ${page}`"
+        :aria-current="page === props.currentPage ? 'page' : undefined"
+      >
+        {{ page }}
+      </button>
+    </div>
 
-    <!-- Next -->
+    <!-- Next Button -->
     <button
-      class="px-3 py-1 rounded-md border text-sm"
       :disabled="props.currentPage === props.totalPages"
       @click="changePage(props.currentPage + 1)"
+      class="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white text-gray-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-gray-400 active:scale-95"
+      :class="props.currentPage === props.totalPages ? 'cursor-not-allowed' : 'cursor-pointer'"
+      aria-label="Next page"
     >
-      Next
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
     </button>
   </div>
 </template>

@@ -24,6 +24,9 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_suspended',
+        'suspended_at',
+        'suspension_reason',
     ];
 
     /**
@@ -46,6 +49,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'suspended_at' => 'datetime',
+            'is_suspended' => 'boolean',
         ];
     }
 
@@ -103,5 +108,64 @@ class User extends Authenticatable
     public function sendPasswordResetNotification($token)
     {
         $this->notify(new CustomResetPasswordNotification($token));
+    }
+
+    /**
+     * Check if user is suspended.
+     *
+     * @return bool
+     */
+    public function isSuspended(): bool
+    {
+        return $this->is_suspended === true;
+    }
+
+    /**
+     * Suspend the user.
+     *
+     * @param  string|null  $reason
+     * @return bool
+     */
+    public function suspend(?string $reason = null): bool
+    {
+        return $this->update([
+            'is_suspended' => true,
+            'suspended_at' => now(),
+            'suspension_reason' => $reason,
+        ]);
+    }
+
+    /**
+     * Unsuspend the user.
+     *
+     * @return bool
+     */
+    public function unsuspend(): bool
+    {
+        return $this->update([
+            'is_suspended' => false,
+            'suspended_at' => null,
+            'suspension_reason' => null,
+        ]);
+    }
+
+    /**
+     * Get user's product purchases.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function productPurchases()
+    {
+        return $this->hasMany(ProductPurchase::class);
+    }
+
+    /**
+     * Get user's ticket purchases.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function ticketPurchases()
+    {
+        return $this->hasMany(TicketPurchase::class);
     }
 }

@@ -3,6 +3,7 @@ import type { Product } from './product'
 export interface CartPayload {
   variant_id?: number
   product_id?: number
+  size_id?: number
   quantity: number
 }
 

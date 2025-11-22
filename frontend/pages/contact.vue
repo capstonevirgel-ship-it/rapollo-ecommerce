@@ -49,7 +49,7 @@ const submitForm = async () => {
     })
     
     // Redirect to thank you page
-    await navigateTo('/contact-thank-you')
+    await navigateTo('/thank-you')
   } catch (error: any) {
     message.value = error.data?.message || 'Sorry, there was an error sending your message. Please try again.'
     messageType.value = 'error'

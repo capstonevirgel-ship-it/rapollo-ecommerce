@@ -10,7 +10,7 @@ import { useBrandStore } from '~/stores/brand';
 import { useProductStore } from '~/stores/product';
 import { useSettingsStore } from '~/stores/settings';
 import { useAuthStore } from '~/stores/auth';
-import { getImageUrl } from '~/utils/imageHelper';
+import { getImageUrl, getPrimaryImage } from '~/utils/imageHelper';
 import { onMounted, reactive, computed, ref } from 'vue';
 
 const eventStore = useEventStore();
@@ -284,7 +284,7 @@ useHead({
                 <div class="bg-gray-50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow h-full flex flex-col justify-center">
                   <div class="aspect-square overflow-hidden">
                     <img 
-                      :src="getImageUrl(item.image || item.images?.[0]?.url || null)" 
+                      :src="getImageUrl(item.image || getPrimaryImage(item.images) || null)" 
                       :alt="item.name" 
                       class="object-cover w-full h-full"
                     />

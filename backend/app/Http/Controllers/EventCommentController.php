@@ -17,7 +17,10 @@ class EventCommentController extends Controller
     {
         $event = Event::findOrFail($eventId);
         
-        $comments = EventComment::with('user')
+        $comments = EventComment::with([
+            'user:id,user_name,email',
+            'user.profile:id,user_id,avatar_url'
+        ])
             ->where('event_id', $eventId)
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -56,7 +59,7 @@ class EventCommentController extends Controller
             'comment' => $request->comment
         ]);
 
-        $comment->load('user');
+        $comment->load(['user:id,user_name,email', 'user.profile:id,user_id,avatar_url']);
 
         return response()->json([
             'message' => 'Comment added successfully',
@@ -95,7 +98,7 @@ class EventCommentController extends Controller
             'comment' => $request->comment
         ]);
 
-        $comment->load('user');
+        $comment->load(['user:id,user_name,email', 'user.profile:id,user_id,avatar_url']);
 
         return response()->json([
             'message' => 'Comment updated successfully',

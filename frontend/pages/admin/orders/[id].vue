@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useOrderStore } from '~/stores/order'
+import { useAlert } from '~/composables/useAlert'
 import PayMongoBranding from '@/components/PayMongoBranding.vue'
+import Dialog from '@/components/Dialog.vue'
 
 definePageMeta({
   layout: 'admin'
@@ -16,8 +19,13 @@ useHead({
 })
 
 const route = useRoute()
+const orderStore = useOrderStore()
+const { success, error } = useAlert()
 const order = ref<any>(null)
 const loading = ref(false)
+
+const showCancelDialog = ref(false)
+const isCancelling = ref(false)
 
 const orderId = computed(() => route.params.id as string)
 
@@ -76,6 +84,34 @@ const fetchOrder = async () => {
   }
 }
 
+const openCancelDialog = () => {
+  showCancelDialog.value = true
+}
+
+const closeCancelDialog = () => {
+  showCancelDialog.value = false
+}
+
+const cancelOrder = async () => {
+  if (!order.value) return
+
+  isCancelling.value = true
+
+  try {
+    await orderStore.cancelOrder(order.value.id)
+    success('Order Cancelled', `Order #${order.value.id} has been cancelled successfully.`)
+    // Refresh order
+    await fetchOrder()
+  } catch (err: any) {
+    console.error('Error cancelling order:', err)
+    const errorMessage = err?.data?.message || err?.data?.error || err?.message || 'Failed to cancel order. Please try again.'
+    error('Cancellation Failed', errorMessage)
+  } finally {
+    isCancelling.value = false
+    closeCancelDialog()
+  }
+}
+
 onMounted(() => {
   fetchOrder()
 })
@@ -89,15 +125,27 @@ onMounted(() => {
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Order Details</h1>
         <p class="text-sm sm:text-base text-gray-600 mt-1">Order #{{ orderId }}</p>
       </div>
-      <button 
-        @click="goBack" 
-        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-      >
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        Back to Orders
-      </button>
+      <div class="flex items-center space-x-3">
+        <button
+          v-if="order && (order.status === 'pending' || order.status === 'processing')"
+          @click="openCancelDialog"
+          class="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Cancel Order
+        </button>
+        <button 
+          @click="goBack" 
+          class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Orders
+        </button>
+      </div>
     </div>
 
     <!-- Loading State -->
@@ -185,7 +233,7 @@ onMounted(() => {
               <div class="flex-shrink-0">
                 <img 
                   v-if="item.variant?.images && item.variant.images.length > 0"
-                  :src="`/storage/${item.variant.images[0].url}`"
+                  :src="`/storage/${(item.variant.images.find((img: any) => img.is_primary === true) || item.variant.images[0])?.url}`"
                   :alt="item.variant?.product?.name || 'Product'"
                   class="w-20 h-20 object-cover rounded-lg"
                 />
@@ -280,6 +328,43 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Cancel Confirmation Dialog -->
+    <Dialog v-model="showCancelDialog" title="Cancel Order">
+      <div class="flex flex-col items-center text-center">
+        <!-- Warning Icon -->
+        <div class="mb-4 flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100">
+          <Icon name="mdi:alert" class="text-[3rem] text-yellow-600" />
+        </div>
+
+        <!-- Confirmation Message -->
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+          Are you sure you want to cancel this order?
+        </h3>
+        <p class="text-sm text-gray-600 mb-6">
+          This action cannot be undone. The order will be cancelled and the customer may be subject to our cancellation policy.
+        </p>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 w-full">
+          <button
+            @click="closeCancelDialog"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="cancelOrder"
+            :disabled="isCancelling"
+            class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            <span v-if="isCancelling">Cancelling...</span>
+            <span v-else>Cancel Order</span>
+          </button>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 

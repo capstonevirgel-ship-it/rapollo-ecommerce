@@ -21,6 +21,9 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password'),
             'role' => 'user',
             'email_verified_at' => now(),
+            'is_suspended' => false,
+            'suspended_at' => null,
+            'suspension_reason' => null,
         ]);
 
         // Create profile for user
@@ -45,6 +48,9 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('admin123'), // change as needed
             'role' => 'admin',
             'email_verified_at' => now(),
+            'is_suspended' => false,
+            'suspended_at' => null,
+            'suspension_reason' => null,
         ]);
 
         // Run seeders in correct order
@@ -58,6 +64,7 @@ class DatabaseSeeder extends Seeder
             TaxPriceSeeder::class,
             ProductSeeder::class,
             ProductVariantSeeder::class,
+            ProductSizeSeeder::class,
             ProductImageSeeder::class,
             EventSeeder::class,
             ShippingPriceSeeder::class,

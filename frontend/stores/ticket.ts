@@ -128,9 +128,15 @@ export const useTicketStore = defineStore('ticket', () => {
       
       return response
     } catch (err: any) {
-      error.value = err?.data?.message || err?.data?.error || 'Failed to cancel ticket'
+      // Extract error message from various possible response formats
+      const errorMessage = err?.data?.message || err?.data?.error || err?.message || 'Failed to cancel ticket'
+      error.value = errorMessage
       console.error('Error cancelling ticket:', err)
-      throw err
+      
+      // Re-throw with a more structured error
+      const cancelError = new Error(errorMessage)
+      ;(cancelError as any).data = err?.data || {}
+      throw cancelError
     } finally {
       loading.value = false
     }

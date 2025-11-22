@@ -359,15 +359,15 @@ const refreshData = async () => {
                 </div>
               </NuxtLink>
 
-              <NuxtLink to="/admin/categories" class="flex items-center p-2 sm:p-3 bg-zinc-50 rounded-lg hover:bg-zinc-100 transition-colors">
+              <NuxtLink to="/admin/users" class="flex items-center p-2 sm:p-3 bg-zinc-50 rounded-lg hover:bg-zinc-100 transition-colors">
                 <div class="p-2 bg-zinc-900 text-white rounded-lg mr-2 sm:mr-3 flex-shrink-0">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </div>
                 <div class="min-w-0">
-                  <p class="text-sm sm:text-base font-medium text-gray-900">Categories</p>
-                  <p class="text-xs sm:text-sm text-gray-500">Manage categories</p>
+                  <p class="text-sm sm:text-base font-medium text-gray-900">Manage Users</p>
+                  <p class="text-xs sm:text-sm text-gray-500">View & manage customers</p>
                 </div>
               </NuxtLink>
             </div>

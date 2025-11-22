@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
-import { useAlert } from '~/composables/useAlert'
 import { useValidation } from '~/composables/useValidation'
 
 // Disable default layout
@@ -18,7 +17,6 @@ useHead({
 
 const authStore = useAuthStore()
 const router = useRouter()
-const { success, error } = useAlert()
 const { validateForm, rules } = useValidation()
 
 // Form data
@@ -52,7 +50,6 @@ const handleSubmit = async () => {
   
   if (!validation.isValid) {
     errors.value = validation.errors
-    error('Validation Failed', 'Please check the form for errors.')
     return
   }
   
@@ -63,15 +60,10 @@ const handleSubmit = async () => {
       remember: form.remember
     })
     
-    // Show success message
-    success('Login Successful', 'Welcome back!')
-    
     // Redirect will be handled by the store
   } catch (error: any) {
     console.error('Login error:', error)
-    
-    // Show error message
-    error('Login Failed', error?.message || 'Invalid credentials. Please try again.')
+    // Error will be displayed via authStore.error in the template
   }
 }
 
@@ -114,12 +106,11 @@ onMounted(() => {
       <!-- Content -->
       <div class="relative z-10 flex flex-col justify-center px-12 text-white">
         <div class="max-w-md">
-          <h1 class="text-4xl font-bold mb-6 leading-tight">
-            Welcome to 
-            <span class="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300">Rapollo</span>
+          <h1 class="text-4xl font-winner-extra-bold mb-6 leading-tight">
+            RAPOLLO
           </h1>
           <p class="text-xl text-gray-300 leading-relaxed">
-            Discover amazing products and enjoy a seamless shopping experience with our modern e-commerce platform.
+            Your streetwear destination for rap battle culture. Gear up with the freshest drops and represent the movement.
           </p>
         </div>
         
@@ -272,9 +263,6 @@ onMounted(() => {
         </form>
       </div>
     </div>
-    
-    <!-- Alert Component -->
-    <Alert />
   </div>
 </template>
 

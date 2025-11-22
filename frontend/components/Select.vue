@@ -46,6 +46,16 @@ const filteredOptions = computed(() => {
   )
 })
 
+// Check if dropdown content is scrollable (needs bottom padding)
+const isScrollable = computed(() => {
+  const estimatedOptionHeight = 44
+  const searchHeight = props.options.length > 10 ? 50 : 0
+  const containerPadding = 16
+  const estimatedTotalHeight = (filteredOptions.value.length * estimatedOptionHeight) + searchHeight + containerPadding
+  const maxHeight = 500 // Match the default maxHeight
+  return estimatedTotalHeight > maxHeight
+})
+
 const sizeClasses = computed(() => {
   switch (props.size) {
     case 'sm':
@@ -91,12 +101,13 @@ const dropdownStyle = computed(() => {
   const viewportWidth = window.innerWidth
   
   // Estimate dropdown height based on number of options
-  // Each option is approximately 40px, plus padding
-  const estimatedOptionHeight = 40
+  // Each option is approximately 44px (with py-2.5 padding), plus container padding
+  const estimatedOptionHeight = 44
   const searchHeight = props.options.length > 10 ? 50 : 0
+  const containerPadding = 16 // py-2 = 8px top + 8px bottom
   const estimatedDropdownHeight = Math.min(
-    (props.options.length * estimatedOptionHeight) + searchHeight + 16,
-    200
+    (props.options.length * estimatedOptionHeight) + searchHeight + containerPadding,
+    400
   )
   
   // Calculate available space
@@ -108,7 +119,7 @@ const dropdownStyle = computed(() => {
   let top = rect.bottom + 4 // Default: below the select
   let left = rect.left
   let width = rect.width
-  let maxHeight = '200px'
+  let maxHeight = '400px' // Increased default height
   let position = 'fixed' // Use fixed to escape table overflow
   
   // Always default to opening below unless there's really not enough space
@@ -140,7 +151,7 @@ const dropdownStyle = computed(() => {
   }
   
   return {
-    position,
+    position: position as 'fixed',
     top: `${top}px`,
     left: `${left}px`,
     width: `${width}px`,
@@ -240,6 +251,19 @@ const updatePosition = () => {
   }
 }
 
+// Close dropdown on scroll (but not when scrolling inside the dropdown itself)
+const handleScroll = (event: Event) => {
+  if (isOpen.value) {
+    const target = event.target as HTMLElement
+    // Don't close if scrolling inside the dropdown options list
+    if (dropdownRef.value && dropdownRef.value.contains(target)) {
+      return
+    }
+    isOpen.value = false
+    searchQuery.value = ''
+  }
+}
+
 // Watch for dropdown open/close to recalculate position and handle scroll/resize
 watch(isOpen, (newValue) => {
   if (newValue) {
@@ -257,26 +281,26 @@ watch(isOpen, (newValue) => {
         }, 10)
       })
     })
-    // Add scroll and resize listeners for fixed positioning
-    window.addEventListener('scroll', updatePosition, true)
+    // Add scroll and resize listeners - close on scroll, update position on resize
+    window.addEventListener('scroll', handleScroll, true)
     window.addEventListener('resize', updatePosition)
     // Also listen to scroll on parent containers (like DataTable)
     if (selectRef.value) {
       let parent = selectRef.value.parentElement
       while (parent && parent !== document.body) {
-        parent.addEventListener('scroll', updatePosition, true)
+        parent.addEventListener('scroll', handleScroll, true)
         parent = parent.parentElement
       }
     }
   } else {
     // Remove listeners when closed
-    window.removeEventListener('scroll', updatePosition, true)
+    window.removeEventListener('scroll', handleScroll, true)
     window.removeEventListener('resize', updatePosition)
     // Remove parent scroll listeners
     if (selectRef.value) {
       let parent = selectRef.value.parentElement
       while (parent && parent !== document.body) {
-        parent.removeEventListener('scroll', updatePosition, true)
+        parent.removeEventListener('scroll', handleScroll, true)
         parent = parent.parentElement
       }
     }
@@ -294,13 +318,13 @@ watch(() => dropdownRef.value, (newValue) => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', updatePosition, true)
+  window.removeEventListener('scroll', handleScroll, true)
   window.removeEventListener('resize', updatePosition)
   // Clean up parent scroll listeners
   if (selectRef.value) {
     let parent = selectRef.value.parentElement
     while (parent && parent !== document.body) {
-      parent.removeEventListener('scroll', updatePosition, true)
+      parent.removeEventListener('scroll', handleScroll, true)
       parent = parent.parentElement
     }
   }
@@ -369,7 +393,7 @@ onUnmounted(() => {
       <div
         v-if="isOpen"
         ref="dropdownRef"
-        class="fixed z-[9999] bg-white shadow-lg rounded-md py-1 text-base border border-gray-200 focus:outline-none overflow-hidden"
+        class="fixed z-[9999] bg-white shadow-lg rounded-md py-2 text-base border border-gray-200 focus:outline-none overflow-hidden"
         :style="dropdownStyle"
       >
         <!-- Search input (if many options) -->
@@ -384,31 +408,34 @@ onUnmounted(() => {
         </div>
 
         <!-- Options -->
-        <div class="py-1 overflow-y-auto ultra-thin-scrollbar" :style="{ maxHeight: dropdownStyle.maxHeight || '200px' }">
+        <div :class="['overflow-y-auto overflow-x-hidden ultra-thin-scrollbar w-full', { 'pb-16': isScrollable }]" :style="{ maxHeight: dropdownStyle.maxHeight || '500px' }">
           <div
             v-for="option in filteredOptions"
             :key="option.value"
             :class="[
-              'relative cursor-pointer select-none py-2 pl-3 pr-9 leading-snug',
+              'relative select-none py-2.5 pl-3 pr-10 leading-normal w-full',
               {
-                'text-blue-900 bg-blue-50': option.value === modelValue,
-                'text-gray-900 hover:bg-gray-50': option.value !== modelValue && !option.disabled,
-                'text-gray-400 cursor-not-allowed': option.disabled
+                'cursor-pointer text-blue-900 bg-blue-50': option.value === modelValue && !option.disabled,
+                'cursor-pointer text-gray-900 hover:bg-gray-50': option.value !== modelValue && !option.disabled,
+                'text-gray-400 cursor-not-allowed bg-gray-50': option.disabled && !(option as any).isHeader,
+                'cursor-default bg-gray-100': (option as any).isHeader
               }
             ]"
-            @click="selectOption(option)"
+            @click="!option.disabled && selectOption(option)"
           >
             <!-- Custom option slot -->
-            <slot name="option" :option="option" :selected="option.value === modelValue">
-              <span class="block font-normal whitespace-normal break-words pr-2">
-                {{ option.label }}
-              </span>
-            </slot>
+            <div class="w-full min-w-0 pr-2">
+              <slot name="option" :option="option" :selected="option.value === modelValue">
+                <span class="block font-normal whitespace-normal break-words">
+                  {{ option.label }}
+                </span>
+              </slot>
+            </div>
             
             <!-- Selected indicator -->
             <span
-              v-if="option.value === modelValue"
-              class="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600"
+              v-if="option.value === modelValue && !option.disabled"
+              class="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600 pointer-events-none"
             >
               <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
