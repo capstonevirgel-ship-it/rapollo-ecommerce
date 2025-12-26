@@ -63,7 +63,7 @@ export const useEventStore = defineStore('event', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await $fetch<any>('/api/events', {
+      const response = await useCustomFetch<any>('/api/events', {
         method: 'POST',
         body: eventData
       })
@@ -86,7 +86,7 @@ export const useEventStore = defineStore('event', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await $fetch<any>(`/api/events/${eventId}`, {
+      const response = await useCustomFetch<any>(`/api/events/${eventId}`, {
         method: 'PUT',
         body: eventData
       })

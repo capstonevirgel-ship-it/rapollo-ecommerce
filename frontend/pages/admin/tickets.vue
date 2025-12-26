@@ -13,9 +13,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Tickets Management - Admin | RAPOLLO',
+  title: 'Tickets Management - Admin | monogram',
   meta: [
-    { name: 'description', content: 'Manage event tickets and bookings in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'Manage event tickets and bookings in your monogram E-commerce store.' }
   ]
 })
 
@@ -135,7 +135,7 @@ const formatDateForCSV = (dateString: string) => {
   const day = String(date.getDate()).padStart(2, '0')
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}`
+  return `${day}/${month}/${year} ${hours}:${minutes}`
 }
 
 const getDownloadDate = () => {
@@ -211,9 +211,9 @@ const exportTickets = () => {
         />
 
         <StatCard
-          title="Pending"
-          :value="statistics.pending_tickets"
-          icon="mdi:clock-outline"
+          title="Used"
+          :value="statistics.used_tickets"
+          icon="mdi:check-circle-outline"
         />
 
         <StatCard

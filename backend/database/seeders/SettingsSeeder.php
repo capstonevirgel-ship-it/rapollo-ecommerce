@@ -93,7 +93,7 @@ class SettingsSeeder extends Seeder
             ],
             [
                 'key' => 'contact_facebook',
-                'value' => null,
+                'value' => 'https://www.facebook.com/rapollocebu',
                 'type' => 'string',
                 'group' => 'contact',
                 'description' => 'Facebook page URL',
@@ -102,7 +102,7 @@ class SettingsSeeder extends Seeder
             ],
             [
                 'key' => 'contact_instagram',
-                'value' => null,
+                'value' => 'https://www.instagram.com/rapollo.ubec/',
                 'type' => 'string',
                 'group' => 'contact',
                 'description' => 'Instagram profile URL',
@@ -110,11 +110,11 @@ class SettingsSeeder extends Seeder
                 'updated_at' => $now,
             ],
             [
-                'key' => 'contact_twitter',
-                'value' => null,
+                'key' => 'contact_youtube',
+                'value' => 'https://www.youtube.com/RAPOLLO',
                 'type' => 'string',
                 'group' => 'contact',
-                'description' => 'Twitter profile URL',
+                'description' => 'YouTube channel URL',
                 'created_at' => $now,
                 'updated_at' => $now,
             ],

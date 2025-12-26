@@ -134,8 +134,8 @@ onBeforeUnmount(() => {
       v-for="link in navLinks" 
       :key="link.path" 
       :to="link.path" 
-      class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1 font-winner-extra-bold"
-      active-class="text-primary-600 font-medium font-winner-extra-bold"
+      class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1 font-poppins"
+      active-class="text-primary-600 font-medium font-poppins"
     >
       <Icon :name="link.icon" class="text-lg lg:!hidden" />
       <span>{{ link.label }}</span>
@@ -149,7 +149,7 @@ onBeforeUnmount(() => {
       >
         <NuxtLink to="/shop" class="flex items-center space-x-1">
           <Icon name="mdi:shopping-outline" class="text-lg lg:!hidden" />
-          <span class="font-winner-extra-bold">Shop</span>
+          <span class="font-poppins">Shop</span>
         </NuxtLink>
         <Icon 
           name="mdi:chevron-down" 

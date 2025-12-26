@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useCartStore } from '~/stores/cart'
 import { usePurchaseStore } from '~/stores/purchase'
 import { useTicketStore } from '~/stores/ticket'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 import Carousel from '~/components/Carousel.vue'
 import { getImageUrl, getPrimaryVariantImage } from '~/utils/imageHelper'
 
@@ -14,9 +15,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Order Successful | RAPOLLO',
+  title: 'Order Successful | monogram',
   meta: [
-    { name: 'description', content: 'Your order has been successfully placed at Rapollo E-commerce.' }
+    { name: 'description', content: 'Your order has been successfully placed at monogram E-commerce.' }
   ]
 })
 
@@ -95,7 +96,7 @@ const fetchPurchaseDetails = async () => {
     // Try ticket purchase first if ticket_purchase_id is available
     if (ticketPurchaseId) {
       try {
-        const response = await $fetch(`/api/ticket-purchases/${ticketPurchaseId}`) as { data: any }
+        const response = await useCustomFetch(`/api/ticket-purchases/${ticketPurchaseId}`) as { data: any }
         purchaseData = response.data
         purchaseData.type = 'ticket' // Mark as ticket purchase
         
@@ -379,7 +380,7 @@ const getProductItemTotalPrice = (item: any) => {
 
               <div class="p-6 space-y-6">
                 <div class="space-y-2">
-                  <h2 class="text-2xl font-winner-extra-bold leading-tight text-gray-900">
+                  <h2 class="text-2xl font-poppins leading-tight text-gray-900">
                     {{ displayTickets[0].event.title }}
                   </h2>
                   <p v-if="displayTickets[0].event.location" class="text-sm font-medium text-gray-600">
@@ -414,7 +415,7 @@ const getProductItemTotalPrice = (item: any) => {
                   <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_22px_0_0)]"></div>
                 </div>
                 <div class="flex flex-col items-center text-center space-y-3">
-                  <span class="text-xl font-winner-extra-bold tracking-[0.2em] text-gray-900">
+                  <span class="text-xl font-poppins tracking-[0.2em] text-gray-900">
                     {{ displayTickets[0].ticketNumber }}
                   </span>
                   <div class="w-full h-px bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)]"></div>
@@ -445,7 +446,7 @@ const getProductItemTotalPrice = (item: any) => {
 
                   <div class="p-6 space-y-6">
                     <div class="space-y-2">
-                      <h2 class="text-2xl font-winner-extra-bold leading-tight text-gray-900">
+                      <h2 class="text-2xl font-poppins leading-tight text-gray-900">
                         {{ item.event.title }}
                       </h2>
                       <p v-if="item.event.location" class="text-sm font-medium text-gray-600">
@@ -480,7 +481,7 @@ const getProductItemTotalPrice = (item: any) => {
                       <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_22px_0_0)]"></div>
                     </div>
                     <div class="flex flex-col items-center text-center space-y-3">
-                      <span class="text-xl font-winner-extra-bold tracking-[0.2em] text-gray-900">
+                      <span class="text-xl font-poppins tracking-[0.2em] text-gray-900">
                         {{ item.ticketNumber }}
                       </span>
                       <div class="w-full h-px bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)]"></div>

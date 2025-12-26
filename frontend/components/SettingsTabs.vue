@@ -56,7 +56,7 @@ const gmapLink = ref('')
 // Social Links
 const contactFacebook = ref('')
 const contactInstagram = ref('')
-const contactTwitter = ref('')
+const contactYoutube = ref('')
 
 // Team Members
 const teamMembers = ref<TeamMember[]>([])
@@ -175,7 +175,7 @@ const loadSettings = async () => {
       // Social Links
       contactFacebook.value = contact.contact_facebook || ''
       contactInstagram.value = contact.contact_instagram || ''
-      contactTwitter.value = contact.contact_twitter || ''
+      contactYoutube.value = contact.contact_youtube || ''
 
       // Store Address + Map Links
       const store = settings.store || {}
@@ -328,7 +328,7 @@ const saveSocialLinks = async () => {
     const settings = [
       { key: 'contact_facebook', value: contactFacebook.value, group: 'contact', type: 'text' },
       { key: 'contact_instagram', value: contactInstagram.value, group: 'contact', type: 'text' },
-      { key: 'contact_twitter', value: contactTwitter.value, group: 'contact', type: 'text' }
+      { key: 'contact_youtube', value: contactYoutube.value, group: 'contact', type: 'text' }
     ]
 
     await settingsStore.updateSettings({ settings })
@@ -935,20 +935,20 @@ watch(() => props.activeTab, (newTab) => {
           <p v-else class="text-gray-900 py-2 text-sm break-all">{{ contactInstagram || 'Not set' }}</p>
         </div>
 
-        <!-- Twitter -->
+        <!-- YouTube -->
         <div>
           <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
-            <Icon name="mdi:twitter" class="text-lg mr-2" />
-            Twitter
+            <Icon name="mdi:youtube" class="text-lg mr-2" />
+            YouTube
           </label>
           <input
             v-if="props.isEditingMode"
-            v-model="contactTwitter"
+            v-model="contactYoutube"
             type="url"
             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-            placeholder="https://twitter.com/yourpage"
+            placeholder="https://youtube.com/yourchannel"
           />
-          <p v-else class="text-gray-900 py-2 text-sm break-all">{{ contactTwitter || 'Not set' }}</p>
+          <p v-else class="text-gray-900 py-2 text-sm break-all">{{ contactYoutube || 'Not set' }}</p>
         </div>
       </div>
 

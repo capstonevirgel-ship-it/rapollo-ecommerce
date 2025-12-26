@@ -70,20 +70,76 @@ onMounted(async () => {
   }
 })
 
+// Get runtime config for base URL
+const config = useRuntimeConfig()
+
 // Set page title with meta_title from backend
 useHead(() => {
   if (product.value) {
     const title = product.value.meta_title || product.value.name
+    const fullTitle = `${title} | monogram`
+    const description = product.value.meta_description || product.value.description || ''
+    const keywords = product.value.meta_keywords || ''
+    const robots = product.value.robots || 'index,follow'
+    
+    // Determine canonical URL - use product's canonical_url if provided, otherwise construct from route
+    let canonicalUrl = product.value.canonical_url
+    if (!canonicalUrl) {
+      const baseURL = config.public.baseURL || 'http://localhost:3000'
+      canonicalUrl = `${baseURL}/shop/${route.params.category}/${route.params.sub_category}/${route.params.product}`
+    }
+    
+    // Get primary image URL for Open Graph
+    const primaryImage = product.value.images?.find(img => img.is_primary) || product.value.images?.[0]
+    const imageUrl = primaryImage ? getImageUrl(primaryImage.url) : ''
+    const fullImageUrl = imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `${config.public.baseURL || 'http://localhost:3000'}${imageUrl}`) : ''
+    
+    const metaTags: any[] = [
+      { name: 'title', content: fullTitle },
+      { name: 'description', content: description },
+      { name: 'robots', content: robots }
+    ]
+    
+    // Only add keywords if not empty
+    if (keywords) {
+      metaTags.push({ name: 'keywords', content: keywords })
+    }
+    
+    // Open Graph tags for better social media sharing
+    metaTags.push(
+      { property: 'og:title', content: fullTitle },
+      { property: 'og:description', content: description },
+      { property: 'og:type', content: 'product' },
+      { property: 'og:url', content: canonicalUrl }
+    )
+    
+    if (fullImageUrl) {
+      metaTags.push({ property: 'og:image', content: fullImageUrl })
+    }
+    
+    // Twitter Card tags
+    metaTags.push(
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: fullTitle },
+      { name: 'twitter:description', content: description }
+    )
+    
+    if (fullImageUrl) {
+      metaTags.push({ name: 'twitter:image', content: fullImageUrl })
+    }
+    
+    const linkTags: any[] = [
+      { rel: 'canonical', href: canonicalUrl }
+    ]
+    
     return {
-      title: `${title} | RAPOLLO`,
-      meta: [
-        { name: 'description', content: product.value.meta_description || product.value.description || '' },
-        { name: 'keywords', content: product.value.meta_keywords || '' }
-      ]
+      title: fullTitle,
+      meta: metaTags,
+      link: linkTags
     }
   }
   return {
-    title: 'Product | RAPOLLO'
+    title: 'Product | monogram'
   }
 })
 
@@ -315,10 +371,11 @@ const currentImages = computed(() => {
       return false // Don't include main product images when color is selected
     })
     
-    // Combine and deduplicate images
+    // Combine and deduplicate images by URL (not ID) to avoid showing duplicate images
+    // Multiple variants of the same color may have different image IDs but same URL
     const allColorImages = [...variantImages, ...productImagesForColor]
     const uniqueImages = allColorImages.filter((image, index, self) => 
-      index === self.findIndex(img => img.id === image.id)
+      index === self.findIndex(img => img.url === image.url)
     )
     
     return uniqueImages.length > 0 ? uniqueImages : []
@@ -623,7 +680,11 @@ const addToCart = async () => {
     const sameColorVariantIds = prod.variants
       .filter((v: any) => (v?.color_id ?? v?.color?.id) === variantColorId)
       .map((v: any) => v.id)
-    return (prod.images || []).filter((img: any) => img?.variant_id && sameColorVariantIds.includes(img.variant_id))
+    const colorImages = (prod.images || []).filter((img: any) => img?.variant_id && sameColorVariantIds.includes(img.variant_id))
+    // Deduplicate by URL to avoid showing duplicate images (same file, different IDs)
+    return colorImages.filter((img: any, index: number, self: any[]) => 
+      index === self.findIndex((i: any) => i.url === img.url)
+    )
   }
 
   try {

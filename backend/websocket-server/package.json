@@ -1,0 +1,24 @@
+{
+  "name": "rapollo-websocket-server",
+  "version": "1.0.0",
+  "description": "WebSocket server for real-time notifications",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.5",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5"
+  },
+  "keywords": [
+    "websocket",
+    "socket.io",
+    "notifications"
+  ],
+  "author": "",
+  "license": "ISC"
+}
+

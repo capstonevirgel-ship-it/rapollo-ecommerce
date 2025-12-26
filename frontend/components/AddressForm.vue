@@ -89,6 +89,37 @@ watch(cityId, async (id) => {
 
 watch([street, zipcode, barangayName], () => emitAddress())
 
+// Watch for changes to modelValue prop to update form when parent changes it
+watch(() => props.modelValue, async (newVal) => {
+  if (newVal) {
+    street.value = newVal.street || ''
+    zipcode.value = newVal.zipcode || ''
+    
+    // Only update province/city/barangay if they're different and provinces are loaded
+    if (provinces.value.length > 0 && newVal.province && newVal.province !== provinceName.value) {
+      const province = provinces.value.find((p: any) => p.name === newVal.province)
+      if (province) {
+        provinceId.value = province.psgc_id
+        provinceName.value = province.name
+        await fetchCities(province.psgc_id)
+        
+        if (newVal.city && newVal.city !== cityName.value) {
+          const city = cities.value.find((c: any) => c.name === newVal.city)
+          if (city) {
+            cityId.value = city.psgc_id
+            cityName.value = city.name
+            await fetchBarangays(city.psgc_id)
+            
+            if (newVal.barangay && newVal.barangay !== barangayName.value) {
+              barangayName.value = newVal.barangay
+            }
+          }
+        }
+      }
+    }
+  }
+}, { deep: true })
+
 const emitAddress = () => {
   emit('update:modelValue', {
     street: street.value?.trim() || '',
@@ -102,10 +133,38 @@ const emitAddress = () => {
 onMounted(async () => {
   await fetchProvinces()
 
-  // Optionally hydrate from v-model
+  // Hydrate from v-model - initialize all fields including province, city, barangay
   if (props.modelValue) {
     street.value = props.modelValue.street || ''
     zipcode.value = props.modelValue.zipcode || ''
+    
+    // Initialize province if provided
+    if (props.modelValue.province) {
+      const province = provinces.value.find((p: any) => p.name === props.modelValue?.province)
+      if (province) {
+        provinceId.value = province.psgc_id
+        provinceName.value = province.name
+        await fetchCities(province.psgc_id)
+        
+        // Initialize city if provided
+        if (props.modelValue.city) {
+          const city = cities.value.find((c: any) => c.name === props.modelValue?.city)
+          if (city) {
+            cityId.value = city.psgc_id
+            cityName.value = city.name
+            await fetchBarangays(city.psgc_id)
+            
+            // Initialize barangay if provided
+            if (props.modelValue.barangay) {
+              barangayName.value = props.modelValue.barangay
+            }
+          }
+        }
+      }
+    }
+    
+    // Emit initial address
+    emitAddress()
   }
 })
 

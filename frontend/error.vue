@@ -14,7 +14,7 @@ const props = defineProps<ErrorProps>()
 
 // Set page title based on error code
 useHead({
-  title: `${props.error.statusCode} - ${props.error.statusCode === 404 ? 'Page Not Found' : 'Error'} | RAPOLLO`,
+  title: `${props.error.statusCode} - ${props.error.statusCode === 404 ? 'Page Not Found' : 'Error'} | monogram`,
   meta: [
     { name: 'description', content: props.error.message || 'An error occurred.' }
   ]
@@ -33,7 +33,7 @@ const handleError = () => {
       <div class="max-w-2xl w-full text-center">
         <!-- Error Code -->
         <div class="mb-6">
-          <h1 class="text-8xl md:text-9xl font-winner-extra-bold text-gray-900 mb-4">
+          <h1 class="text-8xl md:text-9xl font-poppins text-gray-900 mb-4">
             {{ error.statusCode }}
           </h1>
           <h2 class="text-3xl md:text-4xl font-bold text-gray-900">

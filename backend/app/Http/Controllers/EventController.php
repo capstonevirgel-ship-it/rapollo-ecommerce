@@ -113,10 +113,40 @@ class EventController extends Controller
             $event->poster_url = $request->poster_url;
         }
 
-        $event->update($request->only([
-            'title', 'content', 'date', 'location', 
-            'base_ticket_price', 'max_tickets'
-        ]));
+        // Update event fields - handle FormData correctly
+        // Use all() to get all form data, then check each field
+        $data = $request->all();
+        
+        if (isset($data['title'])) {
+            $event->title = $data['title'];
+        }
+        
+        // Content can contain HTML - preserve it as-is
+        if (array_key_exists('content', $data)) {
+            $event->content = $data['content'] ?? null;
+        }
+        
+        if (isset($data['date'])) {
+            $event->date = $data['date'];
+        }
+        
+        if (isset($data['location'])) {
+            $event->location = $data['location'];
+        }
+        
+        // Handle base_ticket_price - check if key exists in data array
+        if (array_key_exists('base_ticket_price', $data)) {
+            $value = $data['base_ticket_price'];
+            $event->base_ticket_price = ($value === '' || $value === null) ? null : $value;
+        }
+        
+        // Handle max_tickets
+        if (array_key_exists('max_tickets', $data)) {
+            $value = $data['max_tickets'];
+            $event->max_tickets = ($value === '' || $value === null) ? null : (int)$value;
+        }
+        
+        $event->save();
 
         return response()->json([
             'message' => 'Event updated successfully',

@@ -9,9 +9,12 @@ use App\Models\User;
 use App\Models\TicketPurchase;
 use App\Models\Payment;
 use App\Services\PayMongoService;
+use App\Services\NotificationService;
+use App\Mail\TicketCancelled;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class TicketController extends Controller
@@ -182,12 +185,39 @@ class TicketController extends Controller
             'status' => 'required|in:pending,confirmed,cancelled,used'
         ]);
 
-        $ticket = Ticket::findOrFail($id);
+        $ticket = Ticket::with(['event', 'user'])->findOrFail($id);
+        $oldStatus = $ticket->status;
         $ticket->status = $request->status;
         $ticket->save();
 
-        return response()->json([
-            'message' => 'Ticket status updated successfully',
+        // If admin cancelled the ticket, send notification to user (no email, no admin notification)
+        if ($oldStatus !== 'cancelled' && $request->status === 'cancelled') {
+            $user = $ticket->user;
+            if ($user) {
+                // Send in-app notification to user only
+                NotificationService::createEventNotification(
+                    $user,
+                    'Ticket Cancelled',
+                    'Your ticket ' . $ticket->ticket_number . ' for "' . ($ticket->event->title ?? 'the event') . '" has been cancelled by an administrator.',
+                    [
+                        'action_url' => '/my-tickets',
+                        'action_text' => 'View Tickets'
+                    ]
+                );
+            }
+
+            // Check for auto-suspension after cancellation
+            if ($user && $user->role === 'user') {
+                \App\Services\UserSuspensionService::checkAndSuspendIfNeeded($user);
+            }
+        }
+
+            // Broadcast count update to all admins via WebSocket
+            $pendingTicketsCount = Ticket::where('status', 'pending')->count();
+            \App\Services\NotificationService::broadcastCountUpdate('pending_tickets', $pendingTicketsCount);
+
+            return response()->json([
+                'message' => 'Ticket status updated successfully',
             'ticket' => $ticket->load(['event', 'user'])
         ]);
     }
@@ -209,13 +239,56 @@ class TicketController extends Controller
             ], 400);
         }
 
+        $oldStatus = $ticket->status;
         $ticket->status = 'cancelled';
         $ticket->save();
+
+        // Load relationships for notifications
+        $ticket->load(['event', 'user']);
 
         // Check for auto-suspension after cancellation
         $user = $ticket->user;
         if ($user && $user->role === 'user') {
             \App\Services\UserSuspensionService::checkAndSuspendIfNeeded($user);
+        }
+
+        // Send email and in-app notification to user
+        if ($oldStatus !== 'cancelled' && $user) {
+            try {
+                // Send email notification to user
+                Mail::to($user->email)->send(new TicketCancelled($ticket, $user));
+            } catch (\Exception $e) {
+                Log::error('Failed to send ticket cancellation email', [
+                    'ticket_id' => $ticket->id,
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            // Send in-app notification to user
+            NotificationService::createEventNotification(
+                $user,
+                'Ticket Cancelled',
+                'Your ticket ' . $ticket->ticket_number . ' for "' . ($ticket->event->title ?? 'the event') . '" has been cancelled.',
+                [
+                    'action_url' => '/my-tickets',
+                    'action_text' => 'View Tickets'
+                ]
+            );
+
+            // Send in-app notification to all admins (no email)
+            $adminUsers = User::where('role', 'admin')->get();
+            foreach ($adminUsers as $admin) {
+                NotificationService::createEventNotification(
+                    $admin,
+                    'Ticket Cancelled by Customer',
+                    $user->user_name . ' has cancelled their ticket ' . $ticket->ticket_number . ' for "' . ($ticket->event->title ?? 'an event') . '".',
+                    [
+                        'action_url' => '/admin/tickets',
+                        'action_text' => 'View Tickets'
+                    ]
+                );
+            }
         }
 
         return response()->json([

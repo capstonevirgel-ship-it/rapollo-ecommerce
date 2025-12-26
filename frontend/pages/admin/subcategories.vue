@@ -5,9 +5,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Subcategories Management - Admin | RAPOLLO',
+  title: 'Subcategories Management - Admin | monogram',
   meta: [
-    { name: 'description', content: 'Manage product subcategories in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'Manage product subcategories in your monogram E-commerce store.' }
   ]
 })
 

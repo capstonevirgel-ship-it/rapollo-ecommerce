@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { useAdminCountsStore } from '@/stores/adminCounts';
+import { useWebSocket } from '@/composables/useWebSocket';
 
 const emit = defineEmits(['width-change']);
 const authStore = useAuthStore();
+const adminCountsStore = useAdminCountsStore();
+const { socket, isConnected } = useWebSocket();
 
 // Sidebar state
 const isCollapsed = ref(false);
@@ -16,11 +20,12 @@ const mobileMenuTop = ref('48px'); // Default fallback
 
 // Menu items
 const menuItems = ref([
-  { link: '/admin/dashboard', label: 'Dashboard', icon: 'view-dashboard' },
-  { link: '/admin/orders', label: 'Orders', icon: 'clipboard-list' },
+  { link: '/admin/dashboard', label: 'Dashboard', icon: 'view-dashboard', badgeKey: null },
+  { link: '/admin/orders', label: 'Orders', icon: 'clipboard-list', badgeKey: 'orders' },
   {
     label: 'Catalog',
     icon: 'shopping',
+    badgeKey: null,
     children: [
       { link: '/admin/products', label: 'Products' },
       { link: '/admin/product-labels', label: 'Product Labels' },
@@ -29,12 +34,20 @@ const menuItems = ref([
       { link: '/admin/brands', label: 'Brands' }
     ]
   },
-  { link: '/admin/events', label: 'Events', icon: 'calendar' },
-  { link: '/admin/tickets', label: 'Tickets', icon: 'ticket' },
-  { link: '/admin/users', label: 'Users', icon: 'account-group' },
-  { link: '/admin/notifications', label: 'Notifications', icon: 'bell' },
-  { link: '/admin/settings', label: 'Settings', icon: 'cog' }
+  { link: '/admin/events', label: 'Events', icon: 'calendar', badgeKey: null },
+  { link: '/admin/tickets', label: 'Tickets', icon: 'ticket', badgeKey: 'tickets' },
+  { link: '/admin/users', label: 'Users', icon: 'account-group', badgeKey: null },
+  { link: '/admin/notifications', label: 'Notifications', icon: 'bell', badgeKey: null },
+  { link: '/admin/settings', label: 'Settings', icon: 'cog', badgeKey: null }
 ]);
+
+// Get badge count for menu item
+const getBadgeCount = (badgeKey: string | null) => {
+  if (!badgeKey) return 0
+  if (badgeKey === 'orders') return adminCountsStore.pendingOrdersCount
+  if (badgeKey === 'tickets') return adminCountsStore.pendingTicketsCount
+  return 0
+}
 
 // Computed properties
 const sidebarWidth = computed(() => isCollapsed.value ? '74px' : '250px');
@@ -130,6 +143,25 @@ onMounted(() => {
   
   // Add resize listener
   window.addEventListener('resize', handleResize);
+
+  // Fetch admin counts if user is admin
+  if (authStore.isAdmin) {
+    adminCountsStore.fetchAllCounts();
+  }
+});
+
+// Watch for WebSocket connection and listen for count updates
+watch(isConnected, (connected) => {
+  if (connected && authStore.isAdmin && socket.value) {
+    // Listen for order count updates
+    socket.value.on('admin_count_update', (data: { type: string; count: number }) => {
+      if (data.type === 'pending_orders') {
+        adminCountsStore.setPendingOrdersCount(data.count);
+      } else if (data.type === 'pending_tickets') {
+        adminCountsStore.setPendingTicketsCount(data.count);
+      }
+    });
+  }
 });
 
 onBeforeUnmount(() => {
@@ -208,12 +240,24 @@ defineExpose({
               <div v-else>
                 <NuxtLink 
                   :to="item.link" 
-                  class="flex items-center hover:bg-gray-700 transition-colors duration-200 rounded"
+                  class="flex items-center hover:bg-gray-700 transition-colors duration-200 rounded relative"
                   :class="isCollapsed ? 'justify-center py-3 px-0' : 'justify-start py-3 px-3'"
                   active-class="rounded bg-gray-200 text-gray-900" 
                 >
                   <Icon :name="`mdi:${item.icon}`" class="text-xl flex-shrink-0" />
                   <span v-if="!isCollapsed" class="ml-3">{{ item.label }}</span>
+                  <span 
+                    v-if="!isCollapsed && getBadgeCount(item.badgeKey) > 0" 
+                    class="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]"
+                  >
+                    {{ getBadgeCount(item.badgeKey) > 99 ? '99+' : getBadgeCount(item.badgeKey) }}
+                  </span>
+                  <span 
+                    v-if="isCollapsed && getBadgeCount(item.badgeKey) > 0" 
+                    class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]"
+                  >
+                    {{ getBadgeCount(item.badgeKey) > 99 ? '99+' : getBadgeCount(item.badgeKey) }}
+                  </span>
                 </NuxtLink>
               </div>
             </li>
@@ -310,12 +354,18 @@ defineExpose({
             <div v-else>
               <NuxtLink
                 :to="item.link"
-                class="flex items-center gap-2.5 py-2 px-3 rounded hover:bg-gray-700 transition-colors duration-200"
+                class="flex items-center gap-2.5 py-2 px-3 rounded hover:bg-gray-700 transition-colors duration-200 relative"
                 active-class="bg-gray-200 text-gray-900"
                 @click="mobileMenuOpen = false"
               >
                 <Icon :name="`mdi:${item.icon}`" class="text-lg" />
-                <span class="text-base">{{ item.label }}</span>
+                <span class="text-base flex-1">{{ item.label }}</span>
+                <span 
+                  v-if="getBadgeCount(item.badgeKey) > 0" 
+                  class="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]"
+                >
+                  {{ getBadgeCount(item.badgeKey) > 99 ? '99+' : getBadgeCount(item.badgeKey) }}
+                </span>
               </NuxtLink>
             </div>
           </li>

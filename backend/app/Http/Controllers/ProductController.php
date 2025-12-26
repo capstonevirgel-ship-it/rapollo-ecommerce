@@ -9,6 +9,7 @@ use App\Models\Size;
 use App\Models\Rating;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -150,6 +151,14 @@ class ProductController extends Controller
             ], 404);
         }
 
+        // Add color_id to each size based on default color
+        if ($product->sizes && $product->default_color_id) {
+            $product->sizes->transform(function ($size) use ($product) {
+                $size->color_id = $product->default_color_id;
+                return $size;
+            });
+        }
+
         return response()->json($product);
     }
 
@@ -217,10 +226,10 @@ class ProductController extends Controller
             'size_stocks'       => 'nullable|array', // Stock per size for products without color variants
             'size_stocks.*'     => 'integer|min:0',
             
-            // Default color
+            // Default color (required)
             'default_color_id'   => 'nullable|integer|exists:colors,id',
-            'default_color_name' => 'nullable|string|max:100',
-            'default_color_hex'  => 'nullable|string|max:7',
+            'default_color_name' => 'required_without:default_color_id|string|max:100',
+            'default_color_hex'  => 'required_without:default_color_id|string|max:7',
             
             // Sizes
             'sizes'             => 'nullable|array',
@@ -264,7 +273,7 @@ class ProductController extends Controller
                 ], 422);
             }
 
-            // Handle default color
+            // Handle default color (required)
             $defaultColorId = null;
             if (!empty($validated['default_color_id'])) {
                 $defaultColorId = $validated['default_color_id'];
@@ -276,6 +285,10 @@ class ProductController extends Controller
                     ]
                 );
                 $defaultColorId = $color->id;
+            } else {
+                return response()->json([
+                    'message' => 'Default color is required (either default_color_id or default_color_name with default_color_hex)',
+                ], 422);
             }
 
             // Set product base_price if provided (variants will inherit from product)
@@ -332,53 +345,91 @@ class ProductController extends Controller
                 $product->sizes()->attach($validated['sizes']);
             }
 
-            // If product has sizes but no color variants, create size-only variants
-            if (!empty($validated['sizes']) && empty($validated['variants'])) {
-                foreach ($validated['sizes'] as $sizeId) {
-                    // Use stock from size_stocks if provided, otherwise use product stock
-                    $stock = $validated['size_stocks'][$sizeId] ?? ($validated['stock'] ?? 0);
-                    
-                    // Create variant with size but no color (for products with sizes but no color variants)
-                    $product->variants()->create([
-                        'color_id'  => $defaultColorId, // Use default color if available, otherwise null
-                        'size_id'   => $sizeId,
-                        'stock'     => $stock,
-                        'sku'       => (!empty($validated['sku'])) ? ($validated['sku'] . '-' . $sizeId) : null,
-                    ]);
-                }
-            }
+            // Handle variant creation based on different scenarios:
+            // 1. Default color only, no size: Create single variant with default color, no size
+            // 2. Default color only, with size: Create variants with default color for each size
+            // 3. Color variant, no size: Create variants for those colors (no size), and also default color (no size)
+            // 4. Color variant and size: Create variants for those colors with sizes, and also default color with sizes
 
-            // Variants (color variants)
+            // First, create variants for user-specified colors (if any)
             if (!empty($validated['variants'])) {
                 foreach ($validated['variants'] as $variantData) {
                     // Handle color: check existing by name & hex first
-                $color = Color::where('name', $variantData['color_name'])
-                              ->where('hex_code', $variantData['color_hex'])
-                              ->first();
+                    $color = Color::where('name', $variantData['color_name'])
+                                  ->where('hex_code', $variantData['color_hex'])
+                                  ->first();
 
-                if (!$color) {
-                    $color = Color::create([
-                        'name'     => $variantData['color_name'],
-                        'hex_code' => $variantData['color_hex'],
-                    ]);
-                }
-                $colorId = $color->id;
+                    if (!$color) {
+                        $color = Color::create([
+                            'name'     => $variantData['color_name'],
+                            'hex_code' => $variantData['color_hex'],
+                        ]);
+                    }
+                    $colorId = $color->id;
 
-                // Create variants for each available size, or a single variant if no sizes
-                if (!empty($variantData['available_sizes'])) {
-                    // Create individual variants for each available size
-                    foreach ($variantData['available_sizes'] as $sizeId) {
-                        // Use individual stock per size if provided, otherwise use the general stock
-                        $stock = $variantData['size_stocks'][$sizeId] ?? $variantData['stock'];
+                    // Create variants for each available size, or a single variant if no sizes
+                    if (!empty($variantData['available_sizes'])) {
+                        // Upload images once (to first variant) to avoid duplicates
+                        $uploadedImagePaths = [];
+                        $firstVariantForImages = null;
                         
+                        // Create individual variants for each available size
+                        foreach ($variantData['available_sizes'] as $sizeId) {
+                            // Use individual stock per size if provided, otherwise use the general stock
+                            // Handle both string and integer keys (FormData sends string keys)
+                            $stock = $variantData['size_stocks'][$sizeId] 
+                                  ?? $variantData['size_stocks'][(string)$sizeId] 
+                                  ?? $variantData['stock'];
+                            
+                            $variant = $product->variants()->create([
+                                'color_id'  => $colorId,
+                                'size_id'   => $sizeId,
+                                'stock'     => $stock,
+                                'sku'       => $variantData['sku'] . '-' . $sizeId, // Unique SKU per size
+                            ]);
+
+                            // Upload images only for the first variant, then reuse paths for others
+                            if (!empty($variantData['images'])) {
+                                if ($firstVariantForImages === null) {
+                                    // First variant: upload images
+                                    $firstVariantForImages = $variant;
+                                    foreach ($variantData['images'] as $i => $variantImage) {
+                                        $path = $variantImage->store('variants', 'public');
+                                        $uploadedImagePaths[] = [
+                                            'path' => $path,
+                                            'is_primary' => $i === 0,
+                                            'sort_order' => $i,
+                                        ];
+                                        $variant->images()->create([
+                                            'product_id' => $product->id,
+                                            'url'        => $path,
+                                            'is_primary' => $i === 0,
+                                            'sort_order' => $i,
+                                        ]);
+                                    }
+                                } else {
+                                    // Subsequent variants: reuse the same uploaded image paths
+                                    foreach ($uploadedImagePaths as $imgData) {
+                                        $variant->images()->create([
+                                            'product_id' => $product->id,
+                                            'url'        => $imgData['path'],
+                                            'is_primary' => $imgData['is_primary'],
+                                            'sort_order' => $imgData['sort_order'],
+                                        ]);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Create a single variant without size when no sizes are selected
                         $variant = $product->variants()->create([
-                            'color_id'  => $colorId,
-                            'size_id'   => $sizeId,
-                            'stock'     => $stock,
-                            'sku'       => $variantData['sku'] . '-' . $sizeId, // Unique SKU per size
+                            'color_id'   => $colorId,
+                            'size_id'    => null, // No size specified
+                            'stock'      => $variantData['stock'],
+                            'sku'        => $variantData['sku'],
                         ]);
 
-                        // Variant images for this specific size variant
+                        // Variant images for this variant
                         if (!empty($variantData['images'])) {
                             foreach ($variantData['images'] as $i => $variantImage) {
                                 $path = $variantImage->store('variants', 'public');
@@ -391,36 +442,61 @@ class ProductController extends Controller
                             }
                         }
                     }
-                } else {
-                    // Create a single variant without size when no sizes are selected
-                    $variant = $product->variants()->create([
-                        'color_id'   => $colorId,
-                        'size_id'    => null, // No size specified
-                        'stock'      => $variantData['stock'],
-                        'sku'        => $variantData['sku'],
-                    ]);
-
-                    // Variant images for this variant
-                    if (!empty($variantData['images'])) {
-                        foreach ($variantData['images'] as $i => $variantImage) {
-                            $path = $variantImage->store('variants', 'public');
-                            $variant->images()->create([
-                                'product_id' => $product->id,
-                                'url'        => $path,
-                                'is_primary' => $i === 0,
-                                'sort_order' => $i,
-                            ]);
-                        }
-                    }
                 }
             }
+
+            // Now handle default color variants
+            // Check if default color already has variants (from user-specified colors above)
+            $defaultColorHasVariants = $product->variants()
+                ->where('color_id', $defaultColorId)
+                ->exists();
+            
+            // If default color doesn't have variants yet, create them
+            if (!$defaultColorHasVariants) {
+                if (!empty($validated['sizes'])) {
+                    // Scenario 2 & 4: Default color with sizes
+                    foreach ($validated['sizes'] as $sizeId) {
+                        // Use stock from size_stocks if provided, otherwise use product stock
+                        // Handle both string and integer keys (FormData sends string keys)
+                        $stock = $validated['size_stocks'][$sizeId] 
+                              ?? $validated['size_stocks'][(string)$sizeId] 
+                              ?? ($validated['stock'] ?? 0);
+                        
+                        // Create variant for default color with size
+                        $product->variants()->create([
+                            'color_id'  => $defaultColorId,
+                            'size_id'   => $sizeId,
+                            'stock'     => $stock,
+                            'sku'       => (!empty($validated['sku'])) ? ($validated['sku'] . '-' . $sizeId) : null,
+                        ]);
+                    }
+                } else {
+                    // Scenario 1 & 3: Default color without sizes
+                    $product->variants()->create([
+                        'color_id'  => $defaultColorId,
+                        'size_id'   => null,
+                        'stock'     => $validated['stock'] ?? 0,
+                        'sku'       => $validated['sku'] ?? null,
+                    ]);
+                }
             }
 
             DB::commit();
 
+            // Load product with relationships
+            $product = $product->load('brand', 'defaultColor', 'subcategory.category', 'sizes', 'variants.color', 'variants.size', 'variants.images', 'images');
+            
+            // Add color_id to each size based on default color
+            if ($product->sizes && $product->default_color_id) {
+                $product->sizes->transform(function ($size) use ($product) {
+                    $size->color_id = $product->default_color_id;
+                    return $size;
+                });
+            }
+
             return response()->json([
                 'message' => 'Product created successfully',
-                'product' => $product->load('brand', 'defaultColor', 'subcategory.category', 'sizes', 'variants.color', 'variants.size', 'variants.images', 'images'),
+                'product' => $product,
             ], 201);
 
         } catch (\Exception $e) {
@@ -436,6 +512,15 @@ class ProductController extends Controller
     {
         try {
             $product = Product::where('slug', $slug)->firstOrFail();
+            
+            // LOG: Raw request data
+            Log::info('🔴 BACKEND: Update request received', [
+                'slug' => $slug,
+                'product_id' => $product->id,
+                'has_variants' => $request->has('variants'),
+                'variants_count' => is_array($request->input('variants')) ? count($request->input('variants')) : 0,
+                'raw_variants' => $request->input('variants')
+            ]);
 
             $validated = $request->validate([
                 'name'              => 'sometimes|string|max:255',
@@ -456,6 +541,8 @@ class ProductController extends Controller
                 'base_price'        => 'nullable|numeric|min:0',
                 'stock'             => 'nullable|integer|min:0',
                 'sku'               => 'nullable|string|max:50|unique:products,sku,' . $product->id,
+                'size_stocks'       => 'nullable|array', // Stock per size for products without color variants
+                'size_stocks.*'     => 'integer|min:0',
                 
                 // Default color
                 'default_color_id'   => 'nullable|integer|exists:colors,id',
@@ -479,6 +566,8 @@ class ProductController extends Controller
                 // Variants
                 'variants'                  => 'nullable|array',
                 'variants.*.id'             => 'nullable|integer|exists:product_variants,id',
+                'variants.*.variant_ids'   => 'nullable|array',
+                'variants.*.variant_ids.*' => 'integer|exists:product_variants,id',
                 'variants.*.color_id'       => 'nullable|integer|exists:colors,id',
                 'variants.*.color_name'     => 'nullable|string|max:100',
                 'variants.*.color_hex'      => 'nullable|string|max:7',
@@ -491,7 +580,7 @@ class ProductController extends Controller
                 'variants.*.existing_images' => 'nullable|array',
                 'variants.*.existing_images.*' => 'integer|exists:product_images,id',
                 'variants.*.images_to_delete' => 'nullable|array',
-                'variants.*.images_to_delete.*' => 'integer|exists:product_images,id',
+                'variants.*.images_to_delete.*' => 'integer',
                 'variants.*.new_images'     => 'nullable|array',
                 'variants.*.new_images.*'   => 'image|mimes:jpeg,png,jpg,webp|max:2048',
                 'variants.*.primary_existing_image_id' => 'nullable|integer|exists:product_images,id',
@@ -587,13 +676,53 @@ class ProductController extends Controller
             }
 
             // Handle variants
+            // Get default color ID to preserve its variants
+            $defaultColorId = null;
+            if (!empty($validated['default_color_id'])) {
+                $defaultColorId = $validated['default_color_id'];
+            } elseif (!empty($validated['default_color_name']) && !empty($validated['default_color_hex'])) {
+                $defaultColor = \App\Models\Color::where('name', $validated['default_color_name'])
+                    ->where('hex_code', $validated['default_color_hex'])
+                    ->first();
+                if ($defaultColor) {
+                    $defaultColorId = $defaultColor->id;
+                }
+            }
+            
             if (isset($validated['variants'])) {
                 // Get existing variant IDs
                 $existingVariantIds = $product->variants()->pluck('id')->toArray();
-                $submittedVariantIds = array_filter(array_column($validated['variants'], 'id'));
                 
-                // Delete variants that are no longer in the submitted list
+                // Collect all submitted variant IDs (from 'id' and 'variant_ids' arrays)
+                $submittedVariantIds = [];
+                foreach ($validated['variants'] as $variantData) {
+                    if (!empty($variantData['id'])) {
+                        $submittedVariantIds[] = $variantData['id'];
+                    }
+                    if (!empty($variantData['variant_ids']) && is_array($variantData['variant_ids'])) {
+                        $submittedVariantIds = array_merge($submittedVariantIds, $variantData['variant_ids']);
+                    }
+                }
+                $submittedVariantIds = array_unique(array_filter($submittedVariantIds));
+                
+                // Preserve default color variants - don't delete them
+                if ($defaultColorId) {
+                    $defaultColorVariantIds = $product->variants()
+                        ->where('color_id', $defaultColorId)
+                        ->pluck('id')
+                        ->toArray();
+                    $submittedVariantIds = array_merge($submittedVariantIds, $defaultColorVariantIds);
+                }
+                
+                // Delete variants that are no longer in the submitted list (excluding default color variants)
                 $variantsToDelete = array_diff($existingVariantIds, $submittedVariantIds);
+                // Don't delete default color variants
+                if ($defaultColorId) {
+                    $variantsToDelete = array_filter($variantsToDelete, function($id) use ($product, $defaultColorId) {
+                        $variant = $product->variants()->find($id);
+                        return $variant && $variant->color_id != $defaultColorId;
+                    });
+                }
                 foreach ($variantsToDelete as $variantId) {
                     $variant = $product->variants()->find($variantId);
                     if ($variant) {
@@ -608,7 +737,17 @@ class ProductController extends Controller
                 }
 
                 // Update or create variants
-                foreach ($validated['variants'] as $variantData) {
+                Log::info('🔴 BACKEND: Starting variant processing', [
+                    'variants_count' => count($validated['variants'] ?? [])
+                ]);
+                
+                foreach ($validated['variants'] as $vIndex => $variantData) {
+                    Log::info("🔴 BACKEND: Processing variant index {$vIndex}", [
+                        'variant_data' => $variantData,
+                        'has_images_to_delete' => isset($variantData['images_to_delete']),
+                        'images_to_delete' => $variantData['images_to_delete'] ?? 'NOT SET'
+                    ]);
+                    
                     // Handle color
                     $colorId = null;
                     if (!empty($variantData['color_id'])) {
@@ -628,36 +767,183 @@ class ProductController extends Controller
 
                     if (!$colorId) continue;
 
-                    // Update existing variant or create new
-                    if (!empty($variantData['id'])) {
-                        // Update existing variant
-                        $variant = $product->variants()->find($variantData['id']);
-                        if ($variant) {
-                            $variant->update([
-                                'color_id' => $colorId,
-                                'stock'    => $variantData['stock'] ?? $variant->stock,
-                                'sku'      => $variantData['sku'] ?? $variant->sku,
-                            ]);
+                    // Update existing variants or create new
+                    // If variant_ids is provided, update all variants of this color
+                    $variantsToUpdate = [];
+                    if (!empty($variantData['variant_ids']) && is_array($variantData['variant_ids'])) {
+                        // Update all variants with these IDs
+                        foreach ($variantData['variant_ids'] as $vid) {
+                            $v = $product->variants()->find($vid);
+                            if ($v && $v->color_id == $colorId) {
+                                $variantsToUpdate[] = $v;
+                            }
+                        }
+                    } elseif (!empty($variantData['id'])) {
+                        // Fallback to single variant ID
+                        $v = $product->variants()->find($variantData['id']);
+                        if ($v) {
+                            $variantsToUpdate[] = $v;
+                        }
+                    }
+                    
+                    // Update all variants of this color
+                    // Only add images to the first variant to avoid duplicates
+                    $firstVariant = !empty($variantsToUpdate) ? $variantsToUpdate[0] : null;
+                    $imageHandled = false;
+                    
+                    foreach ($variantsToUpdate as $variant) {
+                        // Update size-specific stock if size_stocks is provided
+                        $stockToUpdate = $variantData['stock'] ?? $variant->stock;
+                        if (!empty($variantData['size_stocks']) && $variant->size_id) {
+                            $sizeId = $variant->size_id;
+                            $sizeStock = $variantData['size_stocks'][$sizeId] 
+                                      ?? $variantData['size_stocks'][(string)$sizeId] 
+                                      ?? null;
+                            if ($sizeStock !== null) {
+                                $stockToUpdate = $sizeStock;
+                            }
+                        }
+                        
+                        // Generate SKU with size suffix if variant has a size
+                        $skuToUpdate = $variant->sku; // Keep existing SKU by default
+                        if (!empty($variantData['sku'])) {
+                            if ($variant->size_id) {
+                                // Append size suffix for variants with sizes
+                                $skuToUpdate = $variantData['sku'] . '-' . $variant->size_id;
+                            } else {
+                                // Use base SKU for variants without sizes
+                                $skuToUpdate = $variantData['sku'];
+                            }
+                        }
+                        
+                        $variant->update([
+                            'color_id' => $colorId,
+                            'stock'    => $stockToUpdate,
+                            'sku'      => $skuToUpdate,
+                        ]);
 
-                            // Handle variant images
-                            // Delete images
-                            if (!empty($variantData['images_to_delete'])) {
+                        // Handle variant images - only for the first variant to avoid duplicates
+                        if ($variant === $firstVariant && !$imageHandled) {
+                            // Get all variants of this color (used for image operations)
+                            $allColorVariants = $product->variants()->where('color_id', $colorId)->get();
+                            
+                            // LOG: Received variant data
+                            \Log::info('🔴 BACKEND: Received variant data for deletion', [
+                                'variant_id' => $variant->id,
+                                'color_id' => $colorId,
+                                'images_to_delete' => $variantData['images_to_delete'] ?? 'NOT SET',
+                                'images_to_delete_type' => gettype($variantData['images_to_delete'] ?? null),
+                                'images_to_delete_empty_check' => empty($variantData['images_to_delete'] ?? []),
+                                'is_array_check' => is_array($variantData['images_to_delete'] ?? null),
+                                'full_variant_data' => $variantData
+                            ]);
+                            
+                            // Delete images - delete all image records with the same URL across all variants of this color
+                            if (!empty($variantData['images_to_delete']) && is_array($variantData['images_to_delete'])) {
+                                \Log::info('🔴 BACKEND: Processing image deletion', [
+                                    'image_ids_to_delete' => $variantData['images_to_delete'],
+                                    'count' => count($variantData['images_to_delete'])
+                                ]);
+                                
                                 foreach ($variantData['images_to_delete'] as $imageId) {
-                                    $image = $variant->images()->where('id', $imageId)->first();
-                                    if ($image) {
-                                        if (Storage::disk('public')->exists($image->url)) {
-                                            Storage::disk('public')->delete($image->url);
+                                    if (empty($imageId)) {
+                                        \Log::warning('🔴 BACKEND: Skipping empty image ID');
+                                        continue;
+                                    }
+                                    
+                                    \Log::info('🔴 BACKEND: Attempting to delete image', ['image_id' => $imageId]);
+                                    
+                                    // Search for the image across all variants of this color (not just first variant)
+                                    // since images can be added to any variant
+                                    $image = null;
+                                    $imageUrl = null;
+                                    
+                                    foreach ($allColorVariants as $colorVariant) {
+                                        $foundImage = $colorVariant->images()->where('id', $imageId)->first();
+                                        if ($foundImage) {
+                                            $image = $foundImage;
+                                            $imageUrl = $foundImage->url;
+                                            \Log::info('🔴 BACKEND: Found image to delete', [
+                                                'image_id' => $imageId,
+                                                'image_url' => $imageUrl,
+                                                'variant_id' => $colorVariant->id
+                                            ]);
+                                            break;
                                         }
-                                        $image->delete();
+                                    }
+                                    
+                                    if (!$image) {
+                                        \Log::error('🔴 BACKEND: Image not found for deletion', [
+                                            'image_id' => $imageId,
+                                            'searched_variants' => $allColorVariants->pluck('id')->toArray()
+                                        ]);
+                                    }
+                                    
+                                    if ($image && $imageUrl) {
+                                        $fileDeleted = false;
+                                        
+                                        \Log::info('🔴 BACKEND: Deleting image records', [
+                                            'image_id' => $imageId,
+                                            'image_url' => $imageUrl,
+                                            'variants_count' => $allColorVariants->count()
+                                        ]);
+                                        
+                                        // Delete all image records with the same URL across all variants of this color
+                                        $deletedCount = 0;
+                                        foreach ($allColorVariants as $colorVariant) {
+                                            $imagesToDelete = $colorVariant->images()->where('url', $imageUrl)->get();
+                                            foreach ($imagesToDelete as $img) {
+                                                $img->delete();
+                                                $deletedCount++;
+                                                \Log::info('🔴 BACKEND: Deleted image record', [
+                                                    'image_id' => $img->id,
+                                                    'variant_id' => $colorVariant->id,
+                                                    'url' => $img->url
+                                                ]);
+                                            }
+                                        }
+                                        
+                                        \Log::info('🔴 BACKEND: Deleted image records count', ['count' => $deletedCount]);
+                                        
+                                        // Delete the physical file only once (since all variants share the same file)
+                                        if (!$fileDeleted && Storage::disk('public')->exists($imageUrl)) {
+                                            Storage::disk('public')->delete($imageUrl);
+                                            $fileDeleted = true;
+                                            \Log::info('🔴 BACKEND: Deleted physical file', ['url' => $imageUrl]);
+                                        } else {
+                                            \Log::warning('🔴 BACKEND: Physical file not found or already deleted', [
+                                                'url' => $imageUrl,
+                                                'exists' => Storage::disk('public')->exists($imageUrl),
+                                                'file_deleted_flag' => $fileDeleted
+                                            ]);
+                                        }
                                     }
                                 }
+                            } else {
+                                \Log::warning('🔴 BACKEND: images_to_delete is empty or not an array', [
+                                    'empty_check' => empty($variantData['images_to_delete'] ?? []),
+                                    'is_array' => is_array($variantData['images_to_delete'] ?? null),
+                                    'value' => $variantData['images_to_delete'] ?? 'NOT SET'
+                                ]);
                             }
 
-                            // Add new images
+                            // Add new images and track their paths for primary image setting
+                            // Upload images once to first variant, then replicate to all variants of same color
+                            $newImagePaths = [];
+                            $uploadedImageData = [];
                             if (!empty($variantData['new_images'])) {
                                 $existingImageCount = $variant->images()->count();
                                 foreach ($variantData['new_images'] as $index => $image) {
                                     $path = $image->store('variants', 'public');
+                                    $newImagePaths[$index] = $path;
+                                    
+                                    // Store image data for replication (is_primary will be set later)
+                                    $uploadedImageData[] = [
+                                        'path' => $path,
+                                        'sort_order' => $existingImageCount + $index,
+                                    ];
+                                    
+                                    // Create image for first variant (is_primary will be set later if needed)
                                     $variant->images()->create([
                                         'product_id' => $product->id,
                                         'url'        => $path,
@@ -665,46 +951,98 @@ class ProductController extends Controller
                                         'sort_order' => $existingImageCount + $index,
                                     ]);
                                 }
-                            }
-
-                            // Set primary image
-                            if (isset($variantData['primary_existing_image_id'])) {
-                                $variant->images()->update(['is_primary' => false]);
-                                $variant->images()->where('id', $variantData['primary_existing_image_id'])
-                                    ->update(['is_primary' => true]);
-                            } elseif (isset($variantData['primary_new_image_index']) && !empty($variantData['new_images'])) {
-                                $variant->images()->update(['is_primary' => false]);
-                                $newImages = $variant->images()->orderBy('sort_order', 'desc')
-                                    ->take(count($variantData['new_images']))
-                                    ->get();
-                                if (isset($newImages[$variantData['primary_new_image_index']])) {
-                                    $newImages[$variantData['primary_new_image_index']]->update(['is_primary' => true]);
+                                
+                                // Replicate images to all other variants of the same color
+                                foreach ($allColorVariants as $colorVariant) {
+                                    if ($colorVariant->id !== $variant->id) {
+                                        foreach ($uploadedImageData as $imgData) {
+                                            $colorVariant->images()->create([
+                                                'product_id' => $product->id,
+                                                'url'        => $imgData['path'],
+                                                'is_primary' => false,
+                                                'sort_order' => $imgData['sort_order'],
+                                            ]);
+                                        }
+                                    }
                                 }
                             }
 
-                            // Update size-specific variants if sizes changed
-                            if (!empty($variantData['available_sizes'])) {
-                                // This is complex - we need to handle size variants properly
-                                // For now, we'll update the existing variant's size if it's a single size variant
-                                // Multi-size variants would need more complex logic
+                            // Set primary image - set for all variants of this color
+                            if (isset($variantData['primary_existing_image_id'])) {
+                                // Get the image URL - search across all variants of this color
+                                $primaryImage = null;
+                                $primaryImageUrl = null;
+                                
+                                // Search for the image across all variants of this color
+                                foreach ($allColorVariants as $colorVariant) {
+                                    $foundImage = $colorVariant->images()->where('id', $variantData['primary_existing_image_id'])->first();
+                                    if ($foundImage) {
+                                        $primaryImage = $foundImage;
+                                        $primaryImageUrl = $foundImage->url;
+                                        break;
+                                    }
+                                }
+                                
+                                if ($primaryImageUrl) {
+                                    // Set all images with this URL as primary, and others as not primary
+                                    foreach ($allColorVariants as $colorVariant) {
+                                        $colorVariant->images()->update(['is_primary' => false]);
+                                        $colorVariant->images()->where('url', $primaryImageUrl)
+                                            ->update(['is_primary' => true]);
+                                    }
+                                }
+                            } elseif (isset($variantData['primary_new_image_index']) && $variantData['primary_new_image_index'] !== null && !empty($newImagePaths)) {
+                                // Get the newly uploaded image path using the index
+                                $newImageIndex = (int)$variantData['primary_new_image_index'];
+                                if (isset($newImagePaths[$newImageIndex]) && !empty($newImagePaths[$newImageIndex])) {
+                                    $newImageUrl = $newImagePaths[$newImageIndex];
+                                    
+                                    // Set all images as not primary first
+                                    foreach ($allColorVariants as $colorVariant) {
+                                        $colorVariant->images()->update(['is_primary' => false]);
+                                    }
+                                    
+                                    // Set this image as primary for all variants of this color
+                                    foreach ($allColorVariants as $colorVariant) {
+                                        $colorVariant->images()->where('url', $newImageUrl)
+                                            ->update(['is_primary' => true]);
+                                    }
+                                }
                             }
+                            $imageHandled = true;
                         }
-                    } else {
-                        // Create new variant (similar to store method)
-                        if (!empty($variantData['available_sizes'])) {
-                            foreach ($variantData['available_sizes'] as $sizeId) {
-                                $stock = $variantData['size_stocks'][$sizeId] ?? ($variantData['stock'] ?? 0);
-                                $variant = $product->variants()->create([
-                                    'color_id'  => $colorId,
-                                    'size_id'   => $sizeId,
-                                    'stock'     => $stock,
-                                    'sku'       => ($variantData['sku'] ?? '') . '-' . $sizeId,
-                                ]);
+                    }
+                    
+                    // If no variants to update but we have available_sizes, create new variants
+                    if (empty($variantsToUpdate) && !empty($variantData['available_sizes'])) {
+                        // Upload images once (to first variant) to avoid duplicates
+                        $uploadedImagePaths = [];
+                        $firstVariantForImages = null;
+                        
+                        foreach ($variantData['available_sizes'] as $sizeId) {
+                            // Handle both string and integer keys (FormData sends string keys)
+                            $stock = $variantData['size_stocks'][$sizeId] 
+                                  ?? $variantData['size_stocks'][(string)$sizeId] 
+                                  ?? ($variantData['stock'] ?? 0);
+                            $variant = $product->variants()->create([
+                                'color_id'  => $colorId,
+                                'size_id'   => $sizeId,
+                                'stock'     => $stock,
+                                'sku'       => ($variantData['sku'] ?? '') . '-' . $sizeId,
+                            ]);
 
-                                // Variant images
-                                if (!empty($variantData['new_images'])) {
+                            // Upload images only for the first variant, then reuse paths for others
+                            if (!empty($variantData['new_images'])) {
+                                if ($firstVariantForImages === null) {
+                                    // First variant: upload images
+                                    $firstVariantForImages = $variant;
                                     foreach ($variantData['new_images'] as $i => $variantImage) {
                                         $path = $variantImage->store('variants', 'public');
+                                        $uploadedImagePaths[] = [
+                                            'path' => $path,
+                                            'is_primary' => $i === 0,
+                                            'sort_order' => $i,
+                                        ];
                                         $variant->images()->create([
                                             'product_id' => $product->id,
                                             'url'        => $path,
@@ -712,38 +1050,119 @@ class ProductController extends Controller
                                             'sort_order' => $i,
                                         ]);
                                     }
+                                } else {
+                                    // Subsequent variants: reuse the same uploaded image paths
+                                    foreach ($uploadedImagePaths as $imgData) {
+                                        $variant->images()->create([
+                                            'product_id' => $product->id,
+                                            'url'        => $imgData['path'],
+                                            'is_primary' => $imgData['is_primary'],
+                                            'sort_order' => $imgData['sort_order'],
+                                        ]);
+                                    }
                                 }
                             }
-                        } else {
-                            $variant = $product->variants()->create([
-                                'color_id'   => $colorId,
-                                'size_id'    => null,
-                                'stock'      => $variantData['stock'] ?? 0,
-                                'sku'        => $variantData['sku'] ?? '',
-                            ]);
+                        }
+                    } else if (empty($variantsToUpdate)) {
+                        // Create new variant without sizes
+                        $variant = $product->variants()->create([
+                            'color_id'   => $colorId,
+                            'size_id'    => null,
+                            'stock'      => $variantData['stock'] ?? 0,
+                            'sku'        => $variantData['sku'] ?? '',
+                        ]);
 
-                            // Variant images
-                            if (!empty($variantData['new_images'])) {
-                                foreach ($variantData['new_images'] as $i => $variantImage) {
-                                    $path = $variantImage->store('variants', 'public');
-                                    $variant->images()->create([
-                                        'product_id' => $product->id,
-                                        'url'        => $path,
-                                        'is_primary' => $i === 0,
-                                        'sort_order' => $i,
-                                    ]);
-                                }
+                        // Variant images
+                        if (!empty($variantData['new_images'])) {
+                            foreach ($variantData['new_images'] as $i => $variantImage) {
+                                $path = $variantImage->store('variants', 'public');
+                                $variant->images()->create([
+                                    'product_id' => $product->id,
+                                    'url'        => $path,
+                                    'is_primary' => $i === 0,
+                                    'sort_order' => $i,
+                                ]);
                             }
                         }
                     }
                 }
             }
 
+            // Handle default color variants - create or update them
+            if (!empty($defaultColorId)) {
+                // Update product's default_color_id
+                $product->update(['default_color_id' => $defaultColorId]);
+                
+                if (!empty($validated['sizes'])) {
+                    // Create or update default color variants for each size
+                    foreach ($validated['sizes'] as $sizeId) {
+                        // Check if variant already exists
+                        $existingVariant = $product->variants()
+                            ->where('color_id', $defaultColorId)
+                            ->where('size_id', $sizeId)
+                            ->first();
+                        
+                        // Use stock from size_stocks if provided, otherwise use product stock
+                        // Handle both string and integer keys (FormData sends string keys)
+                        $stock = $validated['size_stocks'][$sizeId] 
+                              ?? $validated['size_stocks'][(string)$sizeId] 
+                              ?? ($validated['stock'] ?? 0);
+                        
+                        if ($existingVariant) {
+                            // Update existing variant
+                            $existingVariant->update([
+                                'stock' => $stock,
+                                'sku'   => (!empty($validated['sku'])) ? ($validated['sku'] . '-' . $sizeId) : $existingVariant->sku,
+                            ]);
+                        } else {
+                            // Create new variant for default color with size
+                            $product->variants()->create([
+                                'color_id' => $defaultColorId,
+                                'size_id'  => $sizeId,
+                                'stock'    => $stock,
+                                'sku'      => (!empty($validated['sku'])) ? ($validated['sku'] . '-' . $sizeId) : null,
+                            ]);
+                        }
+                    }
+                } else {
+                    // Default color without sizes
+                    $existingVariant = $product->variants()
+                        ->where('color_id', $defaultColorId)
+                        ->whereNull('size_id')
+                        ->first();
+                    
+                    if ($existingVariant) {
+                        $existingVariant->update([
+                            'stock' => $validated['stock'] ?? $existingVariant->stock,
+                            'sku'   => $validated['sku'] ?? $existingVariant->sku,
+                        ]);
+                    } else {
+                        $product->variants()->create([
+                            'color_id' => $defaultColorId,
+                            'size_id'  => null,
+                            'stock'    => $validated['stock'] ?? 0,
+                            'sku'      => $validated['sku'] ?? null,
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
+
+            // Load product with relationships
+            $product = $product->load('brand', 'defaultColor', 'subcategory.category', 'sizes', 'variants.color', 'variants.size', 'variants.images', 'images');
+            
+            // Add color_id to each size based on default color
+            if ($product->sizes && $product->default_color_id) {
+                $product->sizes->transform(function ($size) use ($product) {
+                    $size->color_id = $product->default_color_id;
+                    return $size;
+                });
+            }
 
             return response()->json([
                 'message' => 'Product updated successfully',
-                'product' => $product->load('brand', 'defaultColor', 'subcategory.category', 'sizes', 'variants.color', 'variants.size', 'variants.images', 'images'),
+                'product' => $product,
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {

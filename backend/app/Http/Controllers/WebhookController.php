@@ -602,6 +602,9 @@ class WebhookController extends Controller
                 throw new \Exception('Not enough tickets available');
             }
 
+            // Check remaining tickets before creating tickets
+            $remainingTicketsBefore = $event->remaining_tickets;
+
             // Create tickets
             for ($i = 0; $i < $quantity; $i++) {
                 $ticket = new Ticket();
@@ -613,6 +616,32 @@ class WebhookController extends Controller
                 $ticket->price = $event->ticket_price;
                 $ticket->booked_at = now();
                 $ticket->save();
+            }
+
+            // Refresh event to get updated ticket counts
+            $event->refresh();
+            
+            // Check if event just became sold out
+            if ($event->remaining_tickets <= 0 && $remainingTicketsBefore > 0) {
+                // Event just sold out - notify all admins
+                $eventUrl = "/admin/events";
+                if ($event->id) {
+                    $eventUrl = "/events/{$event->id}";
+                }
+                
+                NotificationService::notifyAllAdmins(
+                    'Event Sold Out',
+                    "Event '{$event->title}' is now sold out.",
+                    'event',
+                    [
+                        'action_url' => $eventUrl,
+                        'action_text' => 'View Event',
+                        'metadata' => [
+                            'event_id' => $event->id,
+                            'event_title' => $event->title,
+                        ]
+                    ]
+                );
             }
 
         } catch (\Exception $e) {
@@ -685,14 +714,54 @@ class WebhookController extends Controller
 
             foreach ($purchaseItems as $item) {
                 if (!$item->variant) {
+                    // Note: Currently all purchase items require variants (foreign key constraint)
+                    // If products without variants are supported in the future, handle here
                     continue;
                 }
 
                 $variant = $item->variant;
+                $oldStock = $variant->stock;
                 $success = $variant->decrementStock($item->quantity);
 
                 if (!$success) {
                     throw new \Exception("Insufficient stock for variant {$variant->id}");
+                }
+
+                // Check if variant is now out of stock
+                $variant->refresh(); // Refresh to get updated stock value
+                if ($variant->stock <= 0 && $oldStock > 0) {
+                    // Variant just went out of stock - notify all admins
+                    $product = $variant->product;
+                    if ($product) {
+                        $variantDetails = [];
+                        if ($variant->color) {
+                            $variantDetails[] = $variant->color->name;
+                        }
+                        if ($variant->size) {
+                            $variantDetails[] = $variant->size->name;
+                        }
+                        $variantInfo = !empty($variantDetails) ? ' (' . implode(', ', $variantDetails) . ')' : '';
+                        
+                        $productUrl = '/admin/products';
+                        if ($product->subcategory && $product->subcategory->category) {
+                            $productUrl = "/shop/{$product->subcategory->category->slug}/{$product->subcategory->slug}/{$product->slug}";
+                        }
+                        
+                        \App\Services\NotificationService::notifyAllAdmins(
+                            'Product Out of Stock',
+                            "Product '{$product->name}'{$variantInfo} is now out of stock.",
+                            'system',
+                            [
+                                'action_url' => $productUrl,
+                                'action_text' => 'View Product',
+                                'metadata' => [
+                                    'product_id' => $product->id,
+                                    'variant_id' => $variant->id,
+                                    'product_name' => $product->name,
+                                ]
+                            ]
+                        );
+                    }
                 }
             }
 

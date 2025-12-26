@@ -7,12 +7,17 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: 'http://localhost:8000/api',
-      baseURL: 'http://localhost:3000'
+      baseURL: 'http://localhost:3000',
+      websocketUrl: process.env.WEBSOCKET_URL || 'http://localhost:6001'
     }
   },
   alias: { "@": resolve(__dirname, ".")},
   compatibilityDate: '2025-05-15',
   devtools: { enabled: true },
+  devServer: {
+    host: '0.0.0.0',
+    port: 3000
+  },
   css: ['~/assets/css/main.css'],
   vite: {
     plugins: [
@@ -20,11 +25,16 @@ export default defineNuxtConfig({
     ]
   },
   nitro: {
-    devProxy: {
-      '/api': {
-        target: 'http://localhost:8000/api',
-        changeOrigin: true,
-        prependPath: true
+    minify: false, // Disable minification for prettier HTML in development
+    compressPublicAssets: false, // Disable compression for cleaner output
+  },
+  experimental: {
+    payloadExtraction: false, // Helps with cleaner HTML structure
+  },
+  app: {
+    head: {
+      htmlAttrs: {
+        lang: 'en'
       }
     }
   },

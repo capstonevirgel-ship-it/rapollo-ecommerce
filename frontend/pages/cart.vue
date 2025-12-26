@@ -8,6 +8,7 @@ import { usePayMongoStore } from '~/stores/paymongo'
 import { getImageUrl } from '~/utils/imageHelper'
 import PayMongoBranding from '@/components/PayMongoBranding.vue'
 import { useAlert } from '~/composables/useAlert'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useShippingStore } from '~/stores/shipping'
 import { useTaxStore } from '~/stores/tax'
 
@@ -57,7 +58,7 @@ onMounted(async () => {
   // Fetch profile to gate checkout and resolve shipping region
   if (authStore.isAuthenticated) {
     try {
-      const profile: any = await $fetch('/api/profile')
+      const profile: any = await useCustomFetch('/api/profile')
       address.value = {
         street: profile?.street,
         barangay: profile?.barangay,
@@ -71,7 +72,7 @@ onMounted(async () => {
         addressError.value = 'Please complete your profile address before checkout.'
       } else {
         addressError.value = ''
-        const res: any = await $fetch('/api/shipping/resolve-region', { params: { city: address.value?.city, province: address.value?.province } })
+        const res: any = await useCustomFetch('/api/shipping/resolve-region', { params: { city: address.value?.city, province: address.value?.province } })
         resolvedRegion.value = res?.region || ''
       }
       
@@ -89,9 +90,9 @@ onMounted(async () => {
 
 // Set page title
 useHead({
-  title: 'Shopping Cart | RAPOLLO',
+  title: 'Shopping Cart | monogram',
   meta: [
-    { name: 'description', content: 'Review your selected items and proceed to checkout at Rapollo E-commerce.' }
+    { name: 'description', content: 'Review your selected items and proceed to checkout at monogram E-commerce.' }
   ]
 })
 
@@ -272,7 +273,7 @@ const proceedToCheckout = async () => {
   
   // Check if phone number is set
   try {
-    const profile: any = await $fetch('/api/profile')
+    const profile: any = await useCustomFetch('/api/profile')
     if (!profile?.phone || profile.phone.trim() === '') {
       warning(
         'Phone Number Required',

@@ -1,4 +1,4 @@
-export function getImageUrl(path: string | null, type: 'product' | 'brand' | 'event' | 'default' = 'default'): string {
+export function getImageUrl(path: string | null, type: 'product' | 'brand' | 'event' | 'avatar' | 'default' = 'default'): string {
   // Check if path is null, undefined, empty string, or just whitespace
   if (!path || path.trim() === '') {
     // Return appropriate placeholder based on type
@@ -9,6 +9,8 @@ export function getImageUrl(path: string | null, type: 'product' | 'brand' | 'ev
         return "/uploads/product_placeholder.svg";
       case 'event':
         return "/uploads/event_placeholder.svg";
+      case 'avatar':
+        return "/uploads/avatar_placeholder.png";
       default:
         return "/placeholder.png";
     }

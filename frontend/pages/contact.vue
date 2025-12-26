@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 import { useAuthStore } from '~/stores/auth'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 import Select from '~/components/Select.vue'
 
 const settingsStore = useSettingsStore()
@@ -43,7 +44,7 @@ const submitForm = async () => {
   message.value = ''
   
   try {
-    await $fetch('/api/contact', {
+    await useCustomFetch('/api/contact', {
       method: 'POST',
       body: form.value
     })
@@ -59,7 +60,7 @@ const submitForm = async () => {
 
 // Set page title and meta
 useHead({
-  title: 'Contact Us | RAPOLLO',
+  title: 'Contact Us | monogram',
   meta: [
     { name: 'description', content: 'Get in touch with Rapollo. Contact our customer support team for any questions about orders, products, or services.' }
   ]
@@ -72,7 +73,7 @@ useHead({
     <div class="bg-gradient-to-r from-zinc-900 to-zinc-700 text-white py-20">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center">
-          <h1 class="text-4xl md:text-5xl font-winner-extra-bold mb-6">Contact Us</h1>
+          <h1 class="text-4xl md:text-5xl font-poppins mb-6">Contact Us</h1>
           <p class="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
             We'd love to hear from you. Get in touch with our team!
           </p>
@@ -86,7 +87,7 @@ useHead({
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <!-- Contact Form -->
           <div>
-            <h2 class="text-3xl font-winner-extra-bold text-gray-900 mb-6">Send us a Message</h2>
+            <h2 class="text-3xl font-poppins text-gray-900 mb-6">Send us a Message</h2>
             <form @submit.prevent="submitForm" class="space-y-6">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -195,7 +196,7 @@ useHead({
 
           <!-- Contact Information -->
           <div>
-            <h2 class="text-3xl font-winner-extra-bold text-gray-900 mb-6">Get in Touch</h2>
+            <h2 class="text-3xl font-poppins text-gray-900 mb-6">Get in Touch</h2>
             <p class="text-lg text-gray-600 mb-8">
               We're here to help! Reach out to us through any of the channels below, and we'll get back to you as soon as possible.
             </p>
@@ -209,10 +210,10 @@ useHead({
                 <div>
                   <h3 class="text-lg font-semibold text-gray-900">Email</h3>
                   <a 
-                    :href="`mailto:${settingsStore.contactEmail || 'info@rapollo.com'}`"
+                    :href="`mailto:${settingsStore.contactEmail || 'info@monogram.com'}`"
                     class="text-gray-600 hover:text-zinc-900 transition-colors"
                   >
-                    {{ settingsStore.contactEmail || 'info@rapollo.com' }}
+                    {{ settingsStore.contactEmail || 'info@monogram.com' }}
                   </a>
                 </div>
               </div>
@@ -247,7 +248,7 @@ useHead({
               </div>
 
               <!-- Social Media -->
-              <div v-if="settingsStore.contactFacebook || settingsStore.contactInstagram || settingsStore.contactTwitter" class="flex items-start">
+              <div v-if="settingsStore.contactFacebook || settingsStore.contactInstagram || settingsStore.contactYoutube" class="flex items-start">
                 <div class="bg-zinc-300 px-3 py-2 rounded-lg mr-4">
                   <Icon name="mdi:share-variant" class="w-6 h-6 text-zinc-800" />
                 </div>
@@ -275,14 +276,14 @@ useHead({
                       Instagram
                     </a>
                     <a 
-                      v-if="settingsStore.contactTwitter"
-                      :href="settingsStore.contactTwitter"
+                      v-if="settingsStore.contactYoutube"
+                      :href="settingsStore.contactYoutube"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-gray-600 hover:text-zinc-900 transition-colors flex items-center"
                     >
-                      <Icon name="mdi:twitter" class="w-5 h-5 mr-1" />
-                      Twitter
+                      <Icon name="mdi:youtube" class="w-5 h-5 mr-1" />
+                      YouTube
                     </a>
                   </div>
                 </div>

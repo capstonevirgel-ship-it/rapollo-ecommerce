@@ -103,10 +103,10 @@ onMounted(async () => {
 
 // Set page title dynamically
 useHead({
-  title: computed(() => `${settingsStore.siteName || 'RAPOLLO'} | Rap Battle Merchandise & Event Tickets`),
+  title: computed(() => `${settingsStore.siteName || 'monogram'} | Premium Brands & Event Tickets`),
   meta: [
     { name: 'description', content: computed(() => settingsStore.siteAbout || 'Welcome to our e-commerce store. We offer quality products at affordable prices.') },
-    { name: 'keywords', content: 'rap battle, merchandise, event tickets, Philippines, rap culture, clothing, apparel' }
+    { name: 'keywords', content: 'premium brands, clothing, fashion, event tickets, Philippines, apparel, merchandise' }
   ]
 })
 </script>
@@ -122,14 +122,14 @@ useHead({
         <div v-else class="flex flex-col md:flex-row items-center justify-around gap-8">
           <div class="lg:w-1/2 py-6 w-full">
             <div>
-              <h1 class="text-6xl font-extrabold text-zinc-900 mb-2 font-winner-extra-bold">
-                {{ settingsStore.siteName || 'Rapollo E-Commerce' }}
+              <h1 class="text-6xl font-extrabold text-zinc-900 mb-2 font-poppins">
+                {{ settingsStore.siteName || 'monogram E-Commerce' }}
               </h1>
               <h3 class="text-xl text-gray-700 mb-4">
-                Rap battle in the Philippines - Buy tickets and merchandises
+                Premium brands and clothing - Buy tickets and merchandise
               </h3>
               <p class="text-gray-500 text-base">
-                Experience the ultimate rap battle culture with exclusive merchandise and event tickets
+                Discover premium brands, quality clothing, and exclusive event tickets all in one place
               </p>
               <div class="mt-6">
                 <NuxtLink 
@@ -246,7 +246,7 @@ useHead({
     <section class="py-[60px] bg-gray-100" id="hot-products">
       <div class="mx-auto px-10 max-w-[1440px] items-center">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-winner-extra-bold">Trending Products</h2>
+          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-poppins">Trending Products</h2>
           <p class="text-gray-600 max-w-2xl mx-auto">
             Check out our most popular items right now
           </p>
@@ -259,7 +259,7 @@ useHead({
     <section class="py-[60px] bg-white" id="new-arrivals">
       <div class="mx-auto px-10 max-w-[1440px] flex flex-col items-center">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-winner-extra-bold">New Arrivals</h2>
+          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-poppins">New Arrivals</h2>
           <p class="text-gray-600 max-w-2xl mx-auto">
             Discover our latest collection of premium t-shirts and casual wear
           </p>
@@ -323,7 +323,7 @@ useHead({
     <section class="py-[60px] bg-gray-100" id="brands">
       <div class="mx-auto px-10 max-w-[1440px]">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-winner-extra-bold">Our Brands</h2>
+          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-poppins">Our Brands</h2>
           <p class="text-gray-600 max-w-2xl mx-auto">
             Discover the premium brands we partner with to bring you the best products
           </p>
@@ -357,9 +357,9 @@ useHead({
     <section class="py-[60px] bg-white" id="events">
       <div class="mx-auto px-10 max-w-[1440px] items-center">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-winner-extra-bold">Upcoming Events</h2>
+          <h2 class="text-3xl font-bold text-gray-900 mb-4 font-poppins">Upcoming Events</h2>
           <p class="text-gray-600 max-w-2xl mx-auto">
-            Don't miss out on our exciting rap battle events and competitions
+            Don't miss out on our exciting events and competitions
           </p>
         </div>
         <EventGallery :events="eventStore.events.slice(0, 5)" :loading="eventStore.loading" />

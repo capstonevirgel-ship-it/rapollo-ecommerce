@@ -6,7 +6,7 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Payment Failed | RAPOLLO',
+  title: 'Payment Failed | monogram',
   meta: [
     { name: 'description', content: 'Your payment could not be processed. Please try again at Rapollo E-commerce.' }
   ]

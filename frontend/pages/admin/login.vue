@@ -8,7 +8,7 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Admin Login | RAPOLLO',
+  title: 'Admin Login | monogram',
   meta: [
     { name: 'description', content: 'Admin login page for Rapollo E-commerce store management.' }
   ]
@@ -47,11 +47,11 @@ async function handleLogin() {
         <div class="mx-auto w-32 h-32 mb-4 flex items-center justify-center rounded-full overflow-hidden">
           <img 
             src="/uploads/admin_logo.svg"
-            alt="Rapollo E-Commerce"
+            alt="monogram E-Commerce"
             class="w-full h-full object-contain"
           />
         </div>
-        <h2 class="text-2xl font-bold text-gray-900 font-winner-extra-bold">{{ settingsStore.siteName || 'Admin Portal' }}</h2>
+        <h2 class="text-2xl font-bold text-gray-900 font-poppins">{{ settingsStore.siteName || 'Admin Portal' }}</h2>
         <p class="mt-1 text-sm text-gray-600">Sign in to access your dashboard</p>
       </div>
 
@@ -136,7 +136,7 @@ async function handleLogin() {
       </div>
 
       <p class="mt-8 text-center text-sm text-gray-500">
-        © {{ new Date().getFullYear() }} {{ settingsStore.siteName || 'Rapollo E-Commerce' }}. All rights reserved.
+        © {{ new Date().getFullYear() }} {{ settingsStore.siteName || 'monogram E-Commerce' }}. All rights reserved.
       </p>
     </div>
   </div>

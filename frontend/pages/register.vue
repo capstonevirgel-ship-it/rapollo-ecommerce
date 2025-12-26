@@ -10,9 +10,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Register | RAPOLLO',
+  title: 'Register | monogram',
   meta: [
-    { name: 'description', content: 'Create your Rapollo E-commerce account to start shopping and booking event tickets.' }
+    { name: 'description', content: 'Create your monogram E-commerce account to start shopping and booking event tickets.' }
   ]
 })
 
@@ -165,8 +165,8 @@ const toggleConfirmPassword = () => {
       <!-- Content -->
       <div class="relative z-10 flex flex-col justify-center px-12 text-white">
         <div class="max-w-md">
-          <h1 class="text-4xl font-winner-extra-bold mb-6 leading-tight">
-            RAPOLLO
+          <h1 class="text-4xl font-poppins mb-6 leading-tight">
+            monogram
           </h1>
           <p class="text-xl text-gray-300 leading-relaxed">
             Create your account and start shopping with us today. Get access to exclusive deals and personalized recommendations.

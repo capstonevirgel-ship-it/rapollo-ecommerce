@@ -1,6 +1,6 @@
-# 🛍️ Rapollo E-commerce
+# 🛍️ monogram E-commerce
 
-Welcome to **Rapollo**, your one-stop online shopping destination! We offer a wide range of products with secure payment processing and fast delivery.
+Welcome to **monogram**, your one-stop online shopping destination! We offer a wide range of premium brands, quality clothing, and event tickets with secure payment processing and fast delivery.
 
 ## ✨ What We Offer
 
@@ -90,11 +90,11 @@ Welcome to **Rapollo**, your one-stop online shopping destination! We offer a wi
 - **FAQ Section**: Find answers to common questions
 
 ### **Contact Information:**
-- **Email**: support@rapollo.com
+- **Email**: support@monogram.com
 - **Phone**: +63 2 1234 5678
 - **Address**: 123 Business District, Metro Manila, Philippines
 
-## 🌟 Why Choose Rapollo?
+## 🌟 Why Choose monogram?
 
 ### **Quality Products**
 - Curated selection of high-quality items
@@ -132,6 +132,6 @@ Download our mobile app for an even better shopping experience:
 
 ---
 
-**Happy Shopping with Rapollo!** 🛍️✨
+**Happy Shopping with monogram!** 🛍️✨
 
 *Your trusted online shopping partner since 2024*

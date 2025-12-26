@@ -94,11 +94,12 @@ export const useNotificationStore = defineStore('notification', () => {
       
       // Update local state
       const notification = notifications.value.find(n => n.id === id)
-      if (notification) {
+      if (notification && !notification.read) {
         notification.read = true
+        decrementUnreadCount()
       }
       
-      // Update unread count
+      // Also fetch to ensure sync
       await fetchUnreadCount()
     } catch (error) {
       console.error('Failed to mark notification as read:', error)
@@ -132,10 +133,16 @@ export const useNotificationStore = defineStore('notification', () => {
       // Update local state
       const index = notifications.value.findIndex(n => n.id === id)
       if (index > -1) {
+        const notification = notifications.value[index]
         notifications.value.splice(index, 1)
+        
+        // Decrement unread count if notification was unread
+        if (!notification.read) {
+          decrementUnreadCount()
+        }
       }
       
-      // Update unread count
+      // Also fetch to ensure sync
       await fetchUnreadCount()
     } catch (error) {
       console.error('Failed to delete notification:', error)
@@ -178,6 +185,35 @@ export const useNotificationStore = defineStore('notification', () => {
     return filtered
   }
 
+  // Add notification from WebSocket (prepend to list)
+  const addNotification = (notification: Notification) => {
+    // Check if notification already exists (avoid duplicates)
+    const exists = notifications.value.some(n => n.id === notification.id)
+    if (exists) {
+      return
+    }
+
+    // Prepend new notification to the beginning of the list
+    notifications.value.unshift(notification)
+    
+    // Limit to prevent memory issues (keep last 100 notifications)
+    if (notifications.value.length > 100) {
+      notifications.value = notifications.value.slice(0, 100)
+    }
+  }
+
+  // Increment unread count
+  const incrementUnreadCount = () => {
+    unreadCount.value = unreadCount.value + 1
+  }
+
+  // Decrement unread count
+  const decrementUnreadCount = () => {
+    if (unreadCount.value > 0) {
+      unreadCount.value = unreadCount.value - 1
+    }
+  }
+
   return {
     notifications,
     unreadCount,
@@ -188,6 +224,9 @@ export const useNotificationStore = defineStore('notification', () => {
     markAllAsRead,
     deleteNotification,
     clearAll,
-    getFilteredNotifications
+    getFilteredNotifications,
+    addNotification,
+    incrementUnreadCount,
+    decrementUnreadCount
   }
 })

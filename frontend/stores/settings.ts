@@ -9,15 +9,15 @@ export const useSettingsStore = defineStore("settings", {
   }),
 
   getters: {
-    siteName: (state) => state.settings.site?.site_name || 'Rapollo E-Commerce',
+    siteName: (state) => state.settings.site?.site_name || 'monogram E-Commerce',
     siteLogo: (state) => state.settings.site?.site_logo || null,
     siteAbout: (state) => state.settings.site?.site_about || 'Welcome to our e-commerce store. We offer quality products at affordable prices.',
-    contactEmail: (state) => state.settings.contact?.contact_email || 'info@rapollo.com',
+    contactEmail: (state) => state.settings.contact?.contact_email || 'info@monogram.com',
     contactPhone: (state) => state.settings.contact?.contact_phone || '+63 123 456 7890',
     contactAddress: (state) => state.settings.contact?.contact_address || '123 Main Street, Manila, Philippines',
     contactFacebook: (state) => state.settings.contact?.contact_facebook || null,
     contactInstagram: (state) => state.settings.contact?.contact_instagram || null,
-    contactTwitter: (state) => state.settings.contact?.contact_twitter || null,
+    contactYoutube: (state) => state.settings.contact?.contact_youtube || null,
   },
 
   actions: {

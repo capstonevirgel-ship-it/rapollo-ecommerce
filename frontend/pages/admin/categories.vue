@@ -5,9 +5,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Categories Management - Admin | RAPOLLO',
+  title: 'Categories Management - Admin | monogram',
   meta: [
-    { name: 'description', content: 'Manage product categories in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'Manage product categories in your monogram E-commerce store.' }
   ]
 })
 

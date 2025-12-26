@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Event } from '~/types'
-import Dialog from '@/components/Dialog.vue'
 import { getImageUrl } from '~/helpers/imageHelper'
 import { useTaxStore } from '~/stores/tax'
 
@@ -11,9 +10,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Events Management - Admin | RAPOLLO',
+  title: 'Events Management - Admin | monogram',
   meta: [
-    { name: 'description', content: 'Manage events and tickets in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'Manage events and tickets in your monogram E-commerce store.' }
   ]
 })
 
@@ -38,145 +37,6 @@ if (!authStore.isAuthenticated || authStore.user?.role !== 'admin') {
 onMounted(() => {
   eventStore.fetchEvents()
 })
-
-const showEditModal = ref(false)
-const editingEvent = ref<Event | null>(null)
-const formData = ref({
-  title: '',
-  content: '',
-  date: '',
-  time: '',
-  location: '',
-  poster_url: '',
-  base_ticket_price: '',
-  max_tickets: ''
-})
-
-// Image handling
-const posterFile = ref<File | null>(null)
-const posterPreview = ref<string | null>(null)
-const isUploadingImage = ref(false)
-
-const resetForm = () => {
-  formData.value = {
-    title: '',
-    content: '',
-    date: '',
-    time: '',
-    location: '',
-    poster_url: '',
-    base_ticket_price: '',
-    max_tickets: ''
-  }
-  posterFile.value = null
-  posterPreview.value = null
-  isUploadingImage.value = false
-}
-
-const openEditModal = (event: Event) => {
-  editingEvent.value = event
-  // Parse date and time from event.date
-  const eventDate = new Date(event.date)
-  const dateStr = eventDate.toISOString().split('T')[0]
-  const timeStr = eventDate.toTimeString().split(' ')[0].slice(0, 5) // HH:MM format
-  
-  formData.value = {
-    title: event.title,
-    content: event.content || '',
-    date: dateStr,
-    time: timeStr,
-    location: event.location || '',
-    poster_url: event.poster_url || '',
-    base_ticket_price: event.base_ticket_price?.toString() || event.ticket_price?.toString() || '',
-    max_tickets: event.max_tickets?.toString() || ''
-  }
-  // Reset image upload state
-  posterFile.value = null
-  posterPreview.value = null
-  isUploadingImage.value = false
-  showEditModal.value = true
-}
-
-const closeModals = () => {
-  showEditModal.value = false
-  editingEvent.value = null
-  resetForm()
-}
-
-// Handle poster image file selection
-const handlePosterChange = (event: any) => {
-  const target = event.target as HTMLInputElement
-  if (target.files && target.files[0]) {
-    posterFile.value = target.files[0]
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      posterPreview.value = e.target?.result as string
-    }
-    reader.readAsDataURL(target.files[0])
-  } else {
-    posterFile.value = null
-    posterPreview.value = null
-  }
-}
-
-// Upload image and get URL (fallback method)
-const uploadPosterImage = async (file: File): Promise<string> => {
-  const formData = new FormData()
-  formData.append('image', file)
-  
-  const response = await $fetch<{ url: string }>('/api/upload', {
-    method: 'POST',
-    body: formData
-  })
-  
-  return response.url
-}
-
-// Get poster image URL for display
-const getPosterImageUrl = (): string | null => {
-  if (posterPreview.value) return posterPreview.value
-  if (formData.value.poster_url) return formData.value.poster_url
-  return null
-}
-
-const updateEvent = async () => {
-  if (!editingEvent.value) return
-  
-  try {
-    isUploadingImage.value = true
-    
-    // Combine date and time
-    const dateTime = formData.value.time 
-      ? `${formData.value.date} ${formData.value.time}:00`
-      : `${formData.value.date} 12:00:00`
-    
-    const eventData = new FormData()
-    eventData.append('title', formData.value.title)
-    eventData.append('content', formData.value.content || '')
-    eventData.append('date', dateTime)
-    eventData.append('location', formData.value.location || '')
-    
-    if (posterFile.value) {
-      eventData.append('poster_image', posterFile.value)
-    } else if (formData.value.poster_url) {
-      eventData.append('poster_url', formData.value.poster_url)
-    }
-    
-    if (formData.value.base_ticket_price) {
-      eventData.append('base_ticket_price', formData.value.base_ticket_price)
-    }
-    if (formData.value.max_tickets) {
-      eventData.append('max_tickets', formData.value.max_tickets)
-    }
-    
-    await eventStore.updateEvent(editingEvent.value.id, eventData as any)
-    closeModals()
-  } catch (error) {
-    console.error('Error updating event:', error)
-  } finally {
-    isUploadingImage.value = false
-  }
-}
 
 const deleteEvent = async (eventId: number) => {
   if (confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
@@ -327,7 +187,7 @@ const formatTime = (dateString: string) => {
             <!-- Action Buttons -->
             <div class="flex space-x-2">
               <button
-                @click="openEditModal(event)"
+                @click="navigateTo(`/admin/edit-event/${event.id}`)"
                 class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-lg hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2"
               >
                 Edit
@@ -344,157 +204,4 @@ const formatTime = (dateString: string) => {
       </div>
     </div>
   </div>
-
-  <!-- Edit Dialog -->
-  <Dialog 
-    v-model="showEditModal" 
-    :title="'Edit Event'"
-    width="800px"
-    class="max-h-[90vh] overflow-hidden"
-  >
-      <div class="max-h-[calc(90vh-120px)] overflow-y-auto pr-2">
-        <form @submit.prevent="updateEvent()" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
-            <input
-              v-model="formData.title"
-              type="text"
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-              placeholder="Enter event title"
-            >
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input
-              v-model="formData.date"
-              type="date"
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-            >
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
-            <input
-              v-model="formData.time"
-              type="time"
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-            >
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Content</label>
-          <textarea
-            v-model="formData.content"
-            rows="3"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-            placeholder="Enter event content"
-          ></textarea>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-          <input
-            v-model="formData.location"
-            type="text"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-            placeholder="Enter event location"
-          >
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Event Poster</label>
-          
-          <div class="flex gap-4">
-            <!-- Image Preview - 2/3 width -->
-            <div class="flex-1 max-w-[66.666%]">
-              <!-- Image Preview -->
-              <div v-if="getPosterImageUrl()" class="mb-4">
-                <div class="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200">
-                  <img 
-                    :src="getPosterImageUrl() || ''" 
-                    alt="Event poster preview" 
-                    class="w-full h-full object-cover" 
-                  />
-                </div>
-                <button
-                  v-if="posterFile || posterPreview"
-                  @click="posterFile = null; posterPreview = null"
-                  class="mt-2 text-sm text-red-600 hover:text-red-700 font-medium inline-flex items-center"
-                >
-                  <Icon name="mdi:close-circle" class="mr-1" />
-                  Remove Selected Image
-                </button>
-              </div>
-              
-              <!-- Upload Area -->
-              <div v-else class="mb-4">
-                <div class="w-full aspect-video bg-gray-50 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
-                  <Icon name="mdi:image-outline" class="text-4xl text-gray-400" />
-                </div>
-              </div>
-            </div>
-            
-            <!-- File Input - 1/3 width -->
-            <div class="flex-1 max-w-[33.333%] flex flex-col justify-center">
-              <input
-                type="file"
-                @change="handlePosterChange"
-                accept="image/*"
-                class="block w-full"
-              />
-              <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF, SVG up to 2MB. Recommended: 16:9 aspect ratio.</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Base Ticket Price (Before Tax) (₱)</label>
-            <input
-              v-model="formData.base_ticket_price"
-              type="number"
-              step="0.01"
-              min="0"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                  placeholder="0.00"
-                >
-              </div>
-              
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Max Tickets</label>
-                <input
-                  v-model="formData.max_tickets"
-                  type="number"
-                  min="1"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                  placeholder="100"
-                >
-              </div>
-            </div>
-
-            <div class="flex space-x-3 pt-4">
-              <button
-                type="button"
-                @click="closeModals"
-            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                :disabled="eventStore.loading"
-            class="flex-1 bg-zinc-900 text-white px-4 py-2 rounded-lg hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50"
-              >
-            {{ (eventStore.loading || isUploadingImage) ? 'Saving...' : 'Update Event' }}
-              </button>
-            </div>
-          </form>
-        </div>
-  </Dialog>
 </template>

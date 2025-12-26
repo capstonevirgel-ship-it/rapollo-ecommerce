@@ -3,6 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useOrderStore } from '~/stores/order'
 import { useAlert } from '~/composables/useAlert'
+import { useCustomFetch } from '~/composables/useCustomFetch'
+import { getImageUrl, getPrimaryVariantImage } from '~/utils/imageHelper'
+import StatusBadge from '@/components/StatusBadge.vue'
 import PayMongoBranding from '@/components/PayMongoBranding.vue'
 import Dialog from '@/components/Dialog.vue'
 
@@ -12,9 +15,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Order Details - Admin | RAPOLLO',
+  title: 'Order Details - Admin | monogram',
   meta: [
-    { name: 'description', content: 'View and manage order details in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'View and manage order details in your monogram E-commerce store.' }
   ]
 })
 
@@ -44,6 +47,56 @@ const formatDate = (dateString: string) => {
   })
 }
 
+const formatPrice = (price: any) => {
+  if (price === null || price === undefined) return '0.00'
+  const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price)
+  return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
+}
+
+const formatShippingAddress = (shippingAddress: any) => {
+  if (!shippingAddress) return 'N/A'
+  
+  if (typeof shippingAddress === 'string') {
+    try {
+      shippingAddress = JSON.parse(shippingAddress)
+    } catch {
+      return shippingAddress
+    }
+  }
+  
+  const parts = []
+  if (shippingAddress.street) parts.push(shippingAddress.street)
+  if (shippingAddress.barangay) parts.push(shippingAddress.barangay)
+  if (shippingAddress.city) parts.push(shippingAddress.city)
+  if (shippingAddress.province) parts.push(shippingAddress.province)
+  if (shippingAddress.zipcode) parts.push(shippingAddress.zipcode)
+  
+  if (parts.length > 0) {
+    return parts.join(', ')
+  }
+  
+  return shippingAddress.complete_address || 'N/A'
+}
+
+// Get tax amount from order (stored when order was created)
+const getTaxAmount = () => {
+  if (order.value?.shipping_address?.tax_amount !== undefined) {
+    return order.value.shipping_address.tax_amount
+  }
+  // Fallback: calculate from subtotal if not stored
+  const subtotal = getSubtotal()
+  // Assuming 12% tax rate as fallback
+  return subtotal * 0.12
+}
+
+// Get subtotal (excluding tax and shipping)
+const getSubtotal = () => {
+  if (!order.value) return 0
+  const shippingAmount = order.value?.shipping_address?.shipping_amount || 0
+  const taxAmount = order.value?.shipping_address?.tax_amount || 0
+  return parseFloat(order.value.total) - shippingAmount - taxAmount
+}
+
 const getPaymentMethod = (payment: any) => {
   if (!payment?.metadata) return payment?.payment_method || 'N/A'
   
@@ -68,7 +121,7 @@ const fetchOrder = async () => {
   console.log('Fetching order details for ID:', orderId.value)
   
   try {
-    const response = await $fetch(`/api/product-purchases/admin/${orderId.value}`) as { data: any }
+    const response = await useCustomFetch(`/api/product-purchases/admin/${orderId.value}`) as { data: any }
     console.log('Order details response:', response)
     
     if (response && response.data) {
@@ -123,7 +176,7 @@ onMounted(() => {
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
       <div>
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Order Details</h1>
-        <p class="text-sm sm:text-base text-gray-600 mt-1">Order #{{ orderId }}</p>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Order {{ order ? `#${order.id.toString().padStart(4, '0')}` : `#${orderId}` }}</p>
       </div>
       <div class="flex items-center space-x-3">
         <button
@@ -171,27 +224,14 @@ onMounted(() => {
       <!-- Order Summary -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <p class="text-sm text-gray-500">Order ID</p>
-            <p class="font-medium">#{{ order.id }}</p>
+            <p class="font-medium">#{{ order.id.toString().padStart(4, '0') }}</p>
           </div>
           <div>
             <p class="text-sm text-gray-500">Status</p>
-            <span :class="[
-              'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-              order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-              order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-              order.status === 'shipped' ? 'bg-purple-100 text-purple-800' :
-              order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-              'bg-gray-100 text-gray-800'
-            ]">
-              {{ order.status?.charAt(0).toUpperCase() + order.status?.slice(1) }}
-            </span>
-          </div>
-          <div>
-            <p class="text-sm text-gray-500">Total Amount</p>
-            <p class="font-medium text-lg">{{ formatCurrency(parseFloat(order.total)) }}</p>
+            <StatusBadge :status="order.status" type="purchase" />
           </div>
           <div>
             <p class="text-sm text-gray-500">Order Date</p>
@@ -232,35 +272,60 @@ onMounted(() => {
               <!-- Product Image -->
               <div class="flex-shrink-0">
                 <img 
-                  v-if="item.variant?.images && item.variant.images.length > 0"
-                  :src="`/storage/${(item.variant.images.find((img: any) => img.is_primary === true) || item.variant.images[0])?.url}`"
+                  :src="getImageUrl(getPrimaryVariantImage(item.variant, item.variant?.product) || '', 'product')"
                   :alt="item.variant?.product?.name || 'Product'"
-                  class="w-20 h-20 object-cover rounded-lg"
+                  class="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                  @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.src = getImageUrl('', 'product') }"
                 />
-                <div v-else class="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
               </div>
               
               <!-- Product Details -->
               <div class="flex-1 min-w-0">
                 <h3 class="text-lg font-medium text-gray-900">{{ item.variant?.product?.name || 'Unknown Product' }}</h3>
-                <p class="text-sm text-gray-500 mt-1">
-                  {{ item.variant?.color?.name || 'N/A' }} - {{ item.variant?.size?.name || 'N/A' }}
-                </p>
-                <p class="text-sm text-gray-500">
-                  Category: {{ item.variant?.product?.subcategory?.category?.name || 'N/A' }} > {{ item.variant?.product?.subcategory?.name || 'N/A' }}
-                </p>
+                
+                <!-- Brand Badge with Logo -->
+                <div v-if="item.variant?.product?.brand" class="mt-1 mb-2">
+                  <span class="inline-flex items-center px-2 py-1 bg-gray-100 rounded-md text-xs font-medium text-gray-700">
+                    <img
+                      v-if="item.variant.product.brand.logo_url"
+                      :src="getImageUrl(item.variant.product.brand.logo_url, 'brand')"
+                      :alt="item.variant.product.brand.name"
+                      class="w-3 h-3 mr-1.5 object-contain"
+                      @error="(e) => { const target = e.target as HTMLImageElement; if (target) target.style.display = 'none' }"
+                    />
+                    {{ item.variant.product.brand.name }}
+                  </span>
+                </div>
+                
+                <!-- Size and Color Badges -->
+                <div class="flex flex-wrap gap-2 text-sm text-gray-500 mt-1">
+                  <span v-if="item.variant?.size?.name" class="inline-flex items-center px-2 py-1 bg-gray-100 rounded-md text-xs">
+                    Size: {{ item.variant.size.name }}
+                  </span>
+                  <span v-if="item.variant?.color" class="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-md text-xs">
+                    <span class="inline-flex items-center">
+                      Color:
+                      <span 
+                        v-if="item.variant.color.hex_code"
+                        class="ml-1.5 w-3 h-3 rounded border border-gray-300"
+                        :style="{ backgroundColor: item.variant.color.hex_code }"
+                      ></span>
+                      <span 
+                        v-else
+                        class="ml-1.5 w-3 h-3 rounded border border-gray-300 bg-gray-200"
+                      ></span>
+                    </span>
+                  </span>
+                </div>
+                
                 <div class="flex items-center justify-between mt-3">
                   <div class="flex items-center space-x-4">
-                    <span class="text-sm text-gray-500">Quantity: {{ item.quantity }}</span>
-                    <span class="text-sm text-gray-500">Price: {{ formatCurrency(parseFloat(item.price)) }}</span>
+                    <span class="text-sm text-gray-600">Quantity: {{ item.quantity }}</span>
+                    <span class="text-sm text-gray-600">Price: {{ formatCurrency(parseFloat(item.price || 0)) }}</span>
                   </div>
                   <div class="text-right">
                     <p class="text-lg font-semibold text-gray-900">
-                      {{ formatCurrency(parseFloat(item.price) * item.quantity) }}
+                      {{ formatCurrency(parseFloat(item.price || 0) * (item.quantity || 0)) }}
                     </p>
                     <p class="text-sm text-gray-500">Subtotal</p>
                   </div>
@@ -307,19 +372,38 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- Shipping Address -->
+      <div v-if="order.shipping_address" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Shipping Address</h2>
+        <div class="text-gray-700">
+          <p class="font-medium">{{ formatShippingAddress(order.shipping_address) }}</p>
+          <p v-if="order.shipping_address?.shipping_amount" class="text-sm text-gray-500 mt-2">
+            Shipping Fee: {{ formatCurrency(order.shipping_address.shipping_amount) }}
+          </p>
+        </div>
+      </div>
+
       <!-- Order Summary -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
         <div class="space-y-2">
           <div class="flex justify-between">
             <span class="text-gray-600">Subtotal</span>
-            <span class="font-medium">{{ formatCurrency(parseFloat(order.total)) }}</span>
+            <span class="font-medium">{{ formatCurrency(getSubtotal()) }}</span>
           </div>
           <div class="flex justify-between">
+            <span class="text-gray-600">Tax</span>
+            <span class="font-medium">{{ formatCurrency(getTaxAmount()) }}</span>
+          </div>
+          <div v-if="order.shipping_address?.shipping_amount" class="flex justify-between">
+            <span class="text-gray-600">Shipping</span>
+            <span class="font-medium">{{ formatCurrency(order.shipping_address.shipping_amount) }}</span>
+          </div>
+          <div v-else class="flex justify-between">
             <span class="text-gray-600">Shipping</span>
             <span class="font-medium">Free</span>
           </div>
-          <div class="border-t pt-2">
+          <div class="border-t pt-2 mt-2">
             <div class="flex justify-between">
               <span class="text-lg font-semibold text-gray-900">Total</span>
               <span class="text-lg font-semibold text-gray-900">{{ formatCurrency(parseFloat(order.total)) }}</span>

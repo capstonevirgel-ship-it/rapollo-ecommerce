@@ -11,9 +11,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Reset Password | RAPOLLO',
+  title: 'Reset Password | monogram',
   meta: [
-    { name: 'description', content: 'Reset your Rapollo E-commerce account password.' }
+    { name: 'description', content: 'Reset your monogram E-commerce account password.' }
   ]
 })
 

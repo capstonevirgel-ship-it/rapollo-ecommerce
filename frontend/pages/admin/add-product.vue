@@ -7,15 +7,18 @@ import { useSizeStore } from "~/stores/size";
 import { useTaxStore } from "~/stores/tax";
 import { useAlert } from "~/composables/useAlert";
 
+// Get runtime config for base URL
+const config = useRuntimeConfig();
+
 definePageMeta({
   layout: 'admin'
 })
 
 // Set page title
 useHead({
-  title: 'Add Product - Admin | RAPOLLO',
+  title: 'Add Product - Admin | monogram',
   meta: [
-    { name: 'description', content: 'Add new products to your Rapollo E-commerce store.' }
+    { name: 'description', content: 'Add new products to your monogram E-commerce store.' }
   ]
 })
 
@@ -71,6 +74,45 @@ const seoDescription = ref("");
 const seoKeywords = ref("");
 const seoCanonicalUrl = ref("");
 const seoRobots = ref("index,follow");
+
+// Helper function to convert string to slug
+const toSlug = (text: string): string => {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/[\s_-]+/g, '-') // Replace spaces, underscores, and multiple hyphens with single hyphen
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+};
+
+// Computed property to generate canonical URL
+const generatedCanonicalUrl = computed(() => {
+  if (!subcategoryId.value || !name.value) {
+    return '';
+  }
+
+  const selectedSubcategory = subcategoryStore.subcategories.find(
+    (s) => s.id === subcategoryId.value
+  );
+
+  if (!selectedSubcategory || !selectedSubcategory.category) {
+    return '';
+  }
+
+  const baseURL = config.public.baseURL || 'http://localhost:3000';
+  const categorySlug = selectedSubcategory.category.slug;
+  const subcategorySlug = selectedSubcategory.slug;
+  const productSlug = toSlug(name.value);
+
+  return `${baseURL}/shop/${categorySlug}/${subcategorySlug}/${productSlug}`;
+});
+
+// Watch for changes to auto-fill canonical URL (only if empty)
+watch([subcategoryId, name, generatedCanonicalUrl], () => {
+  if (generatedCanonicalUrl.value && !seoCanonicalUrl.value) {
+    seoCanonicalUrl.value = generatedCanonicalUrl.value;
+  }
+});
 
 
 // Variants
@@ -180,18 +222,21 @@ const accordionSections = [
 const isAccordionComplete = (sectionId: string) => {
   switch (sectionId) {
     case 'basic':
+      // Check default color is set (either name or id)
+      const hasDefaultColor = (defaultColorId.value !== null) || (defaultColorName.value.trim() !== '' && defaultColorHex.value !== '#000000');
+      
       // If sizes are selected but no variants, check that all sizes have stock
       if (selectedSizes.value.length > 0 && variants.value.length === 0) {
         const allSizesHaveStock = selectedSizes.value.every(sizeId => 
           productSizeStocks.value[sizeId] !== undefined && productSizeStocks.value[sizeId] >= 0
         );
-        return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterSku.value.trim() !== '' && allSizesHaveStock;
+        return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterSku.value.trim() !== '' && hasDefaultColor && allSizesHaveStock;
       }
       // If no sizes selected, check masterStock
       if (selectedSizes.value.length === 0) {
-        return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterStock.value >= 0 && masterSku.value.trim() !== '';
+        return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterStock.value >= 0 && masterSku.value.trim() !== '' && hasDefaultColor;
       }
-      return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterSku.value.trim() !== '';
+      return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterSku.value.trim() !== '' && hasDefaultColor;
     case 'media':
       return images.value.length > 0;
     case 'variants':
@@ -211,7 +256,7 @@ const isAccordionComplete = (sectionId: string) => {
 const searchPreview = computed(() => {
   const title = seoTitle.value || name.value || 'Product Title';
   const metaDescription = seoDescription.value || description.value || 'Product description will appear here...';
-  const url = seoCanonicalUrl.value || `https://yoursite.com/products/${name.value?.toLowerCase().replace(/\s+/g, '-') || 'product-name'}`;
+  const url = seoCanonicalUrl.value || generatedCanonicalUrl.value || `https://yoursite.com/products/${name.value?.toLowerCase().replace(/\s+/g, '-') || 'product-name'}`;
   
   return {
     title: title.length > 60 ? title.substring(0, 60) + '...' : title,
@@ -269,11 +314,16 @@ function handleVariantImages(e: Event, index: number) {
   const target = e.target as HTMLInputElement;
   if (target.files) {
     const newFiles = Array.from(target.files);
-    variants.value[index].images = [...variants.value[index].images, ...newFiles];
+    // Deduplicate files by name and size to prevent duplicates
+    const existingFileNames = new Set(variants.value[index].images.map((f: File) => `${f.name}-${f.size}`));
+    const uniqueNewFiles = newFiles.filter(f => !existingFileNames.has(`${f.name}-${f.size}`));
+    variants.value[index].images = [...variants.value[index].images, ...uniqueNewFiles];
     // Set first image as primary if no primary is set
     if (variants.value[index].primary_image_index === null && variants.value[index].images.length > 0) {
       variants.value[index].primary_image_index = 0;
     }
+    // Reset file input to allow selecting the same file again if needed
+    target.value = '';
   }
 }
 
@@ -397,6 +447,11 @@ async function submitProduct() {
       error("Validation Error", "Please enter a product SKU");
       return;
     }
+    // Validate default color
+    if (!defaultColorId.value && (!defaultColorName.value.trim() || defaultColorHex.value === '#000000')) {
+      error("Validation Error", "Please set a default product color");
+      return;
+    }
 
     let finalBrandId = brandId.value as number | null;
 
@@ -410,6 +465,7 @@ async function submitProduct() {
           sku: v.sku,
           images: v.images,
           primary_image_index: v.primary_image_index,
+          size_stocks: v.size_stocks, // Include size_stocks for individual stock per size
         }))
       : [];
 
@@ -431,11 +487,14 @@ async function submitProduct() {
       default_color_hex: defaultColorHex.value && defaultColorHex.value !== '#000000' ? defaultColorHex.value : undefined,
       // Always send base_price if provided (variants inherit from product)
       base_price: masterBasePrice.value > 0 ? masterBasePrice.value : undefined,
-      // Stock: use size_stocks if sizes are selected and no variants, otherwise use masterStock
-      stock: (selectedSizes.value.length > 0 && variants.value.length === 0) 
+      // Stock: if sizes are selected, don't send general stock (stock is managed per size)
+      // Only send general stock if no sizes are selected
+      stock: selectedSizes.value.length > 0
         ? undefined 
         : (masterStock.value > 0 ? masterStock.value : undefined),
-      size_stocks: (selectedSizes.value.length > 0 && variants.value.length === 0)
+      // Always send size_stocks when sizes are selected (for default color variants)
+      // This is used for default color variants even when other color variants exist
+      size_stocks: selectedSizes.value.length > 0
         ? productSizeStocks.value
         : undefined,
       sku: masterSku.value.trim(),
@@ -618,7 +677,7 @@ async function submitProduct() {
 
               <!-- Default/Main Product Color -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Default Product Color</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Default Product Color *</label>
                 <div class="flex items-center gap-2">
                   <Select
                     v-if="defaultColorMode === 'select'"
@@ -658,7 +717,7 @@ async function submitProduct() {
                     {{ defaultColorMode === 'select' ? 'Custom' : 'Select' }}
                   </button>
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Choose a default color for the main product, or leave empty if no default color is needed.</p>
+                <p class="text-xs text-gray-500 mt-1">Choose a default color for the main product. This is required.</p>
               </div>
 
               <!-- Available Sizes -->
@@ -703,8 +762,8 @@ async function submitProduct() {
                 <p class="text-xs text-gray-500 mt-1">Stock for products without sizes</p>
               </div>
 
-              <!-- Stock per Size (show when sizes are selected and no variants exist) -->
-              <div v-if="selectedSizes.length > 0 && variants.length === 0">
+              <!-- Stock per Size (show when sizes are selected) -->
+              <div v-if="selectedSizes.length > 0">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Stock per Size *</label>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div v-for="sizeId in selectedSizes" :key="sizeId" class="flex items-center gap-2">
@@ -719,7 +778,10 @@ async function submitProduct() {
                     />
                   </div>
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Set individual stock quantities for each size</p>
+                <p class="text-xs text-gray-500 mt-1">
+                  Set individual stock quantities for each size for the default color.
+                  <span v-if="variants.length > 0">Other colors have their own stock per size in the variants section.</span>
+                </p>
               </div>
 
               <!-- SKU -->
@@ -1240,9 +1302,12 @@ async function submitProduct() {
                       <input 
                         v-model="seoCanonicalUrl" 
                         type="url" 
-                        placeholder="https://example.com/product"
+                        :placeholder="generatedCanonicalUrl || 'https://example.com/product'"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                       />
+                      <p v-if="generatedCanonicalUrl && !seoCanonicalUrl" class="text-xs text-gray-500 mt-1">
+                        Suggested: {{ generatedCanonicalUrl }}
+                      </p>
                     </div>
 
                     <div>

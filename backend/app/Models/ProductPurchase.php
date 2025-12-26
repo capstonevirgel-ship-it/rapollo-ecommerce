@@ -49,6 +49,15 @@ class ProductPurchase extends Model
         return $this->morphOne(Payment::class, 'purchasable');
     }
 
+    /**
+     * Get the reference number for this purchase.
+     * Format: ORD-{id}
+     */
+    public function getReferenceNumberAttribute(): string
+    {
+        return 'ORD-' . $this->id;
+    }
+
     // Helper methods
     public function isCompleted()
     {

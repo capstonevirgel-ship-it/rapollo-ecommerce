@@ -289,7 +289,7 @@ const formatCommentDate = (dateString: string) => {
 const setPageMeta = () => {
   if (event.value) {
     useHead({
-      title: `${event.value.title} | RAPOLLO`,
+      title: `${event.value.title} | monogram`,
       meta: [
         { name: 'description', content: event.value.content || `Join us for ${event.value.title} - ${formatDate(event.value.date)} at ${event.value.location || 'TBA'}` }
       ]
@@ -364,7 +364,7 @@ watch(event, (newEvent) => {
                   :src="getImageUrl(event.poster_url)"
                   :alt="event.title"
                   class="h-full w-full object-cover"
-                  @error="($event.target as HTMLImageElement).src = '/placeholder.png'"
+                  @error="($event.target as HTMLImageElement).src = '/uploads/event_placeholder.svg'"
                 >
                 <div v-else class="h-full w-full bg-gradient-to-br from-zinc-900 to-zinc-700 flex items-center justify-center">
                   <Icon name="mdi:ticket-confirmation" class="text-white/80 w-16 h-16" />
@@ -377,7 +377,7 @@ watch(event, (newEvent) => {
             <div class="flex-1 p-6 lg:p-8 flex flex-col gap-6">
               <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                 <div class="space-y-2">
-                  <h1 class="text-2xl md:text-3xl font-winner-extra-bold text-gray-900 leading-tight">
+                  <h1 class="text-2xl md:text-3xl font-poppins text-gray-900 leading-tight">
                     {{ event.title }}
                   </h1>
                   <div v-if="event.location" class="text-sm font-medium text-gray-600 lg:hidden">
@@ -420,7 +420,7 @@ watch(event, (newEvent) => {
                 <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_22px_0_0)]"></div>
               </div>
               <div class="flex flex-col items-center justify-center h-full w-full">
-                <span class="text-xs font-winner-extra-bold tracking-[0.45em] text-gray-900 uppercase text-center whitespace-nowrap lg:-rotate-90 lg:origin-center lg:translate-y-[3.75rem]">
+                <span class="text-xs font-poppins tracking-[0.45em] text-gray-900 uppercase text-center whitespace-nowrap lg:-rotate-90 lg:origin-center lg:translate-y-[3.75rem]">
                   YOUR TICKET NUMBER
                 </span>
                 <div class="mt-4 w-full h-px bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)] lg:h-24 lg:w-12 lg:bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)] lg:mt-6"></div>
@@ -434,12 +434,12 @@ watch(event, (newEvent) => {
       <div class="mt-10 grid gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2">
           <div v-if="event.content" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-            <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-4">About This Event</h2>
+            <h2 class="text-2xl font-poppins text-gray-900 mb-4">About This Event</h2>
             <div class="event-content-preview text-gray-600 leading-relaxed" v-html="fixContentImageUrls(event.content)">
             </div>
           </div>
           <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-            <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-4">About This Event</h2>
+            <h2 class="text-2xl font-poppins text-gray-900 mb-4">About This Event</h2>
             <p class="text-gray-600 leading-relaxed">
               Stay tuned for more details about this event. Check back soon for the full experience breakdown.
             </p>
@@ -519,7 +519,7 @@ watch(event, (newEvent) => {
 
       <!-- Comments Section -->
       <div class="mt-12 bg-white rounded-lg shadow-sm p-8">
-          <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-6">Comments</h2>
+          <h2 class="text-2xl font-poppins text-gray-900 mb-6">Comments</h2>
           
           <!-- Add Comment Form (Authenticated Users Only, Not Admins) -->
           <div v-if="authStore.isAuthenticated && !authStore.isAdmin" class="mb-8">

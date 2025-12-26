@@ -59,8 +59,19 @@ const formatPrice = (price: string | number | undefined) => {
   return isNaN(numPrice) ? 'Free' : `₱${numPrice.toFixed(2)}`
 }
 
+// Generate slug from event title
+const generateSlug = (title: string) => {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .trim()
+}
+
 const handleEventClick = (event: Event) => {
-  navigateTo(`/events/${event.id}`)
+  const slug = generateSlug(event.title)
+  navigateTo(`/events/${slug}?id=${event.id}`)
 }
 
 // Watch for changes in events array

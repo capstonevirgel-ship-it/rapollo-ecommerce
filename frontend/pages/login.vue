@@ -9,9 +9,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Login | RAPOLLO',
+  title: 'Login | monogram',
   meta: [
-    { name: 'description', content: 'Sign in to your Rapollo E-commerce account to access exclusive features and manage your orders.' }
+    { name: 'description', content: 'Sign in to your monogram E-commerce account to access exclusive features and manage your orders.' }
   ]
 })
 
@@ -106,11 +106,11 @@ onMounted(() => {
       <!-- Content -->
       <div class="relative z-10 flex flex-col justify-center px-12 text-white">
         <div class="max-w-md">
-          <h1 class="text-4xl font-winner-extra-bold mb-6 leading-tight">
-            RAPOLLO
+          <h1 class="text-4xl font-poppins mb-6 leading-tight">
+            monogram
           </h1>
           <p class="text-xl text-gray-300 leading-relaxed">
-            Your streetwear destination for rap battle culture. Gear up with the freshest drops and represent the movement.
+            Your destination for premium brands and quality clothing. Discover the latest fashion trends and exclusive collections.
           </p>
         </div>
         

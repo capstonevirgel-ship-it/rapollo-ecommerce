@@ -15,9 +15,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'User Details - Admin | RAPOLLO',
+  title: 'User Details - Admin | monogram',
   meta: [
-    { name: 'description', content: 'View and manage user details in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'View and manage user details in your monogram E-commerce store.' }
   ]
 })
 
@@ -43,11 +43,10 @@ const productPurchaseColumns = [
 ]
 
 const ticketPurchaseColumns = [
-  { label: 'Purchase ID', key: 'purchase_id', width: 15 },
-  { label: 'Event', key: 'event', width: 25 },
-  { label: 'Total', key: 'total', width: 15 },
-  { label: 'Date', key: 'date', width: 15 },
-  { label: 'Tickets', key: 'tickets', width: 30 }
+  { label: 'Purchase ID', key: 'purchase_id', width: 20 },
+  { label: 'Event', key: 'event', width: 30 },
+  { label: 'Total', key: 'total', width: 20 },
+  { label: 'Date', key: 'date', width: 30 }
 ]
 
 const formatCurrency = (amount: number) => {
@@ -183,7 +182,6 @@ const ticketPurchaseRows = computed(() => {
     event: purchase.event?.title || 'N/A',
     total: formatCurrency(purchase.total),
     date: formatDate(purchase.created_at),
-    tickets: `${purchase.tickets?.length || 0} ticket(s)`,
     raw_purchase: purchase
   }))
 })
@@ -333,14 +331,21 @@ onMounted(async () => {
             :rows="productPurchaseRows"
             :loading="loading"
             :pagination="userTransactions?.product_purchases"
+            :show-checkboxes="false"
             @page-change="(page) => { currentTransactionPage = page; fetchTransactions() }"
           >
             <template #cell-status="{ row }">
               <StatusBadge :status="row.status" />
             </template>
           </DataTable>
-          <div v-else class="text-center py-12 text-gray-500">
-            No product purchases found.
+          <div v-else class="text-center py-12">
+            <div class="mx-auto h-24 w-24 text-gray-400">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No product purchases found</h3>
+            <p class="mt-1 text-sm text-gray-500">This user hasn't made any product purchases yet.</p>
           </div>
         </div>
       </div>
@@ -357,10 +362,17 @@ onMounted(async () => {
             :rows="ticketPurchaseRows"
             :loading="loading"
             :pagination="userTransactions?.ticket_purchases"
+            :show-checkboxes="false"
             @page-change="(page) => { currentTransactionPage = page; fetchTransactions() }"
           />
-          <div v-else class="text-center py-12 text-gray-500">
-            No ticket purchases found.
+          <div v-else class="text-center py-12">
+            <div class="mx-auto h-24 w-24 text-gray-400">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+              </svg>
+            </div>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No ticket purchases found</h3>
+            <p class="mt-1 text-sm text-gray-500">This user hasn't purchased any event tickets yet.</p>
           </div>
         </div>
       </div>

@@ -9,15 +9,18 @@ import { useAlert } from "~/composables/useAlert";
 import { useRoute, useRouter } from "vue-router";
 import { getImageUrl } from "~/utils/imageHelper";
 
+// Get runtime config for base URL
+const config = useRuntimeConfig();
+
 definePageMeta({
   layout: 'admin'
 })
 
 // Set page title
 useHead({
-  title: 'Edit Product - Admin | RAPOLLO',
+  title: 'Edit Product - Admin | monogram',
   meta: [
-    { name: 'description', content: 'Edit product details in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'Edit product details in your monogram E-commerce store.' }
   ]
 })
 
@@ -68,6 +71,7 @@ const defaultColorMode = ref<'select' | 'custom'>('select');
 const masterBasePrice = ref<number>(0);
 const masterStock = ref<number>(10);
 const masterSku = ref<string>("");
+const productSizeStocks = ref<{ [sizeId: number]: number }>({}); // Stock per size for default color
 
 // Computed final price with tax
 const masterFinalPrice = computed(() => {
@@ -86,13 +90,53 @@ const seoKeywords = ref("");
 const seoCanonicalUrl = ref("");
 const seoRobots = ref("index,follow");
 
+// Helper function to convert string to slug
+const toSlug = (text: string): string => {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/[\s_-]+/g, '-') // Replace spaces, underscores, and multiple hyphens with single hyphen
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+};
+
+// Computed property to generate canonical URL
+const generatedCanonicalUrl = computed(() => {
+  if (!subcategoryId.value || !name.value) {
+    return '';
+  }
+
+  const selectedSubcategory = subcategoryStore.subcategories.find(
+    (s) => s.id === subcategoryId.value
+  );
+
+  if (!selectedSubcategory || !selectedSubcategory.category) {
+    return '';
+  }
+
+  const baseURL = config.public.baseURL || 'http://localhost:3000';
+  const categorySlug = selectedSubcategory.category.slug;
+  const subcategorySlug = selectedSubcategory.slug;
+  const productSlug = toSlug(name.value);
+
+  return `${baseURL}/shop/${categorySlug}/${subcategorySlug}/${productSlug}`;
+});
+
+// Watch for changes to auto-fill canonical URL (only if empty)
+watch([subcategoryId, name, generatedCanonicalUrl], () => {
+  if (generatedCanonicalUrl.value && !seoCanonicalUrl.value) {
+    seoCanonicalUrl.value = generatedCanonicalUrl.value;
+  }
+});
+
 // Inline brand
 const newBrandMode = ref(false);
 const newBrandName = ref("");
 
 // Variants - enhanced for edit mode
 type Variant = {
-  id?: number; // Existing variant ID
+  id?: number; // First variant ID (for backward compatibility)
+  variant_ids?: number[]; // All variant IDs for this color (for updates)
   color_id?: number; // Existing color ID
   color_name: string;
   color_hex: string;
@@ -100,7 +144,7 @@ type Variant = {
   stock: number;
   sku: string;
   new_images: File[]; // New files to upload
-  existing_images: Array<{ id: number; url: string; is_primary: boolean; sort_order: number }>; // Existing images
+  existing_images: Array<{ id: number; url: string; is_primary: boolean; sort_order: number }>; // Existing images (only from first variant)
   images_to_delete: number[]; // IDs of existing images to delete
   primary_existing_image_id: number | null; // ID of existing primary image
   primary_new_image_index: number | null; // Index of new primary image
@@ -156,6 +200,33 @@ const groupedSubcategories = computed(() => {
   }));
 });
 
+// Flattened subcategories for Select component with group headers
+const subcategoryOptions = computed(() => {
+  const options: Array<{ value: number | string; label: string; categoryName?: string; disabled?: boolean; isHeader?: boolean }> = [];
+  
+  groupedSubcategories.value.forEach(group => {
+    // Add category header (non-selectable)
+    options.push({
+      value: `__header_${group.categoryName}`,
+      label: group.categoryName,
+      categoryName: group.categoryName,
+      disabled: true,
+      isHeader: true
+    } as { value: string; label: string; categoryName: string; disabled: boolean; isHeader: boolean });
+    
+    // Add subcategories
+    group.subcategories.forEach(sub => {
+      options.push({
+        value: sub.id,
+        label: sub.name,
+        categoryName: group.categoryName
+      } as { value: number; label: string; categoryName: string });
+    });
+  });
+  
+  return options;
+});
+
 // Accordion sections
 const accordionSections = [
   { id: 'basic', title: 'Basic Information', icon: 'mdi:information', required: true },
@@ -169,7 +240,21 @@ const accordionSections = [
 const isAccordionComplete = (sectionId: string) => {
   switch (sectionId) {
     case 'basic':
-      return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterStock.value >= 0;
+      // Check default color is set (either name or id)
+      const hasDefaultColor = (defaultColorId.value !== null) || (defaultColorName.value.trim() !== '' && defaultColorHex.value !== '#000000');
+      
+      // If sizes are selected but no variants, check that all sizes have stock
+      if (selectedSizes.value.length > 0 && variants.value.length === 0) {
+        const allSizesHaveStock = selectedSizes.value.every(sizeId => 
+          productSizeStocks.value[sizeId] !== undefined && productSizeStocks.value[sizeId] >= 0
+        );
+        return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterSku.value.trim() !== '' && hasDefaultColor && allSizesHaveStock;
+      }
+      // If no sizes selected, check masterStock
+      if (selectedSizes.value.length === 0) {
+        return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterStock.value >= 0 && masterSku.value.trim() !== '' && hasDefaultColor;
+      }
+      return name.value.trim() !== '' && subcategoryId.value !== null && masterBasePrice.value > 0 && masterSku.value.trim() !== '' && hasDefaultColor;
     case 'media':
       // Media is complete if there are existing images or new images
       return (existingImages.value.length - imagesToDelete.value.length > 0) || newImages.value.length > 0;
@@ -188,7 +273,7 @@ const isAccordionComplete = (sectionId: string) => {
 const searchPreview = computed(() => {
   const title = seoTitle.value || name.value || 'Product Title';
   const metaDescription = seoDescription.value || description.value || 'Product description will appear here...';
-  const url = seoCanonicalUrl.value || `https://yoursite.com/products/${name.value?.toLowerCase().replace(/\s+/g, '-') || 'product-name'}`;
+  const url = seoCanonicalUrl.value || generatedCanonicalUrl.value || `https://yoursite.com/products/${name.value?.toLowerCase().replace(/\s+/g, '-') || 'product-name'}`;
   
   return {
     title: title.length > 60 ? title.substring(0, 60) + '...' : title,
@@ -265,10 +350,24 @@ onMounted(async () => {
       selectedSizes.value = product.sizes.map((s: any) => s.id)
     }
     
-    // Group variants by color
+    // Initialize productSizeStocks from default color variants
+    if (product.variants && product.variants.length > 0 && product.default_color_id) {
+      const defaultColorVariants = product.variants.filter((v: any) => v.color_id === product.default_color_id);
+      defaultColorVariants.forEach((v: any) => {
+        if (v.size_id) {
+          productSizeStocks.value[v.size_id] = v.stock;
+        }
+      });
+    }
+    
+    // Group variants by color (exclude default color variants as they're handled separately)
     const variantsByColor = new Map<string, any[]>();
     if (product.variants && product.variants.length > 0) {
       product.variants.forEach((v: any) => {
+        // Skip default color variants - they're handled via productSizeStocks
+        if (v.color_id === product.default_color_id) {
+          return;
+        }
         const colorKey = v.color?.hex_code || v.color?.name || 'default';
         if (!variantsByColor.has(colorKey)) {
           variantsByColor.set(colorKey, []);
@@ -281,26 +380,59 @@ onMounted(async () => {
         const first = group[0];
         const available_sizes = group.map(v => v.size_id).filter(id => id !== null);
         const size_stocks: { [key: number]: number } = {};
+        const variant_ids: number[] = [];
         
         group.forEach(v => {
+          if (v.id) {
+            variant_ids.push(v.id);
+          }
           if (v.size_id) {
             size_stocks[v.size_id] = v.stock;
           }
         });
         
-        // Get all images for this color variant group
-        const variantImages = group.flatMap((v: any) => v.images || []).map((img: any) => ({
-          id: img.id,
-          url: img.url,
-          is_primary: img.is_primary,
-          sort_order: img.sort_order || 0
-        }));
+        // Collect ALL images from ALL variants in this color group
+        // Images are shared across size variants of the same color, but we need to collect from all variants
+        // to catch images that were added to non-first variants
+        // Use URL as key since the same image URL can have different IDs across variants
+        const allVariantImages = new Map<string, { id: number; url: string; is_primary: boolean; sort_order: number }>();
+        
+        group.forEach(v => {
+          if (v.images && v.images.length > 0) {
+            v.images.forEach((img: any) => {
+              // Use image URL as key to avoid duplicates (same image URL can have different IDs across variants)
+              if (!allVariantImages.has(img.url)) {
+                allVariantImages.set(img.url, {
+                  id: img.id, // Use the first ID we encounter for this URL
+                  url: img.url,
+                  is_primary: img.is_primary,
+                  sort_order: img.sort_order || 0
+                });
+              } else {
+                // If image already exists (same URL), update is_primary if this one is primary
+                // and use the lowest sort_order to maintain proper ordering
+                const existing = allVariantImages.get(img.url)!;
+                if (img.is_primary && !existing.is_primary) {
+                  existing.is_primary = true;
+                }
+                // Keep the lowest sort_order to maintain proper image ordering
+                if ((img.sort_order || 0) < existing.sort_order) {
+                  existing.sort_order = img.sort_order || 0;
+                }
+              }
+            });
+          }
+        });
+        
+        // Convert map to array and sort by sort_order
+        const variantImages = Array.from(allVariantImages.values()).sort((a, b) => a.sort_order - b.sort_order);
         
         // Find primary image
-        const primaryVariantImage = variantImages.find((img: any) => img.is_primary);
+        const primaryVariantImage = variantImages.find((img: any) => img.is_primary) || variantImages[0] || null;
         
         return {
-          id: first.id, // Use first variant ID as group identifier
+          id: first.id, // Use first variant ID as group identifier (for backward compatibility)
+          variant_ids: variant_ids, // Store all variant IDs for this color
           color_id: first.color?.id,
           color_name: first.color?.name || 'Unknown',
           color_hex: first.color?.hex_code || '#000000',
@@ -404,8 +536,18 @@ function setPrimaryNewProductImage(index: number) {
 // Variant image management
 function removeExistingVariantImage(variantIndex: number, imageId: number) {
   const variant = variants.value[variantIndex];
-  variant.images_to_delete.push(imageId);
-  variant.existing_images = variant.existing_images.filter(img => img.id !== imageId);
+  // Verify the image exists in the variant's existing images before deleting
+  const imageExists = variant.existing_images.some((img: any) => img.id === imageId);
+  if (!imageExists) {
+    console.warn(`Image ID ${imageId} not found in variant ${variantIndex} existing images`);
+    return;
+  }
+  // Add image ID to deletion list (only first variant's images are processed by backend)
+  if (!variant.images_to_delete.includes(imageId)) {
+    variant.images_to_delete.push(imageId);
+  }
+  // Remove from existing images list
+  variant.existing_images = variant.existing_images.filter((img: any) => img.id !== imageId);
   // Reset primary if deleted image was primary
   if (variant.primary_existing_image_id === imageId) {
     variant.primary_existing_image_id = null;
@@ -435,12 +577,28 @@ function removeNewVariantImage(variantIndex: number, index: number) {
 
 function setPrimaryExistingVariantImage(variantIndex: number, imageId: number) {
   const variant = variants.value[variantIndex];
-  variant.primary_existing_image_id = imageId;
-  variant.primary_new_image_index = null; // Clear new image primary
+  // Verify the image exists in the variant's existing images and is not marked for deletion
+  const imageExists = variant.existing_images.some((img: any) => img.id === imageId);
+  const isMarkedForDeletion = variant.images_to_delete.includes(imageId);
+  if (imageExists && !isMarkedForDeletion) {
+    variant.primary_existing_image_id = imageId;
+    variant.primary_new_image_index = null; // Clear new image primary
+    // Remove from deletion list if it was there (shouldn't happen, but just in case)
+    variant.images_to_delete = variant.images_to_delete.filter(id => id !== imageId);
+  }
 }
 
 function setPrimaryNewVariantImage(variantIndex: number, index: number) {
   const variant = variants.value[variantIndex];
+  if (!variant) {
+    console.warn(`Variant at index ${variantIndex} not found`);
+    return;
+  }
+  // Validate index is within bounds
+  if (index < 0 || index >= variant.new_images.length) {
+    console.warn(`Invalid image index ${index} for variant ${variantIndex}`);
+    return;
+  }
   variant.primary_new_image_index = index;
   variant.primary_existing_image_id = null; // Clear existing image primary
 }
@@ -544,23 +702,56 @@ async function updateProduct() {
       finalBrandId = created.id;
     }
 
+    // Validate default color
+    if (!defaultColorId.value && (!defaultColorName.value.trim() || defaultColorHex.value === '#000000')) {
+      error("Validation Error", "Please set a default product color");
+      return;
+    }
+
     // Prepare variant data
     const validVariants = variants.value.length > 0
-      ? variants.value.map((v) => ({
-          id: v.id, // Include variant ID if updating
-          color_id: v.color_id,
-          color_name: v.color_name,
-          color_hex: v.color_hex,
-          available_sizes: v.available_sizes,
-          stock: v.stock,
-          sku: v.sku,
-          new_images: v.new_images,
-          existing_images: v.existing_images.map(img => img.id), // IDs to keep
-          images_to_delete: v.images_to_delete,
-          primary_existing_image_id: v.primary_existing_image_id,
-          primary_new_image_index: v.primary_new_image_index,
-        }))
+      ? variants.value.map((v) => {
+          // Filter out deleted images from existing_images before mapping to IDs
+          const imagesToKeep = v.existing_images.filter((img: any) => !v.images_to_delete.includes(img.id));
+          
+          // IMPORTANT: Don't filter images_to_delete based on existing_images!
+          // The images we want to delete might not be in existing_images anymore
+          // (they were removed from the UI). Just send all IDs that are marked for deletion.
+          const validImageIdsToDelete = v.images_to_delete || [];
+          
+          // LOG: Track deletion data
+          console.log('🔴 VARIANT DELETION DATA:', {
+            variantId: v.id,
+            variantColor: v.color_name,
+            imagesToDelete: v.images_to_delete,
+            validImageIdsToDelete: validImageIdsToDelete,
+            existingImages: v.existing_images.map((img: any) => ({ id: img.id, url: img.url })),
+            imagesToKeep: imagesToKeep.map((img: any) => ({ id: img.id, url: img.url }))
+          });
+          
+          return {
+            id: v.id, // First variant ID (for backward compatibility)
+            variant_ids: v.variant_ids, // All variant IDs for this color
+            color_id: v.color_id,
+            color_name: v.color_name,
+            color_hex: v.color_hex,
+            available_sizes: v.available_sizes,
+            stock: v.stock,
+            sku: v.sku,
+            new_images: v.new_images,
+            existing_images: imagesToKeep.map((img: any) => img.id), // IDs to keep (only from first variant, excluding deleted ones)
+            images_to_delete: validImageIdsToDelete, // Send ALL image IDs marked for deletion
+            primary_existing_image_id: v.primary_existing_image_id && imagesToKeep.some((img: any) => img.id === v.primary_existing_image_id)
+              ? v.primary_existing_image_id
+              : (imagesToKeep.length > 0 ? imagesToKeep[0].id : null), // Ensure primary image ID is valid
+            primary_new_image_index: v.primary_new_image_index,
+            size_stocks: v.size_stocks, // Include size_stocks for individual stock per size
+          };
+        })
       : [];
+    
+    // LOG: Final payload before sending
+    console.log('🔴 FINAL VALID VARIANTS PAYLOAD:', JSON.stringify(validVariants, null, 2));
 
     await productStore.updateProduct(productSlug, {
       name: name.value,
@@ -571,7 +762,16 @@ async function updateProduct() {
       canonical_url: seoCanonicalUrl.value,
       robots: seoRobots.value,
       base_price: masterBasePrice.value > 0 ? masterBasePrice.value : undefined,
-      stock: masterStock.value > 0 ? masterStock.value : undefined,
+      // Stock: if sizes are selected, don't send general stock (stock is managed per size)
+      // Only send general stock if no sizes are selected
+      stock: selectedSizes.value.length > 0
+        ? undefined 
+        : (masterStock.value > 0 ? masterStock.value : undefined),
+      // Always send size_stocks when sizes are selected (for default color variants)
+      // This is used for default color variants even when other color variants exist
+      size_stocks: selectedSizes.value.length > 0
+        ? productSizeStocks.value
+        : undefined,
       sku: masterSku.value.trim() || undefined,
       existing_image_ids: existingImages.value.map(img => img.id), // IDs to keep
       images_to_delete: imagesToDelete.value,
@@ -689,15 +889,12 @@ async function updateProduct() {
                 <!-- Subcategory -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Subcategory *</label>
-                  <div class="relative">
-                    <select 
-                      v-model="subcategoryId" 
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-                      disabled
-                    >
-                      <option :value="subcategoryId">{{ subcategoryStore.subcategories.find(s => s.id === subcategoryId)?.name || 'Not set' }}</option>
-                    </select>
-                  </div>
+                  <Select
+                    :model-value="subcategoryId"
+                    :options="subcategoryOptions"
+                    placeholder="Select a subcategory"
+                    :disabled="true"
+                  />
                   <p class="text-xs text-gray-500 mt-1">Subcategory cannot be changed</p>
                 </div>
 
@@ -718,7 +915,7 @@ async function updateProduct() {
 
               <!-- Default/Main Product Color -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Default Product Color</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Default Product Color *</label>
                 <div class="flex items-center gap-2">
                   <Select
                     v-if="defaultColorMode === 'select'"
@@ -730,7 +927,7 @@ async function updateProduct() {
                       }
                     }"
                     :options="availableColors.map(c => ({ value: c.name, label: c.name }))"
-                    placeholder="Select default color (optional)"
+                    placeholder="Select default color"
                     class="flex-1"
                   />
                   <div v-else class="flex items-center gap-2 flex-1">
@@ -758,7 +955,7 @@ async function updateProduct() {
                     {{ defaultColorMode === 'select' ? 'Custom' : 'Select' }}
                   </button>
           </div>
-                <p class="text-xs text-gray-500 mt-1">Choose a default color for the main product, or leave empty if no default color is needed.</p>
+                <p class="text-xs text-gray-500 mt-1">Default product color is required. This will be used for the main product variant.</p>
         </div>
 
               <!-- Available Sizes -->
@@ -790,8 +987,8 @@ async function updateProduct() {
                   <p class="text-xs text-gray-500 mt-1">Base price before tax. Final price: <span class="font-semibold text-zinc-900">₱{{ masterFinalPrice.toFixed(2) }}</span></p>
                 </div>
 
-                <!-- Master Stock -->
-                <div>
+                <!-- Master Stock (only show when no sizes selected) -->
+                <div v-if="selectedSizes.length === 0">
                   <label class="block text-sm font-medium text-gray-700 mb-2">Default Stock *</label>
                   <input 
                     v-model="masterStock" 
@@ -800,8 +997,30 @@ async function updateProduct() {
                     placeholder="0"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                   />
-                  <p class="text-xs text-gray-500 mt-1">Default stock for variants without sizes</p>
+                  <p class="text-xs text-gray-500 mt-1">Stock for products without sizes</p>
                 </div>
+              </div>
+
+              <!-- Stock per Size (show when sizes are selected) -->
+              <div v-if="selectedSizes.length > 0">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Stock per Size *</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div v-for="sizeId in selectedSizes" :key="sizeId" class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600 w-16">{{ getSizeName(sizeId) }}:</label>
+                    <input 
+                      :value="productSizeStocks[sizeId] || 0"
+                      @input="productSizeStocks[sizeId] = parseInt(($event.target as HTMLInputElement).value) || 0"
+                      type="number" 
+                      min="0"
+                      placeholder="0"
+                      class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                    />
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">
+                  Set individual stock quantities for each size for the default color.
+                  <span v-if="variants.length > 0">Other colors have their own stock per size in the variants section.</span>
+                </p>
               </div>
 
               <!-- SKU -->
@@ -1414,9 +1633,12 @@ async function updateProduct() {
                       <input 
                         v-model="seoCanonicalUrl" 
                         type="url" 
-                        placeholder="https://example.com/product"
+                        :placeholder="generatedCanonicalUrl || 'https://example.com/product'"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
                       />
+                      <p v-if="generatedCanonicalUrl && !seoCanonicalUrl" class="text-xs text-gray-500 mt-1">
+                        Suggested: {{ generatedCanonicalUrl }}
+                      </p>
                     </div>
 
                     <div>

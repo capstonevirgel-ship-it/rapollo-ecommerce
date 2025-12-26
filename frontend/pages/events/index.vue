@@ -48,9 +48,9 @@ const viewEventDetails = (event: Event) => {
 
 // Set page title
 useHead({
-  title: 'Events | RAPOLLO',
+  title: 'Events | monogram',
   meta: [
-    { name: 'description', content: 'Discover exciting rap battle events and competitions. Book your tickets for upcoming events at Rapollo E-commerce.' }
+    { name: 'description', content: 'Discover exciting events and competitions. Book your tickets for upcoming events at monogram E-commerce.' }
   ]
 })
 
@@ -189,7 +189,7 @@ const canBookTickets = (event: Event) => {
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900">Events</h1>
-        <p class="mt-2 text-gray-600">Discover and book tickets for upcoming rap battles</p>
+        <p class="mt-2 text-gray-600">Discover and book tickets for upcoming events</p>
       </div>
 
       <!-- Loading State -->
@@ -216,8 +216,8 @@ const canBookTickets = (event: Event) => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No rap battle events found</h3>
-        <p class="mt-1 text-sm text-gray-500">There are no upcoming rap battle events at the moment.</p>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No events found</h3>
+        <p class="mt-1 text-sm text-gray-500">There are no upcoming events at the moment.</p>
       </div>
 
       <!-- Events Grid -->
@@ -229,7 +229,7 @@ const canBookTickets = (event: Event) => {
               :src="getImageUrl(event.poster_url)" 
               :alt="event.title" 
               class="h-full w-full object-cover"
-              @error="($event.target as HTMLImageElement).src = '/placeholder.png'"
+              @error="($event.target as HTMLImageElement).src = '/uploads/event_placeholder.svg'"
             >
           </div>
           <div v-else class="h-48 w-full bg-gray-200 flex items-center justify-center">

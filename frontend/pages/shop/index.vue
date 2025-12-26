@@ -185,16 +185,16 @@ useHead(() => {
   if (currentBrand.value) {
     const title = currentBrand.value.meta_title || `${currentBrand.value.name} Products`
     return {
-      title: `${title} | RAPOLLO`,
+      title: `${title} | monogram`,
       meta: [
-        { name: 'description', content: currentBrand.value.meta_description || `Shop ${currentBrand.value.name} products at Rapollo E-commerce` }
+        { name: 'description', content: currentBrand.value.meta_description || `Shop ${currentBrand.value.name} products at monogram E-commerce` }
       ]
     }
   }
   return {
-    title: 'Shop | RAPOLLO',
+    title: 'Shop | monogram',
     meta: [
-      { name: 'description', content: 'Shop premium products at Rapollo E-commerce. Find the best merchandise and event tickets.' }
+      { name: 'description', content: 'Shop premium products at monogram E-commerce. Find the best merchandise and event tickets.' }
     ]
   }
 })

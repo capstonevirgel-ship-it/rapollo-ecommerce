@@ -23,14 +23,14 @@ export const useCustomFetch = async <T>(url: string, opts: any = {}): Promise<T>
     token = { value: null }
   }
   
-  // Build the full URL - use live server in production, proxy in development
+  // Build the full URL - always use direct API URL to avoid proxy issues
   let fullUrl: string
-  if (process.dev) {
-    // Development: use proxy
-    fullUrl = url.startsWith('/api') ? url : `/api${url}`
+  if (url.startsWith('/api')) {
+    // Remove /api prefix and use apiBase
+    fullUrl = `${config.public.apiBase}${url.slice(4)}`
   } else {
-    // Production: use live server
-    fullUrl = url.startsWith('/api') ? `${config.public.apiBase}${url.slice(4)}` : `${config.public.apiBase}${url}`
+    // Add /api prefix
+    fullUrl = `${config.public.apiBase}${url}`
   }
   
   try {

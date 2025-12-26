@@ -57,7 +57,7 @@ const progressPercentage = computed(() => {
       <div class="mb-8">
         <img 
           src="/uploads/logo/loader.svg" 
-          alt="RAPOLLO" 
+          alt="monogram" 
           class="w-[12rem] h-auto"
         />
       </div>

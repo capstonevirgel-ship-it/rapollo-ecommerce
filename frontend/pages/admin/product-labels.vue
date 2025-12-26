@@ -5,9 +5,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Product Labels Management - Admin | RAPOLLO',
+  title: 'Product Labels Management - Admin | monogram',
   meta: [
-    { name: 'description', content: 'Manage product labels (Featured, Hot, New) in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'Manage product labels (Featured, Hot, New) in your monogram E-commerce store.' }
   ]
 })
 

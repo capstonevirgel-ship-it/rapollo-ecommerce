@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useCartStore } from '~/stores/cart'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 import type { ProductPurchase, ProductPurchaseItem, Payment, PaymentResponse, ProductPurchaseCreateResponse, ProductPurchaseFetchResponse, ProductPurchaseListResponse } from '~/types'
 
 export const usePurchaseStore = defineStore('purchase', () => {
@@ -27,7 +28,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
       return { variant_id: variantId, quantity, price }
     })
 
-    const response = await $fetch<ProductPurchaseCreateResponse>('/api/product-purchases', {
+    const response = await useCustomFetch<ProductPurchaseCreateResponse>('/api/product-purchases', {
       method: 'POST',
       body: {
         items: items
@@ -37,7 +38,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
   }
 
   const createPayment = async (purchaseId: number, amount: number, paymentMethod: string): Promise<PaymentResponse> => {
-    const response = await $fetch('/api/payments/create', {
+    const response = await useCustomFetch('/api/payments/create', {
       method: 'POST',
       body: {
         purchasable_type: 'App\\Models\\ProductPurchase',
@@ -56,7 +57,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     error.value = null
     
     try {
-      const response = await $fetch<ProductPurchaseFetchResponse>(`/api/product-purchases/${id}`)
+      const response = await useCustomFetch<ProductPurchaseFetchResponse>(`/api/product-purchases/${id}`)
       return response.data
     } catch (err: any) {
       error.value = err.data?.message || err.message || 'Failed to fetch purchase'
@@ -81,7 +82,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
       if (filters.search) queryParams.append('search', filters.search)
       if (filters.per_page) queryParams.append('per_page', filters.per_page.toString())
       
-      const response = await $fetch<ProductPurchaseListResponse>(`/api/product-purchases/admin/all?${queryParams.toString()}`)
+      const response = await useCustomFetch<ProductPurchaseListResponse>(`/api/product-purchases/admin/all?${queryParams.toString()}`)
       purchases.value = response.data
       pagination.value = {
         current_page: response.current_page,

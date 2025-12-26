@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { getImageUrl } from '~/utils/imageHelper'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -16,7 +17,7 @@ const fetchUserProfile = async () => {
   }
   
   try {
-    const profile = await $fetch('/api/profile')
+    const profile = await useCustomFetch('/api/profile')
     userProfile.value = profile
   } catch (err) {
     console.error('Failed to fetch user profile:', err)
@@ -107,7 +108,7 @@ const getIconComponent = (iconName: string) => {
   <div class="p-6">
     <!-- Avatar Section -->
     <div class="flex flex-col items-center mb-6">
-      <div class="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center text-white text-2xl font-winner-extra-bold mb-4">
+      <div class="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center text-white text-2xl font-poppins mb-4">
         <img
           :src="userAvatar || '/uploads/avatar_placeholder.png'"
           :alt="authStore.user?.user_name || 'User'"

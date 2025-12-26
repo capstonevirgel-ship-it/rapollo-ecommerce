@@ -37,6 +37,7 @@ export interface ProductPayload {
   is_new?: boolean
   base_price?: number
   stock?: number
+  size_stocks?: { [sizeId: number]: number } // Stock per size for products without color variants
   sku?: string
   images?: File[] // For create
   new_images?: File[] // For update
@@ -130,5 +131,5 @@ export interface Product {
   default_color?: { id: number; name: string; hex_code: string } | null
 
   // Eager-loaded sizes
-  sizes?: { id: number; name: string; slug: string; description: string | null; sort_order: number | null }[]
+  sizes?: { id: number; name: string; slug: string; description: string | null; sort_order: number | null; color_id?: number }[]
 }

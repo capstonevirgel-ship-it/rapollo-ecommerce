@@ -5,6 +5,7 @@ import { usePurchaseStore } from '~/stores/purchase'
 import { useTaxStore } from '~/stores/tax'
 import { useOrderStore } from '~/stores/order'
 import { useAlert } from '~/composables/useAlert'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 import { getImageUrl, getPrimaryVariantImage } from '~/utils/imageHelper'
 import PayMongoBranding from '@/components/PayMongoBranding.vue'
 import Dialog from '@/components/Dialog.vue'
@@ -16,9 +17,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Order Details | RAPOLLO',
+  title: 'Order Details | monogram',
   meta: [
-    { name: 'description', content: 'View your order details at Rapollo E-commerce.' }
+    { name: 'description', content: 'View your order details at monogram E-commerce.' }
   ]
 })
 
@@ -33,6 +34,7 @@ const error = ref<string | null>(null)
 
 const showCancelDialog = ref(false)
 const isCancelling = ref(false)
+const isMarkingReceived = ref(false)
 
 const orderId = computed(() => route.params.id as string)
 
@@ -140,6 +142,27 @@ const cancelOrder = async () => {
   }
 }
 
+const markAsReceived = async () => {
+  if (!order.value) return
+
+  isMarkingReceived.value = true
+
+  try {
+    await useCustomFetch(`/api/product-purchases/${order.value.id}/mark-received`, {
+      method: 'PUT'
+    })
+    success('Order Received', 'Your order has been marked as received. Thank you!')
+    // Refresh order
+    await fetchOrder()
+  } catch (err: any) {
+    console.error('Error marking order as received:', err)
+    const errorMessage = err?.data?.message || err?.data?.error || err?.message || 'Failed to mark order as received. Please try again.'
+    showError('Failed', errorMessage)
+  } finally {
+    isMarkingReceived.value = false
+  }
+}
+
 // Get tax amount from order (stored when order was created)
 const getTaxAmount = () => {
   if (order.value?.shipping_address?.tax_amount !== undefined) {
@@ -229,13 +252,24 @@ onMounted(async () => {
             <div class="bg-white rounded-xl shadow border border-gray-200 p-6">
               <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-semibold text-gray-900">Order Summary</h2>
-                <button
-                  v-if="order.status === 'pending'"
-                  @click="openCancelDialog"
-                  class="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-                >
-                  Cancel Order
-                </button>
+                <div class="flex space-x-3">
+                  <button
+                    v-if="order.status === 'pending'"
+                    @click="openCancelDialog"
+                    class="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                  >
+                    Cancel Order
+                  </button>
+                  <button
+                    v-if="order.status === 'delivered'"
+                    @click="markAsReceived"
+                    :disabled="isMarkingReceived"
+                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span v-if="isMarkingReceived">Marking...</span>
+                    <span v-else>Mark as Received</span>
+                  </button>
+                </div>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div> 

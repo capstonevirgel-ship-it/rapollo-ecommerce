@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 export interface TaxPrice {
   id: number
@@ -49,7 +50,7 @@ export const useTaxStore = defineStore('tax', {
       this.error = null
       
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           data: TaxPrice[]
         }>('/api/tax-prices')
         
@@ -67,7 +68,7 @@ export const useTaxStore = defineStore('tax', {
       this.error = null
       
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           message: string
           data: TaxPrice
         }>('/api/tax-prices', {
@@ -90,7 +91,7 @@ export const useTaxStore = defineStore('tax', {
       this.error = null
       
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           message: string
           data: TaxPrice
         }>(`/api/tax-prices/${id}`, {
@@ -116,7 +117,7 @@ export const useTaxStore = defineStore('tax', {
       this.error = null
       
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           message: string
           data: TaxPrice
         }>(`/api/tax-prices/${id}`, {
@@ -141,7 +142,7 @@ export const useTaxStore = defineStore('tax', {
       this.error = null
       
       try {
-        await $fetch(`/api/tax-prices/${id}`, {
+        await useCustomFetch(`/api/tax-prices/${id}`, {
           method: 'DELETE'
         })
         
@@ -156,7 +157,7 @@ export const useTaxStore = defineStore('tax', {
 
     async getActiveTaxRate() {
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           data: {
             total_rate: number
             taxes: Array<{ name: string; rate: number }>

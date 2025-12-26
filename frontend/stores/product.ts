@@ -122,6 +122,13 @@ export const useProductStore = defineStore("product", {
         payload.sizes.forEach(sizeId => formData.append("sizes[]", String(sizeId)));
       }
 
+      // Size stocks (for products with sizes but no color variants)
+      if (payload.size_stocks) {
+        Object.entries(payload.size_stocks).forEach(([sizeId, stock]) => {
+          formData.append(`size_stocks[${sizeId}]`, String(stock));
+        });
+      }
+
       // Images
       payload.images?.forEach(file => formData.append("images[]", file));
 
@@ -245,6 +252,13 @@ export const useProductStore = defineStore("product", {
         payload.sizes.forEach(sizeId => formData.append("sizes[]", String(sizeId)));
       }
 
+      // Size stocks (for products with sizes but no color variants)
+      if (payload.size_stocks) {
+        Object.entries(payload.size_stocks).forEach(([sizeId, stock]) => {
+          formData.append(`size_stocks[${sizeId}]`, String(stock));
+        });
+      }
+
       // Product Images - existing images to keep
       if (payload.existing_image_ids) {
         payload.existing_image_ids.forEach(imageId => formData.append("existing_image_ids[]", String(imageId)));
@@ -271,8 +285,19 @@ export const useProductStore = defineStore("product", {
       // Variants
       if (payload.variants && Array.isArray(payload.variants)) {
         payload.variants.forEach((variant, vIndex) => {
-          // Variant ID for updates
-          if (variant.id) formData.append(`variants[${vIndex}][id]`, String(variant.id));
+          // Variant ID for updates - send all variant IDs to prevent deletion
+          // The backend needs all variant IDs to know which ones to keep
+          if (variant.variant_ids && Array.isArray(variant.variant_ids) && variant.variant_ids.length > 0) {
+            // Send first ID as the main variant ID (for backward compatibility)
+            formData.append(`variants[${vIndex}][id]`, String(variant.variant_ids[0]));
+            // Send all other variant IDs as additional IDs to preserve
+            variant.variant_ids.slice(1).forEach(vId => {
+              formData.append(`variants[${vIndex}][variant_ids][]`, String(vId));
+            });
+          } else if (variant.id) {
+            // Fallback to single ID if variant_ids not available
+            formData.append(`variants[${vIndex}][id]`, String(variant.id));
+          }
 
           // Color
           if (variant.color_id) formData.append(`variants[${vIndex}][color_id]`, String(variant.color_id));
@@ -303,7 +328,13 @@ export const useProductStore = defineStore("product", {
 
           // Variant Images - images to delete
           if (variant.images_to_delete) {
-            variant.images_to_delete.forEach(imageId => formData.append(`variants[${vIndex}][images_to_delete][]`, String(imageId)));
+            console.log(`🔴 FRONTEND: Adding images_to_delete for variant ${vIndex}:`, variant.images_to_delete);
+            variant.images_to_delete.forEach(imageId => {
+              console.log(`🔴 FRONTEND: Appending image ID ${imageId} to FormData`);
+              formData.append(`variants[${vIndex}][images_to_delete][]`, String(imageId));
+            });
+          } else {
+            console.log(`🔴 FRONTEND: No images_to_delete for variant ${vIndex}`);
           }
 
           // Variant Images - new images
@@ -321,11 +352,9 @@ export const useProductStore = defineStore("product", {
         });
       }
 
-      // Add method spoofing for PUT request
-      formData.append('_method', 'PUT');
-
+      // Use POST method for file uploads (changed from PUT for better file handling)
       try {
-        const data = await useCustomFetch<Product>(`/api/products/${slug}`, { 
+        const data = await useCustomFetch<Product>(`/api/products/${slug}/update`, { 
           method: "POST", 
           body: formData
         });

@@ -33,14 +33,14 @@ useHead(() => {
   if (subcategory.value) {
     const title = subcategory.value.meta_title || subcategory.value.name
     return {
-      title: `${title} | RAPOLLO`,
+      title: `${title} | monogram`,
       meta: [
-        { name: 'description', content: subcategory.value.meta_description || `Shop ${subcategory.value.name} products at Rapollo E-commerce` }
+        { name: 'description', content: subcategory.value.meta_description || `Shop ${subcategory.value.name} products at monogram E-commerce` }
       ]
     }
   }
   return {
-    title: 'Subcategory | RAPOLLO'
+    title: 'Subcategory | monogram'
   }
 })
 

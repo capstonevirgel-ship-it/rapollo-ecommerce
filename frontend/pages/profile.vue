@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useAlert } from '~/composables/useAlert'
 import { getImageUrl } from '~/utils/imageHelper'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 definePageMeta({
   layout: 'default',
@@ -10,9 +11,9 @@ definePageMeta({
 })
 
 useHead({
-  title: 'My Profile | RAPOLLO',
+  title: 'My Profile | monogram',
   meta: [
-    { name: 'description', content: 'View and manage your profile information at Rapollo E-commerce.' }
+    { name: 'description', content: 'View and manage your profile information at monogram E-commerce.' }
   ]
 })
 
@@ -60,8 +61,8 @@ const clearAvatarPreview = () => {
 
 const currentAvatar = computed(() => {
   if (avatarPreview.value) return avatarPreview.value
-  if (form.avatar_url) return getImageUrl(form.avatar_url, 'default')
-  return null
+  if (form.avatar_url) return getImageUrl(form.avatar_url, 'avatar')
+  return getImageUrl(null, 'avatar') // Use placeholder image instead of null
 })
 
 const userInitials = computed(() => {
@@ -94,7 +95,7 @@ const syncFormWithProfile = () => {
 const fetchProfile = async () => {
   isLoading.value = true
   try {
-    const response = await $fetch('/api/profile')
+    const response = await useCustomFetch('/api/profile')
     profile.value = response
     syncFormWithProfile()
   } catch (err: any) {
@@ -149,7 +150,7 @@ const saveProfile = async () => {
     if (avatarFile.value) {
       const formData = new FormData()
       formData.append('avatar', avatarFile.value)
-      const uploadResponse: any = await $fetch('/api/profile/avatar', {
+      const uploadResponse: any = await useCustomFetch('/api/profile/avatar', {
         method: 'POST',
         body: formData
       })
@@ -161,8 +162,22 @@ const saveProfile = async () => {
       avatarFile.value = null
     }
 
+    // Use addressModel if it has meaningful data, otherwise fall back to form values to preserve existing data
     const address = addressModel.value || {}
-    const response = await $fetch('/api/profile', {
+    
+    // Helper function to check if a value is meaningful (not empty/null/undefined)
+    const hasValue = (val: any) => val && String(val).trim() !== ''
+    
+    // Determine which values to use - prefer addressModel if it has data, otherwise use form values
+    const finalAddress = {
+      street: hasValue(address.street) ? address.street : form.street,
+      barangay: hasValue(address.barangay) ? address.barangay : form.barangay,
+      city: hasValue(address.city) ? address.city : form.city,
+      province: hasValue(address.province) ? address.province : form.province,
+      zipcode: hasValue(address.zipcode) ? address.zipcode : form.zipcode
+    }
+    
+    const response = await useCustomFetch('/api/profile', {
       method: 'PUT',
       body: {
         user_name: form.user_name,
@@ -170,11 +185,7 @@ const saveProfile = async () => {
         full_name: form.full_name,
         phone: form.phone,
         country: 'Philippines',
-        street: address.street ?? form.street,
-        barangay: address.barangay ?? form.barangay,
-        city: address.city ?? form.city,
-        province: address.province ?? form.province,
-        zipcode: address.zipcode ?? form.zipcode,
+        ...finalAddress,
         avatar_url: avatarPath
       }
     })
@@ -227,17 +238,10 @@ const handleDeleteAccount = () => {
                 <div class="relative">
                   <div class="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center">
                     <img
-                      v-if="currentAvatar"
                       :src="currentAvatar"
                       :alt="form.user_name || 'User'"
                       class="w-full h-full object-cover"
                     />
-                    <span
-                      v-else
-                      class="text-2xl font-winner-extra-bold text-white"
-                    >
-                      {{ userInitials }}
-                    </span>
                     
                     <!-- Camera Icon Overlay (only shown in edit mode) -->
                     <div
@@ -433,7 +437,7 @@ const handleDeleteAccount = () => {
             </div>
           </div>
 
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <!-- <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div class="flex items-center justify-between mb-6">
               <div>
                 <h2 class="text-lg font-semibold text-gray-900">Change Password</h2>
@@ -483,18 +487,8 @@ const handleDeleteAccount = () => {
                 </button>
               </div>
             </form>
-          </div>
+          </div> -->
 
-          <div class="bg-red-50 border border-red-200 rounded-xl p-6">
-            <h2 class="text-lg font-semibold text-red-900 mb-2">Danger Zone</h2>
-            <p class="text-sm text-red-700 mb-4">Deleting your account is permanent and cannot be undone.</p>
-            <button
-              @click="handleDeleteAccount"
-              class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Delete Account
-            </button>
-          </div>
         </div>
       </div>
     </div>

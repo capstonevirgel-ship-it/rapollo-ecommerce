@@ -8,6 +8,7 @@ import { useCartStore } from '~/stores/cart'
 import { useNotificationStore } from '~/stores/notification'
 import { useSettingsStore } from '~/stores/settings'
 import { getImageUrl } from '~/utils/imageHelper'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 import NotificationDropdown from '~/components/NotificationDropdown.vue'
 
 const isMenuOpen = ref(false)
@@ -27,6 +28,9 @@ const userProfile = ref<any>(null)
 const isLoadingProfile = ref(false)
 
 const fetchUserProfile = async () => {
+  // Only fetch on client side to avoid SSR issues with API proxy
+  if (!process.client) return
+  
   if (!authStore.isAuthenticated) {
     userProfile.value = null
     return
@@ -34,7 +38,7 @@ const fetchUserProfile = async () => {
   
   isLoadingProfile.value = true
   try {
-    const profile = await $fetch('/api/profile')
+    const profile = await useCustomFetch('/api/profile')
     userProfile.value = profile
   } catch (err) {
     console.error('Failed to fetch user profile:', err)
@@ -225,30 +229,33 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
     <div class="mx-auto max-w-[88rem] py-3 px-4">
       <!-- Top Bar -->
       <div class="flex justify-between items-center mb-4">
-        <div class="flex space-x-3 text-gray-300 hover:text-white">
+        <div class="flex space-x-3">
           <a 
             v-if="settingsStore.contactFacebook"
             :href="settingsStore.contactFacebook" 
             target="_blank"
             rel="noopener noreferrer"
+            class="text-gray-300 hover:text-primary-600 transition-colors"
           >
-            <Icon name="mdi:facebook" class="text-xl hover:text-primary-600" />
-          </a>
-          <a 
-            v-if="settingsStore.contactTwitter"
-            :href="settingsStore.contactTwitter" 
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Icon name="mdi:twitter" class="text-xl hover:text-primary-600" />
+            <Icon name="mdi:facebook" class="text-xl" />
           </a>
           <a 
             v-if="settingsStore.contactInstagram"
             :href="settingsStore.contactInstagram" 
             target="_blank"
             rel="noopener noreferrer"
+            class="text-gray-300 hover:text-primary-600 transition-colors"
           >
-            <Icon name="mdi:instagram" class="text-xl hover:text-primary-600" />
+            <Icon name="mdi:instagram" class="text-xl" />
+          </a>
+          <a 
+            v-if="settingsStore.contactYoutube"
+            :href="settingsStore.contactYoutube" 
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-gray-300 hover:text-primary-600 transition-colors"
+          >
+            <Icon name="mdi:youtube" class="text-xl" />
           </a>
         </div>
         <NuxtLink
@@ -268,7 +275,7 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
             <img 
               v-if="settingsStore.siteLogo" 
               :src="getImageUrl(settingsStore.siteLogo, 'default')" 
-              :alt="settingsStore.siteName || 'Rapollo E-Commerce'"
+              :alt="settingsStore.siteName || 'monogram E-Commerce'"
               class="w-24 h-24 object-contain"
             />
             <Icon v-else name="mdi-application" class="text-2xl text-primary-600" />
@@ -337,11 +344,11 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
           <img 
             v-if="settingsStore.siteLogo" 
             :src="getImageUrl(settingsStore.siteLogo, 'default')" 
-            :alt="settingsStore.siteName || 'Rapollo E-Commerce'"
-            class="w-8 h-8 object-contain"
+            :alt="settingsStore.siteName || 'monogram E-Commerce'"
+            class="w-8 h-8 object-contain mobile-logo"
           />
           <Icon v-else name="mdi-application" class="text-2xl text-primary-600" />
-          <span class="text-xl font-bold text-gray-300 hover:text-white font-winner-extra-bold">{{ settingsStore.siteName || 'Rapollo E-Commerce' }}</span>
+          <span class="text-xl font-bold text-gray-300 hover:text-white font-poppins mobile-site-title">{{ settingsStore.siteName || 'monogram E-Commerce' }}</span>
         </NuxtLink>
 
         <div class="flex items-center space-x-4">
@@ -384,7 +391,7 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
                 :to="link.path"
                 @click="isMenuOpen = false"
                 class="flex items-center space-x-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group"
-                active-class="text-white bg-zinc-800/50 font-winner-extra-bold"
+                active-class="text-white bg-zinc-800/50 font-poppins"
               >
                 <div class="w-8 h-8 bg-zinc-800/50 rounded-lg flex items-center justify-center group-hover:bg-zinc-700/50 transition-colors">
                   <Icon :name="link.icon" class="text-lg" />
@@ -611,5 +618,16 @@ const getDrawerIcon = (icon: string) => drawerIconMap[icon] || ''
 .accordion-leave-to {
   opacity: 0;
   max-height: 0;
+}
+
+@media (max-width: 429px) {
+  .mobile-logo {
+    width: 6rem;
+    height: 6rem;
+  }
+  
+  .mobile-site-title {
+    display: none;
+  }
 }
 </style>

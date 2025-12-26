@@ -34,14 +34,14 @@ useHead(() => {
   if (category.value) {
     const title = category.value.meta_title || category.value.name
     return {
-      title: `${title} | RAPOLLO`,
+      title: `${title} | monogram`,
       meta: [
-        { name: 'description', content: category.value.meta_description || `Shop ${category.value.name} products at Rapollo E-commerce` }
+        { name: 'description', content: category.value.meta_description || `Shop ${category.value.name} products at monogram E-commerce` }
       ]
     }
   }
   return {
-    title: 'Category | RAPOLLO'
+    title: 'Category | monogram'
   }
 })
 </script>

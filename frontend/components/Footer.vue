@@ -18,11 +18,11 @@ const socialLinks = computed(() => {
   if (settingsStore.contactFacebook) {
     links.push({ name: 'Facebook', icon: 'mdi:facebook', url: settingsStore.contactFacebook })
   }
-  if (settingsStore.contactTwitter) {
-    links.push({ name: 'Twitter', icon: 'mdi:twitter', url: settingsStore.contactTwitter })
-  }
   if (settingsStore.contactInstagram) {
     links.push({ name: 'Instagram', icon: 'mdi:instagram', url: settingsStore.contactInstagram })
+  }
+  if (settingsStore.contactYoutube) {
+    links.push({ name: 'YouTube', icon: 'mdi:youtube', url: settingsStore.contactYoutube })
   }
   return links
 })
@@ -36,11 +36,11 @@ const socialLinks = computed(() => {
         <!-- First Column - Brand Info and Social Links -->
         <div class="flex flex-col">
           <div class="mb-6">
-            <h2 class="text-2xl font-bold text-white mb-1 font-winner-extra-bold">{{ settingsStore.siteName || 'Rapollo E-Commerce' }}</h2>
+            <h2 class="text-2xl font-bold text-white mb-1 font-poppins">{{ settingsStore.siteName || 'monogram E-Commerce' }}</h2>
             <p class="text-gray-400">{{ settingsStore.siteAbout || 'Welcome to our e-commerce store. We offer quality products at affordable prices.' }}</p>
           </div>
           <div>
-            <h3 class="text-white text-lg font-semibold mb-4 font-winner-extra-bold">Follow Us</h3>
+            <h3 class="text-white text-lg font-semibold mb-4 font-poppins">Follow Us</h3>
             <div class="flex gap-4">
               <a 
                 v-for="social in socialLinks" 
@@ -59,7 +59,7 @@ const socialLinks = computed(() => {
 
         <!-- Second Column - Contact Info -->
         <div>
-          <h3 class="text-white text-lg font-semibold mb-4 font-winner-extra-bold">Contact Us</h3>
+          <h3 class="text-white text-lg font-semibold mb-4 font-poppins">Contact Us</h3>
           <address class="not-italic space-y-2">
             <p class="flex items-start">
               <Icon name="mdi:map-marker" class="mt-1 mr-2 flex-shrink-0" />
@@ -67,8 +67,8 @@ const socialLinks = computed(() => {
             </p>
             <p class="flex items-center">
               <Icon name="mdi:email" class="mr-2" />
-              <a :href="`mailto:${settingsStore.contactEmail || 'info@rapollo.com'}`" class="hover:text-white transition-colors">
-                {{ settingsStore.contactEmail || 'info@rapollo.com' }}
+              <a :href="`mailto:${settingsStore.contactEmail || 'info@monogram.com'}`" class="hover:text-white transition-colors">
+                {{ settingsStore.contactEmail || 'info@monogram.com' }}
               </a>
             </p>
             <p class="flex items-center">
@@ -82,7 +82,7 @@ const socialLinks = computed(() => {
 
         <!-- Third Column - Links -->
         <div>
-          <h3 class="text-white text-lg font-semibold mb-4 font-winner-extra-bold">Links</h3>
+          <h3 class="text-white text-lg font-semibold mb-4 font-poppins">Links</h3>
           <ul class="space-y-2">
             <li v-for="link in footerLinks" :key="link.name">
               <a :href="link.url" class="hover:text-white transition-colors">
@@ -95,7 +95,7 @@ const socialLinks = computed(() => {
 
        <!-- Copyright -->
        <div class="text-center text-sm text-gray-500 border-t border-gray-800 pt-6">
-         &copy; {{ currentYear }} {{ settingsStore.siteName || 'Rapollo E-Commerce' }}. All rights reserved.
+         &copy; {{ currentYear }} {{ settingsStore.siteName || 'monogram E-Commerce' }}. All rights reserved.
        </div>
     </div>
   </footer>

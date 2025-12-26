@@ -23,7 +23,7 @@ class EventSeeder extends Seeder
         if (!$admin) {
             $admin = User::create([
                 'user_name' => 'admin',
-                'email' => 'admin@example.com',
+                'email' => 'capstonevirgel@gmail.com',
                 'password' => bcrypt('password'),
                 'role' => 'admin'
             ]);

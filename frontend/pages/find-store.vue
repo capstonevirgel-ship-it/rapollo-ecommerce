@@ -4,9 +4,9 @@ import { useSettingsStore } from '~/stores/settings'
 
 // Set page title
 useHead({
-  title: 'Find Store | RAPOLLO',
+  title: 'Find Store | monogram',
   meta: [
-    { name: 'description', content: 'Find Rapollo E-commerce store locations near you.' }
+    { name: 'description', content: 'Find monogram E-commerce store locations near you.' }
   ]
 })
 
@@ -109,10 +109,10 @@ const googleMapsUrl = computed(() => settingsStore.settings?.store?.gmap_link ||
                 <div>
                   <h4 class="font-semibold text-gray-900">Email</h4>
                   <a 
-                    :href="`mailto:${settingsStore.contactEmail || 'info@rapollo.com'}`"
+                    :href="`mailto:${settingsStore.contactEmail || 'info@monogram.com'}`"
                     class="text-zinc-900 hover:text-zinc-700 transition-colors"
                   >
-                    {{ settingsStore.contactEmail || 'info@rapollo.com' }}
+                    {{ settingsStore.contactEmail || 'info@monogram.com' }}
                   </a>
                 </div>
               </div>

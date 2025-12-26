@@ -16,9 +16,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Orders Management - Admin | RAPOLLO',
+  title: 'Orders Management - Admin | monogram',
   meta: [
-    { name: 'description', content: 'Manage customer orders in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'Manage customer orders in your monogram E-commerce store.' }
   ]
 })
 
@@ -42,12 +42,14 @@ const isCancelling = ref(false)
 const statusOptions = [
   { value: 'all', label: 'All Orders' },
   { value: 'pending', label: 'Pending' },
+  { value: 'processing', label: 'Processing' },
   { value: 'shipped', label: 'Shipped' },
   { value: 'delivered', label: 'Delivered' }
 ]
 
 const statusUpdateOptions = [
   { value: 'pending', label: 'Pending' },
+  { value: 'processing', label: 'Processing' },
   { value: 'shipped', label: 'Shipped' },
   { value: 'delivered', label: 'Delivered' }
 ]
@@ -86,11 +88,19 @@ const filteredOrders = computed(() => {
 })
 
 // Methods
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount: number | string) => {
+  // Handle null, undefined, or NaN
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  if (!numAmount || isNaN(numAmount) || !isFinite(numAmount)) {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP'
+    }).format(0)
+  }
   return new Intl.NumberFormat('en-PH', {
     style: 'currency',
     currency: 'PHP'
-  }).format(amount)
+  }).format(numAmount)
 }
 
 const formatDate = (dateString: string) => {
@@ -107,7 +117,7 @@ const formatDateForCSV = (dateString: string) => {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return `${day}/${month}/${year}`
 }
 
 const getDownloadDate = () => {
@@ -263,7 +273,7 @@ onMounted(() => {
 
       <StatCard
         title="Total Revenue"
-        :value="formatCurrency(orders.reduce((sum, order) => sum + order.total, 0))"
+        :value="formatCurrency(orders.reduce((sum, order) => sum + (Number(order.total) || 0), 0))"
         icon="mdi:currency-usd"
       />
     </div>
@@ -344,8 +354,16 @@ onMounted(() => {
 
       <!-- Status -->
       <template #cell-status="{ row }">
-        <div class="w-32">
+        <div class="w-40">
+          <!-- Show read-only badge for completed, failed, or cancelled orders -->
+          <StatusBadge 
+            v-if="row.status === 'completed' || row.status === 'failed' || row.status === 'cancelled'"
+            :status="row.status" 
+            type="purchase" 
+          />
+          <!-- Show editable dropdown for other statuses -->
           <Select
+            v-else
             :model-value="row.status"
             :options="statusUpdateOptions"
             @update:model-value="updateOrderStatus(row.raw_order, $event)"

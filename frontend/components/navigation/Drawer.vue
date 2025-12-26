@@ -48,7 +48,7 @@ onMounted(() => {
       <div class="absolute right-0 top-0 h-full w-4/5 max-w-sm bg-zinc-900 shadow-2xl">
         <!-- Header -->
         <div class="p-6 border-b border-zinc-800/50 flex justify-between items-center">
-          <h2 class="text-xl font-bold text-white font-winner-extra-bold">Shop Categories</h2>
+          <h2 class="text-xl font-bold text-white font-poppins">Shop Categories</h2>
           <button @click="emit('close')" class="p-2 hover:bg-zinc-800/50 rounded-lg transition-colors">
             <Icon name="mdi:close" class="text-2xl text-gray-300 hover:text-white" />
           </button>
@@ -111,7 +111,7 @@ onMounted(() => {
           <!-- Brands Section -->
           <div v-if="brands.length > 0" class="border-t border-zinc-800/50 pt-6">
             <div class="p-6">
-              <h3 class="text-lg font-semibold text-white mb-6 font-winner-extra-bold">Brands</h3>
+              <h3 class="text-lg font-semibold text-white mb-6 font-poppins">Brands</h3>
               <div class="grid grid-cols-3 gap-4">
                 <div 
                   v-for="brand in brands.slice(0, 9)" 

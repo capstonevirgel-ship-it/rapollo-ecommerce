@@ -166,7 +166,7 @@ onUnmounted(() => {
       <div class="flex-1 w-full lg:w-1/2 space-y-6 flex flex-col items-center lg:items-start">
         <!-- Product Name -->
         <div class="text-center lg:text-left">
-          <h3 class="text-4xl font-winner-extra-bold text-gray-900 mb-2">{{ products[currentIndex].name }}</h3>
+          <h3 class="text-4xl font-poppins text-gray-900 mb-2">{{ products[currentIndex].name }}</h3>
           <p v-if="products[currentIndex].brand" class="text-gray-600 text-lg">
             by {{ products[currentIndex].brand?.name }}
           </p>
@@ -193,7 +193,7 @@ onUnmounted(() => {
         <!-- Price -->
         <div class="border-t border-b border-gray-200 py-4 w-full text-center lg:text-left">
           <div class="flex items-baseline gap-2 justify-center lg:justify-start">
-            <span class="text-5xl font-winner-extra-bold text-gray-900">
+            <span class="text-5xl font-poppins text-gray-900">
               {{ formatPrice(products[currentIndex].price || 0) }}
             </span>
           </div>

@@ -9,9 +9,9 @@ definePageMeta({ layout: 'default' })
 
 // Set page title
 useHead({
-  title: 'My Reviews | RAPOLLO',
+  title: 'My Reviews | monogram',
   meta: [
-    { name: 'description', content: 'View and manage your product reviews at Rapollo E-commerce.' }
+    { name: 'description', content: 'View and manage your product reviews at monogram E-commerce.' }
   ]
 })
 

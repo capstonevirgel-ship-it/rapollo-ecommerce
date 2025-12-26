@@ -28,6 +28,8 @@ use App\Http\Controllers\ShippingResolverController;
 use App\Http\Controllers\EventCommentController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminCountsController;
+use App\Http\Controllers\WebSocketController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -106,6 +108,9 @@ Route::post('webhooks/update-payment-status', [WebhookController::class, 'update
 // Contact Form (public)
 Route::post('contact', [ContactController::class, 'submit']);
 
+// WebSocket token validation (protected - requires auth)
+Route::post('websocket/validate-token', [WebSocketController::class, 'validateToken'])->middleware('auth:sanctum');
+
 
 // ----------------------
 // Protected
@@ -123,7 +128,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Products
     Route::post('products', [ProductController::class, 'store']);
-    Route::put('products/{slug}', [ProductController::class, 'update']);
+    Route::post('products/{slug}/update', [ProductController::class, 'update']);
     Route::delete('products/{slug}', [ProductController::class, 'destroy']);
     Route::patch('products/bulk-update-labels', [ProductController::class, 'bulkUpdateLabels']);
     Route::patch('products/bulk-update-active-status', [ProductController::class, 'bulkUpdateActiveStatus']);
@@ -174,6 +179,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('product-purchases/admin/{id}', [ProductPurchaseController::class, 'adminShow']);
     Route::put('product-purchases/{id}/status', [ProductPurchaseController::class, 'updateStatus']);
     Route::put('product-purchases/{id}/cancel', [ProductPurchaseController::class, 'cancel']);
+    Route::put('product-purchases/{id}/mark-received', [ProductPurchaseController::class, 'markAsReceived']);
     
     // Orders (product purchases only)
     Route::get('orders/admin', [ProductPurchaseController::class, 'adminOrders']);
@@ -255,6 +261,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('{id}/suspend', [AdminUserController::class, 'suspend']);
         Route::put('{id}/unsuspend', [AdminUserController::class, 'unsuspend']);
         Route::get('{id}/transactions', [AdminUserController::class, 'transactions']);
+    });
+
+    // Admin Counts (admin only)
+    Route::prefix('admin/counts')->group(function () {
+        Route::get('pending-orders', [AdminCountsController::class, 'pendingOrders']);
+        Route::get('pending-tickets', [AdminCountsController::class, 'pendingTickets']);
     });
 });
 

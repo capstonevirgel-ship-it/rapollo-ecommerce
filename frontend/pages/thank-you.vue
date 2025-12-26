@@ -9,7 +9,7 @@ const goToHome = () => {
 
 // Set page title
 useHead({
-  title: 'Thank You | RAPOLLO'
+  title: 'Thank You | monogram'
 })
 </script>
 
@@ -24,7 +24,7 @@ useHead({
       </div>
 
       <!-- Thank You Message -->
-      <h1 class="text-3xl font-winner-extra-bold text-gray-900 mb-4">
+      <h1 class="text-3xl font-poppins text-gray-900 mb-4">
         Thank You
       </h1>
       

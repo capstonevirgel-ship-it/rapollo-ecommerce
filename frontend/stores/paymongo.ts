@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 export interface PayMongoPaymentIntent {
   id: string
@@ -57,7 +58,7 @@ export const usePayMongoStore = defineStore('paymongo', () => {
     purchasableId: number, 
     metadata: any = {}
   ): Promise<PayMongoPaymentResponse> => {
-    const response = await $fetch('/api/payments/paymongo/intent', {
+    const response = await useCustomFetch('/api/payments/paymongo/intent', {
       method: 'POST',
       body: {
         amount,
@@ -76,7 +77,7 @@ export const usePayMongoStore = defineStore('paymongo', () => {
     purchasableType: 'App\\Models\\ProductPurchase' | 'App\\Models\\TicketPurchase',
     purchasableId: number
   ): Promise<PayMongoConfirmResponse> => {
-    const response = await $fetch('/api/payments/paymongo/confirm', {
+    const response = await useCustomFetch('/api/payments/paymongo/confirm', {
       method: 'POST',
       body: {
         payment_intent_id: paymentIntentId,
@@ -89,7 +90,7 @@ export const usePayMongoStore = defineStore('paymongo', () => {
   }
 
   const createRefund = async (paymentId: string, amount: number, reason: string = 'requested_by_customer') => {
-    const response = await $fetch('/api/payments/paymongo/refund', {
+    const response = await useCustomFetch('/api/payments/paymongo/refund', {
       method: 'POST',
       body: {
         payment_id: paymentId,

@@ -4,9 +4,9 @@
     <div class="bg-gradient-to-r from-zinc-900 to-zinc-700 text-white py-20">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center">
-          <h1 class="text-4xl md:text-5xl font-winner-extra-bold mb-6">About Rapollo</h1>
+          <h1 class="text-4xl md:text-5xl font-poppins mb-6">About monogram</h1>
           <p class="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
-            Where Bisaya rap battle culture meets fresh streetwear vibes
+            Premium brands and quality clothing for every style
           </p>
         </div>
       </div>
@@ -15,20 +15,20 @@
     <!-- Our Story Section -->
     <div class="py-16 bg-gray-50">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div class="grid grid-cols-1 lg:grid-cols-1 gap-12 items-center">
           <div>
-            <h2 class="text-3xl font-winner-extra-bold text-gray-900 mb-6">Our Story</h2>
+            <h2 class="text-3xl font-poppins text-gray-900 mb-6">Our Story</h2>
             <p class="text-lg text-gray-600 mb-6">
-              Born from the streets of the Visayas, Rapollo started as a dream to bring that authentic hip-hop 
-              culture to the Philippines. We're not just another clothing brand - we're a movement that 
-              celebrates the raw energy of rap battles, the creativity of street art, and the boldness 
-              of Bisaya culture across the islands.
+              Born from a passion for quality and style, monogram started as a dream to bring premium brands 
+              and quality clothing to the Philippines. We're not just another e-commerce platform - we're a 
+              destination that celebrates quality fashion, diverse brands, and exceptional customer service 
+              across the islands.
             </p>
             <p class="text-lg text-gray-600 mb-6">
-              From underground cyphers to mainstream success, we've been there. Our gear isn't just 
-              clothing - it's armor for the next battle, confidence for the next verse, and style 
-              that screams "Bisaya represent!" We're here to outfit the next generation of Filipino 
-              rap legends from the Visayas.
+              From local favorites to international brands, we've curated the best selection for you. Our 
+              products aren't just clothing - they're expressions of style, quality craftsmanship, and 
+              timeless fashion. We're here to serve the next generation of fashion-conscious Filipinos 
+              with the best brands and event experiences.
             </p>
              <!-- Stats Section -->
              <div v-if="loading">
@@ -70,7 +70,7 @@
     <div class="py-16">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-winner-extra-bold text-gray-900 mb-4">Our Mission & Values</h2>
+          <h2 class="text-3xl font-poppins text-gray-900 mb-4">Our Mission & Values</h2>
           <p class="text-lg text-gray-600 max-w-2xl mx-auto">
             We're committed to providing exceptional products and service while maintaining our core values
           </p>
@@ -83,7 +83,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 class="text-xl font-winner-extra-bold text-gray-900 mb-3">Quality First</h3>
+            <h3 class="text-xl font-poppins text-gray-900 mb-3">Quality First</h3>
             <p class="text-gray-600">
               We carefully select every product to ensure it meets our high standards for quality and durability.
             </p>
@@ -95,7 +95,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </div>
-            <h3 class="text-xl font-winner-extra-bold text-gray-900 mb-3">Customer Focus</h3>
+            <h3 class="text-xl font-poppins text-gray-900 mb-3">Customer Focus</h3>
             <p class="text-gray-600">
               Your satisfaction is our priority. We're here to help you find exactly what you're looking for.
             </p>
@@ -107,7 +107,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 class="text-xl font-winner-extra-bold text-gray-900 mb-3">Innovation</h3>
+            <h3 class="text-xl font-poppins text-gray-900 mb-3">Innovation</h3>
             <p class="text-gray-600">
               We continuously improve our platform and services to provide the best shopping experience.
             </p>
@@ -120,7 +120,7 @@
     <div class="py-16 bg-gray-50">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-          <h2 class="text-3xl font-winner-extra-bold text-gray-900 mb-4">Meet Our Team</h2>
+          <h2 class="text-3xl font-poppins text-gray-900 mb-4">Meet Our Team</h2>
           <p class="text-lg text-gray-600">
             The real ones behind the brand - Visayas' finest
           </p>
@@ -167,7 +167,7 @@
             <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <h3 class="text-lg font-winner-extra-bold text-gray-900 mb-2">Crew Coming Soon</h3>
+            <h3 class="text-lg font-poppins text-gray-900 mb-2">Crew Coming Soon</h3>
             <p class="text-gray-600">The squad is getting ready to drop their profiles. Stay tuned for the real ones!</p>
           </div>
         </div>
@@ -190,9 +190,9 @@ import TeamSkeleton from '~/components/skeleton/TeamSkeleton.vue'
 
 // Set page title and meta
 useHead({
-  title: 'About Us | RAPOLLO',
+  title: 'About Us | monogram',
   meta: [
-    { name: 'description', content: 'Meet Rapollo - The Visayas\' premier streetwear brand for rap battle enthusiasts. Discover our story, mission, and the crew behind the freshest drops in the Philippines.' }
+    { name: 'description', content: 'Meet monogram - Your premier destination for premium brands and quality clothing. Discover our story, mission, and commitment to bringing you the best fashion and event experiences in the Philippines.' }
   ]
 })
 

@@ -9,9 +9,19 @@ use App\Models\Profile;
 use App\Models\ShippingPrice;
 use App\Support\PhRegionResolver;
 use App\Models\Cart;
+use App\Models\User;
+use App\Services\NotificationService;
+use App\Mail\OrderCancelled;
+use App\Mail\OrderProcessing;
+use App\Mail\OrderShipped;
+use App\Mail\OrderDelivered;
+use App\Mail\OrderCompleted;
+use App\Mail\OrderReceivedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class ProductPurchaseController extends Controller
 {
@@ -131,6 +141,10 @@ class ProductPurchaseController extends Controller
             // Note: Cart will be cleared after successful payment, not here
 
             DB::commit();
+
+            // Broadcast count update to all admins via WebSocket
+            $pendingOrdersCount = \App\Models\ProductPurchase::where('status', 'pending')->count();
+            \App\Services\NotificationService::broadcastCountUpdate('pending_orders', $pendingOrdersCount);
 
             return response()->json([
                 'message' => 'Purchase created successfully',
@@ -364,6 +378,16 @@ class ProductPurchaseController extends Controller
                 }
             }
 
+            // Send email and notification based on status change
+            if ($oldStatus !== $request->status) {
+                $this->sendStatusChangeEmail($purchase, $request->status);
+                $this->sendStatusChangeNotification($purchase, $request->status);
+            }
+
+            // Broadcast count update to all admins via WebSocket
+            $pendingOrdersCount = ProductPurchase::where('status', 'pending')->count();
+            \App\Services\NotificationService::broadcastCountUpdate('pending_orders', $pendingOrdersCount);
+
             return response()->json([
                 'message' => 'Purchase status updated successfully',
                 'data' => $purchase
@@ -373,6 +397,183 @@ class ProductPurchaseController extends Controller
                 'error' => 'Failed to update purchase status',
                 'message' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Mark order as received (customer action)
+     */
+    public function markAsReceived($id)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Unauthorized'
+                ], 401);
+            }
+
+            $purchase = ProductPurchase::findOrFail($id);
+
+            // Check if user owns the purchase
+            if ($purchase->user_id !== $user->id) {
+                return response()->json([
+                    'error' => 'Unauthorized. You can only mark your own orders as received.'
+                ], 403);
+            }
+
+            // Only allow marking as received if status is 'delivered'
+            if ($purchase->status !== 'delivered') {
+                return response()->json([
+                    'error' => 'Invalid status',
+                    'message' => 'You can only mark orders as received when they are in delivered status.'
+                ], 400);
+            }
+
+            // Update status to completed
+            $purchase->status = 'completed';
+            $purchase->save();
+
+            // Send email to customer
+            $this->sendStatusChangeEmail($purchase, 'completed');
+
+            // Send notification to customer
+            $this->sendStatusChangeNotification($purchase, 'completed');
+
+            // Send email and notification to all admins
+            $adminUsers = User::where('role', 'admin')->get();
+            foreach ($adminUsers as $admin) {
+                try {
+                    Mail::to($admin->email)->send(new OrderReceivedNotification($purchase, $user));
+                } catch (\Exception $e) {
+                    Log::error('Failed to send order received notification email to admin', [
+                        'admin_id' => $admin->id,
+                        'purchase_id' => $purchase->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                NotificationService::createOrderNotification(
+                    $admin,
+                    'Order Received by Customer',
+                    'Customer ' . $user->user_name . ' has confirmed receipt of order #' . $purchase->id . '.',
+                    [
+                        'action_url' => '/admin/orders/' . $purchase->id,
+                        'action_text' => 'View Order'
+                    ]
+                );
+            }
+
+            return response()->json([
+                'message' => 'Order marked as received successfully',
+                'data' => $purchase->load(['items.variant.product', 'payment'])
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to mark order as received',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Send email based on order status
+     */
+    private function sendStatusChangeEmail(ProductPurchase $purchase, string $status): void
+    {
+        try {
+            $user = $purchase->user;
+            if (!$user || !$user->email) {
+                return;
+            }
+
+            $mailable = null;
+            switch ($status) {
+                case 'cancelled':
+                    $mailable = new OrderCancelled($purchase, $user);
+                    break;
+                case 'processing':
+                    $mailable = new OrderProcessing($purchase, $user);
+                    break;
+                case 'shipped':
+                    $mailable = new OrderShipped($purchase, $user);
+                    break;
+                case 'delivered':
+                    $mailable = new OrderDelivered($purchase, $user);
+                    break;
+                case 'completed':
+                    $mailable = new OrderCompleted($purchase, $user);
+                    break;
+            }
+
+            if ($mailable) {
+                Mail::to($user->email)->send($mailable);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send status change email', [
+                'purchase_id' => $purchase->id,
+                'status' => $status,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send notification based on order status
+     */
+    private function sendStatusChangeNotification(ProductPurchase $purchase, string $status): void
+    {
+        try {
+            $user = $purchase->user;
+            if (!$user) {
+                return;
+            }
+
+            $title = '';
+            $message = '';
+            $actionUrl = '/my-orders/' . $purchase->id;
+            $actionText = 'View Order';
+
+            switch ($status) {
+                case 'cancelled':
+                    $title = 'Order Cancelled';
+                    $message = 'Your order #' . $purchase->id . ' has been cancelled.';
+                    break;
+                case 'processing':
+                    $title = 'Order Processing';
+                    $message = 'Your order #' . $purchase->id . ' is now being processed.';
+                    break;
+                case 'shipped':
+                    $title = 'Order Shipped';
+                    $message = 'Your order #' . $purchase->id . ' has been shipped and is on its way.';
+                    break;
+                case 'delivered':
+                    $title = 'Order Delivered';
+                    $message = 'Your order #' . $purchase->id . ' has been delivered. Please confirm receipt.';
+                    break;
+                case 'completed':
+                    $title = 'Order Completed';
+                    $message = 'Your order #' . $purchase->id . ' has been marked as completed.';
+                    break;
+            }
+
+            if ($title && $message) {
+                NotificationService::createOrderNotification(
+                    $user,
+                    $title,
+                    $message,
+                    [
+                        'action_url' => $actionUrl,
+                        'action_text' => $actionText
+                    ]
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send status change notification', [
+                'purchase_id' => $purchase->id,
+                'status' => $status,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 
@@ -486,6 +687,12 @@ class ProductPurchaseController extends Controller
                 if ($purchaseUser && $purchaseUser->role === 'user') {
                     \App\Services\UserSuspensionService::checkAndSuspendIfNeeded($purchaseUser);
                 }
+            }
+
+            // Send email and notification for cancellation
+            if ($oldStatus !== 'cancelled') {
+                $this->sendStatusChangeEmail($purchase, 'cancelled');
+                $this->sendStatusChangeNotification($purchase, 'cancelled');
             }
 
             return response()->json([

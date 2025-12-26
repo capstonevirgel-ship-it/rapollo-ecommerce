@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import Image from '@tiptap/extension-image'
 import TextAlign from '@tiptap/extension-text-align'
 
 interface Props {
@@ -24,159 +23,6 @@ const editor = useEditor({
     TextAlign.configure({
       types: ['heading', 'paragraph'],
     }),
-    Image.extend({
-      addAttributes() {
-        return {
-          ...this.parent?.(),
-          width: {
-            default: null,
-            renderHTML: attributes => {
-              if (!attributes.width) {
-                return {}
-              }
-              return {
-                width: attributes.width,
-              }
-            },
-            parseHTML: element => element.getAttribute('width'),
-          },
-          height: {
-            default: null,
-            renderHTML: attributes => {
-              if (!attributes.height) {
-                return {}
-              }
-              return {
-                height: attributes.height,
-              }
-            },
-            parseHTML: element => element.getAttribute('height'),
-          },
-        }
-      },
-      addNodeView() {
-        return ({ node, HTMLAttributes, getPos, editor }) => {
-          const dom = document.createElement('div')
-          dom.className = 'image-wrapper'
-          dom.style.cssText = 'position: relative; display: inline-block; margin: 1rem 0;'
-          
-          const img = document.createElement('img')
-          img.src = node.attrs.src
-          img.alt = node.attrs.alt || ''
-          img.draggable = false
-          img.style.cssText = 'max-width: 100%; height: auto; display: block; vertical-align: middle;'
-          
-          if (node.attrs.width) {
-            img.style.width = `${node.attrs.width}px`
-          }
-          if (node.attrs.height) {
-            img.style.height = `${node.attrs.height}px`
-          }
-          
-          // Create resize handle container
-          const handle = document.createElement('div')
-          handle.className = 'resize-handle'
-          handle.setAttribute('contenteditable', 'false')
-          handle.style.cssText = `
-            position: absolute;
-            bottom: 10px;
-            right: -10px;
-            width: 16px;
-            height: 16px;
-            background: #3b82f6;
-            border: 2px solid white;
-            border-radius: 3px 0 0 0;
-            cursor: nwse-resize;
-            z-index: 1000;
-            box-shadow: -2px -2px 4px rgba(0, 0, 0, 0.3);
-            pointer-events: auto;
-            user-select: none;
-          `
-          
-          // Add hover effect via style
-          handle.addEventListener('mouseenter', () => {
-            handle.style.background = '#2563eb'
-            handle.style.transform = 'scale(1.1)'
-          })
-          handle.addEventListener('mouseleave', () => {
-            handle.style.background = '#3b82f6'
-            handle.style.transform = 'scale(1)'
-          })
-          
-          let isResizing = false
-          let startX = 0
-          let startWidth = 0
-          let aspectRatio = 0
-          
-          const handleMouseDown = (e: MouseEvent) => {
-            e.preventDefault()
-            e.stopPropagation()
-            isResizing = true
-            startX = e.clientX
-            startWidth = img.offsetWidth
-            aspectRatio = img.offsetWidth / img.offsetHeight
-            
-            const handleMouseMove = (e: MouseEvent) => {
-              if (!isResizing) return
-              e.preventDefault()
-              const deltaX = e.clientX - startX
-              const maxWidth = dom.parentElement?.clientWidth || 800
-              const newWidth = Math.max(50, Math.min(startWidth + deltaX, maxWidth - 20))
-              const newHeight = newWidth / aspectRatio
-              
-              img.style.width = `${newWidth}px`
-              img.style.height = `${newHeight}px`
-            }
-            
-            const handleMouseUp = () => {
-              if (!isResizing) return
-              isResizing = false
-              
-              const pos = getPos()
-              if (typeof pos === 'number' && editor) {
-                editor.commands.updateAttributes('image', {
-                  width: img.offsetWidth,
-                  height: img.offsetHeight,
-                })
-              }
-              
-              document.removeEventListener('mousemove', handleMouseMove)
-              document.removeEventListener('mouseup', handleMouseUp)
-            }
-            
-            document.addEventListener('mousemove', handleMouseMove)
-            document.addEventListener('mouseup', handleMouseUp, { once: true })
-          }
-          
-          handle.addEventListener('mousedown', handleMouseDown)
-          
-          dom.appendChild(img)
-          dom.appendChild(handle)
-          
-          return {
-            dom,
-            update: (updatedNode) => {
-              if (updatedNode.type.name !== 'image') return false
-              img.src = updatedNode.attrs.src
-              if (updatedNode.attrs.width) {
-                img.style.width = `${updatedNode.attrs.width}px`
-              } else {
-                img.style.width = ''
-              }
-              if (updatedNode.attrs.height) {
-                img.style.height = `${updatedNode.attrs.height}px`
-              } else {
-                img.style.height = ''
-              }
-              return true
-            },
-          }
-        }
-      },
-    }).configure({
-      inline: false,
-      allowBase64: false,
-    }),
   ],
   editorProps: {
     attributes: {
@@ -194,37 +40,6 @@ watch(() => props.modelValue, (newValue) => {
     editor.value.commands.setContent(newValue || '')
   }
 })
-
-// Image upload handler
-const handleImageUpload = async (file: File) => {
-  if (!file) return
-
-  const formData = new FormData()
-  formData.append('image', file)
-
-  try {
-    const response = await $fetch<{ success: boolean; url: string }>('/api/upload/event-content', {
-      method: 'POST',
-      body: formData,
-    })
-
-    if (response.success && response.url && editor.value) {
-      editor.value.chain().focus().setImage({ src: response.url }).run()
-    }
-  } catch (error) {
-    console.error('Error uploading image:', error)
-    // You might want to show an error notification here
-  }
-}
-
-// Handle image paste/drop
-const handleImageInput = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (target.files && target.files[0]) {
-    handleImageUpload(target.files[0])
-    target.value = '' // Reset input
-  }
-}
 
 </script>
 
@@ -380,20 +195,6 @@ const handleImageInput = (event: Event) => {
       >
         <Icon name="mdi:format-align-justify" class="w-5 h-5" />
       </button>
-
-      <!-- Divider -->
-      <div class="w-px h-6 bg-gray-300 mx-1"></div>
-
-      <!-- Image Upload -->
-      <label class="p-2 rounded hover:bg-gray-200 transition-colors cursor-pointer" title="Insert Image">
-        <Icon name="mdi:image-outline" class="w-5 h-5" />
-        <input
-          type="file"
-          accept="image/*"
-          class="hidden"
-          @change="handleImageInput"
-        />
-      </label>
     </div>
 
     <!-- Editor Content -->
@@ -415,62 +216,6 @@ const handleImageInput = (event: Event) => {
   color: #9ca3af;
   pointer-events: none;
   height: 0;
-}
-
-.rich-text-editor .ProseMirror .image-wrapper {
-  position: relative;
-  display: inline-block;
-  margin: 1rem 0;
-  max-width: 100%;
-}
-
-.rich-text-editor .ProseMirror .image-wrapper:hover {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-  border-radius: 0.375rem;
-}
-
-.rich-text-editor .ProseMirror .image-wrapper img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 0.375rem;
-  display: block;
-  user-select: none;
-  pointer-events: none;
-}
-
-.rich-text-editor .ProseMirror .image-wrapper .resize-handle {
-  position: absolute;
-  bottom: 10px;
-  right: -10px;
-  width: 16px;
-  height: 16px;
-  background: #3b82f6;
-  border: 2px solid white;
-  border-radius: 3px 0 0 0;
-  cursor: nwse-resize;
-  z-index: 1000;
-  box-shadow: -2px -2px 4px rgba(0, 0, 0, 0.3);
-  pointer-events: auto;
-  user-select: none;
-  transition: background 0.2s, transform 0.2s;
-}
-
-.rich-text-editor .ProseMirror .image-wrapper .resize-handle:hover {
-  background: #2563eb;
-  transform: scale(1.1);
-}
-
-.rich-text-editor .ProseMirror .image-wrapper .resize-handle:active {
-  background: #1d4ed8;
-  transform: scale(0.95);
-}
-
-.rich-text-editor .ProseMirror img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 0.375rem;
-  margin: 1rem 0;
 }
 
 .rich-text-editor .ProseMirror h1 {

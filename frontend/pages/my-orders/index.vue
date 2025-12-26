@@ -5,6 +5,8 @@ import { usePurchaseStore } from '~/stores/purchase'
 import { useRatingStore } from '~/stores/rating'
 import { useOrderStore } from '~/stores/order'
 import { useAlert } from '~/composables/useAlert'
+import { useCustomFetch } from '~/composables/useCustomFetch'
+import type { ReviewableProduct } from '~/types'
 import { getImageUrl, getPrimaryVariantImage } from '~/utils/imageHelper'
 import Dialog from '@/components/Dialog.vue'
 
@@ -16,9 +18,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'My Orders | RAPOLLO',
+  title: 'My Orders | monogram',
   meta: [
-    { name: 'description', content: 'Track and manage your orders at Rapollo E-commerce. View order history and status updates.' }
+    { name: 'description', content: 'Track and manage your orders at monogram E-commerce. View order history and status updates.' }
   ]
 })
 
@@ -131,7 +133,7 @@ const cancelOrder = async () => {
     await orderStore.cancelOrder(orderToCancel.id)
     success('Order Cancelled', 'Your order has been cancelled successfully.')
     // Refresh orders
-    const response = await $fetch('/api/product-purchases') as { data: any[] }
+    const response = await useCustomFetch('/api/product-purchases') as { data: any[] }
     orders.value = response.data || []
   } catch (err: any) {
     console.error('Error cancelling order:', err)
@@ -147,13 +149,13 @@ onMounted(async () => {
   isLoading.value = true
   try {
     // Fetch real orders from the API
-    const response = await $fetch('/api/product-purchases') as { data: any[] }
+    const response = await useCustomFetch('/api/product-purchases') as { data: any[] }
     orders.value = response.data || []
     
     // Fetch reviewed products to check which variants have been reviewed
     try {
       const reviewedProducts = await ratingStore.fetchReviewedProducts()
-      reviewedVariants.value = new Set(reviewedProducts.map(p => p.variant_id))
+      reviewedVariants.value = new Set(reviewedProducts.map((p: ReviewableProduct) => p.variant_id))
     } catch (error) {
       console.error('Failed to fetch reviewed products:', error)
     }
@@ -221,7 +223,7 @@ onMounted(async () => {
             <div
               v-for="order in orders"
               :key="order.id"
-              class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow duration-300"
+              class="bg-white rounded-xl shadow border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300"
             >
               <!-- Order Header -->
               <div class="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
@@ -319,12 +321,6 @@ onMounted(async () => {
                       class="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                     >
                       Cancel Order
-                    </button>
-                    <button
-                      v-if="order.status === 'processing' || order.status === 'completed'"
-                      class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                    >
-                      Track Package
                     </button>
                   </div>
                 </div>

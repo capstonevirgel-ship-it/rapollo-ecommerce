@@ -17,7 +17,7 @@ export interface ContactSettings {
   contact_address: string
   contact_facebook: string | null
   contact_instagram: string | null
-  contact_twitter: string | null
+  contact_youtube: string | null
 }
 
 export interface TeamSettings {

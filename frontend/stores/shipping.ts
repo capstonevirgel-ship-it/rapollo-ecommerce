@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 export interface ShippingPrice {
   id: number
@@ -46,7 +47,7 @@ export const useShippingStore = defineStore('shipping', {
       this.error = null
       
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           data: ShippingPrice[]
           available_regions: Record<string, string>
         }>('/api/shipping-prices')
@@ -66,7 +67,7 @@ export const useShippingStore = defineStore('shipping', {
       this.error = null
       
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           message: string
           data: ShippingPrice
         }>('/api/shipping-prices', {
@@ -89,7 +90,7 @@ export const useShippingStore = defineStore('shipping', {
       this.error = null
       
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           message: string
           data: ShippingPrice
         }>(`/api/shipping-prices/${id}`, {
@@ -115,7 +116,7 @@ export const useShippingStore = defineStore('shipping', {
       this.error = null
       
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           message: string
           data: ShippingPrice
         }>(`/api/shipping-prices/${id}`, {
@@ -140,7 +141,7 @@ export const useShippingStore = defineStore('shipping', {
       this.error = null
       
       try {
-        await $fetch(`/api/shipping-prices/${id}`, {
+        await useCustomFetch(`/api/shipping-prices/${id}`, {
           method: 'DELETE'
         })
         
@@ -158,7 +159,7 @@ export const useShippingStore = defineStore('shipping', {
       this.error = null
       
       try {
-        await $fetch('/api/shipping-prices/bulk-update', {
+        await useCustomFetch('/api/shipping-prices/bulk-update', {
           method: 'PUT',
           body: { prices }
         })
@@ -181,7 +182,7 @@ export const useShippingStore = defineStore('shipping', {
 
     async fetchActiveShippingPrices() {
       try {
-        const response = await $fetch<{
+        const response = await useCustomFetch<{
           data: Record<string, number>
         }>('/api/shipping-prices/active')
         

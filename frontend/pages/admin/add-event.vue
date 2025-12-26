@@ -25,9 +25,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Add Event - Admin | RAPOLLO',
+  title: 'Add Event - Admin | monogram',
   meta: [
-    { name: 'description', content: 'Create a new event in your Rapollo E-commerce store.' }
+    { name: 'description', content: 'Create a new event in your monogram E-commerce store.' }
   ]
 })
 
@@ -367,7 +367,7 @@ onMounted(() => {
                 <div class="flex-1 p-6 lg:p-8 flex flex-col gap-6">
                   <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                     <div class="space-y-2">
-                      <h1 class="text-2xl md:text-3xl font-winner-extra-bold text-gray-900 leading-tight">
+                      <h1 class="text-2xl md:text-3xl font-poppins text-gray-900 leading-tight">
                         {{ previewEvent.title }}
                       </h1>
                       <div v-if="previewEvent.location" class="text-sm font-medium text-gray-600 lg:hidden">
@@ -410,7 +410,7 @@ onMounted(() => {
                     <div class="w-12 h-12 bg-gray-50 border-2 border-gray-200 rounded-full [clip-path:inset(0_22px_0_0)]"></div>
                   </div>
                   <div class="flex flex-col items-center justify-center h-full w-full">
-                    <span class="text-xs font-winner-extra-bold tracking-[0.45em] text-gray-900 uppercase text-center whitespace-nowrap lg:-rotate-90 lg:origin-center lg:translate-y-[3.75rem]">
+                    <span class="text-xs font-poppins tracking-[0.45em] text-gray-900 uppercase text-center whitespace-nowrap lg:-rotate-90 lg:origin-center lg:translate-y-[3.75rem]">
                       YOUR TICKET NUMBER
                     </span>
                     <div class="mt-4 w-full h-px bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)] lg:h-24 lg:w-12 lg:bg-[repeating-linear-gradient(90deg,#111111 0px,#111111 2px,transparent 2px,transparent 4px)] lg:mt-6"></div>
@@ -422,7 +422,7 @@ onMounted(() => {
 
           <!-- About This Event Preview -->
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-            <h2 class="text-2xl font-winner-extra-bold text-gray-900 mb-4">About This Event</h2>
+            <h2 class="text-2xl font-poppins text-gray-900 mb-4">About This Event</h2>
             <div v-if="previewEvent.content" class="event-content-preview text-gray-600 leading-relaxed" v-html="previewEvent.content">
             </div>
             <p v-else class="text-gray-600 leading-relaxed">

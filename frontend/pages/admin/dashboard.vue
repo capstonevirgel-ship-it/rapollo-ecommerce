@@ -12,9 +12,9 @@ definePageMeta({
 
 // Set page title
 useHead({
-  title: 'Admin Dashboard | RAPOLLO',
+  title: 'Admin Dashboard | monogram',
   meta: [
-    { name: 'description', content: 'Manage your Rapollo E-commerce store from the admin dashboard.' }
+    { name: 'description', content: 'Manage your monogram E-commerce store from the admin dashboard.' }
   ]
 })
 
